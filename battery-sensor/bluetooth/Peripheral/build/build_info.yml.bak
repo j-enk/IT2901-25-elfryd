@@ -1,0 +1,6 @@
+west:
+  command: C:\ncs\toolchains\b620d30767\opt\bin\Scripts\west build --build-dir c:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build
+    c:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral --pristine --board
+    nrf51dk/nrf51822 -- -DNCS_TOOLCHAIN_VERSION=NONE -DBOARD_ROOT=c:/users/david/zephyrprojects/bt-fund/v2.9.0-v2.7.0/l3/peripheral
+  topdir: c:\ncs\v2.9.0
+  version: 1.2.0

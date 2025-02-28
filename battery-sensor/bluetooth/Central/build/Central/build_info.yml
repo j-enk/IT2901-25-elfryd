@@ -1,0 +1,47 @@
+cmake:
+  application:
+    configuration-dir: C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central
+    source-dir: C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central
+  board:
+    name: nrf51dk
+    qualifiers: nrf51822
+    revision: 
+  devicetree:
+    bindings-dirs:
+     - C:/ncs/v2.9.0/nrf/dts/bindings
+     - C:/ncs/v2.9.0/zephyr/dts/bindings
+    files:
+     - C:/ncs/v2.9.0/zephyr/boards/nordic/nrf51dk/nrf51dk_nrf51822.dts
+    include-dirs:
+     - C:/ncs/v2.9.0/nrf/include
+     - C:/ncs/v2.9.0/nrf/dts
+     - C:/ncs/v2.9.0/zephyr/include
+     - C:/ncs/v2.9.0/zephyr/include/zephyr
+     - C:/ncs/v2.9.0/zephyr/dts/common
+     - C:/ncs/v2.9.0/zephyr/dts/x86
+     - C:/ncs/v2.9.0/zephyr/dts/xtensa
+     - C:/ncs/v2.9.0/zephyr/dts/sparc
+     - C:/ncs/v2.9.0/zephyr/dts/riscv
+     - C:/ncs/v2.9.0/zephyr/dts/posix
+     - C:/ncs/v2.9.0/zephyr/dts/nios2
+     - C:/ncs/v2.9.0/zephyr/dts/arm64
+     - C:/ncs/v2.9.0/zephyr/dts/arm
+     - C:/ncs/v2.9.0/zephyr/dts/arc
+     - C:/ncs/v2.9.0/zephyr/dts
+  kconfig:
+    files:
+     - C:/ncs/v2.9.0/zephyr/boards/nordic/nrf51dk/nrf51dk_nrf51822_defconfig
+     - C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/prj.conf
+     - C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/Central/zephyr/.config.sysbuild
+    user-files:
+     - C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/prj.conf
+  toolchain:
+    name: zephyr
+    path: C:/ncs/toolchains/b620d30767/opt/zephyr-sdk
+  vendor-specific:
+    nordic:
+      svdfile: C:/ncs/v2.9.0/modules/hal/nordic/nrfx/mdk/nrf51.svd
+  zephyr:
+    version: 3.7.99
+    zephyr-base: C:/ncs/v2.9.0/zephyr
+version: 0.1.0

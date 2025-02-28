@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/CMakeFiles/Peripheral"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/CMakeFiles/Peripheral.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/CMakeFiles/Peripheral-complete.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-build.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-configure.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-download.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-install.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-patch.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/_sysbuild/sysbuild/images/Peripheral-prefix/src/Peripheral-stamp/Peripheral-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"Peripheral"
+		],
+		"name" : "Peripheral"
+	}
+}

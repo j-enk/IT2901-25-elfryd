@@ -1,0 +1,10 @@
+app:
+  address: 0x0
+  end_address: 0x40000
+  region: flash_primary
+  size: 0x40000
+sram_primary:
+  address: 0x20000000
+  end_address: 0x20008000
+  region: sram_primary
+  size: 0x8000

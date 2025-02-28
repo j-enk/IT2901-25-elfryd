@@ -1,0 +1,7 @@
+default: Central
+build_dir: C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build
+domains:
+  - name: Central
+    build_dir: C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/Central
+flash_order:
+  - Central

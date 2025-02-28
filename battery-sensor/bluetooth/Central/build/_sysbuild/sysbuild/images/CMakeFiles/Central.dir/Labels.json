@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/CMakeFiles/Central"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/CMakeFiles/Central.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/CMakeFiles/Central-complete.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-build.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-configure.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-download.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-install.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-mkdir.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-patch.rule"
+		},
+		{
+			"file" : "C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Central/build/_sysbuild/sysbuild/images/Central-prefix/src/Central-stamp/Central-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"Central"
+		],
+		"name" : "Central"
+	}
+}
