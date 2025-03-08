@@ -1,0 +1,104 @@
+# Dockerfile for nRF Connect SDK v2.9.0
+FROM ubuntu:22.04
+
+# Create directory for ccache and set its permissions
+RUN apt-get update && \
+    apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    ninja-build \
+    python3 \
+    python3-pip \
+    python3-setuptools \
+    python3-venv \
+    dfu-util \
+    wget \
+    unzip \
+    apt-utils \
+    lsb-release \
+    libncurses5-dev \
+    libncursesw5-dev \
+    zlib1g-dev \
+    libssl-dev \
+    libusb-1.0-0-dev \
+    gcc \
+    g++ \
+    make \
+    gawk \
+    vim \
+    sudo \
+    curl \
+    udev
+
+RUN pip3 install west
+
+# Install the Zephyr SDK
+# Remove the other architectures, if you want to keep an architecture remove the rm.
+RUN cd /opt/ \
+    && wget https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64.tar.xz \
+    && tar -xf zephyr-sdk-0.17.0_linux-x86_64.tar.xz \
+    && rm zephyr-sdk-0.17.0_linux-x86_64.tar.xz \
+    && cd zephyr-sdk-0.17.0 \
+    && rm -rf aarch-zephyr-elf \
+    && rm -rf arc-zephyr-elf \
+    && rm -rf arc64-zephyr-elf \
+    && rm -rf microblazeel-zephyr-elf \
+    && rm -rf mips-zephyr-elf \
+    && rm -rf nios2-zephyr-elf \
+    && rm -rf riscv64-zephyr-elf \
+    && rm -rf sparc-zephyr-elf \
+    && rm -rf x86_64-zephyr-elf \
+    && rm -rf xtensa-amd_acp_6_0_adsp_zephyr-elf \
+    && rm -rf xtensa-dc233c_zephyr-elf \
+    && rm -rf xtensa-espressif_esp32_zephyr-elf \
+    && rm -rf xtensa-espressif_esp32s2_zephyr-elf \
+    && rm -rf xtensa-espressif_esp32s3_zephyr-elf \
+    && rm -rf xtensa-intel_ace15_mtpm_zephyr-elf \
+    && rm -rf xtensa-intel_ace30_ptl_zephyr-elf \
+    && rm -rf xtensa-intel_tgl_adsp_zephyr-elf \
+    && rm -rf xtensa-mtk_mt8195_adsp_zephyr-elf \
+    && rm -rf xtensa-nxp_imx_adsp_zephyr-elf \
+    && rm -rf xtensa-nxp_imx8m_adsp_zephyr-elf \
+    && rm -rf xtensa-nxp_imx8ulp_adsp_zephyr-elf \
+    && rm -rf xtensa-nxp_rt500_adsp_zephyr-elf \
+    && rm -rf xtensa-nxp_rt600_adsp_zephyr-elf \
+    && rm -rf xtensa-nxp_rt700_hifi1_zephyr-elf \
+    && rm -rf xtensa-nxp_rt700_hifi4_zephyr-elf \
+    && rm -rf xtensa-sample_controller_zephyr-elf \
+    && rm -rf xtensa-sample_controller32_zephyr-elf
+
+# Install the nrf command line tools
+# nrf-command-line-tools opens a folder: nrf-command-line-tools
+# Jlink opens a folder: JLink-Linux_V794e_x86_64
+RUN cd /opt/ \
+    && wget "https://nsscprodmedia.blob.core.windows.net/prod/software-and-other-downloads/desktop-software/nrf-command-line-tools/sw/versions-10-x-x/10-24-2/nrf-command-line-tools-10.24.2_linux-amd64.tar.gz" \
+    && tar -xvf nrf-command-line-tools-10.24.2_linux-amd64.tar.gz \
+    && tar -xf JLink_Linux_V794e_x86_64.tgz \
+    && rm nrf-command-line-tools-10.24.2_linux-amd64.tar.gz \
+    && rm JLink_Linux_V794e_x86_64.tgz
+
+ENV ZEPHYR_TOOLCHAIN_VARIANT=zephyr
+ENV PATH=$PATH:/opt/nrf-command-line-tools/bin
+
+# Install the nrf connect sdk v2.9
+RUN cd /opt \
+    && west init -m https://github.com/nrfconnect/sdk-nrf --mr v2.9-branch \
+    && cd nrf \
+    && west update 
+
+# Set environments
+ENV ZEPHYR_BASE=/opt/zephyr
+ENV PATH=$PATH:/opt/zephyr/scripts
+
+RUN west zephyr-export \
+    && pip install -r ${ZEPHYR_BASE}/scripts/requirements.txt
+
+RUN cd /opt/JLink_Linux_V794e_x86_64/ \
+    && cp 99-jlink.rules /etc/udev/rules.d/
+RUN service udev start
+
+
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/JLink_Linux_V794e_x86_64
+
+WORKDIR /workspace
