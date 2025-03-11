@@ -17,6 +17,9 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/drivers/gpio.h>
 
+#include <math.h>
+#include <zephyr/kernel.h>
+
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 };
@@ -116,11 +119,18 @@ static void blink_stop(void)
 	gpio_pin_set(led.port, led.pin, (int)led_is_on);
 }
 
-static uint8_t my_data = 123;
 static ssize_t read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 			 void *buf, uint16_t len, uint16_t offset)
 {
-	my_data += 1; // overflow -> loop around
+
+	int64_t ms = k_uptime_get();
+
+	double s = ms / 1000.0;
+	double y = cos(s / 10);
+
+	int32_t my_data = (int32_t) (y * 1000);
+
+	printk("uptime = %lld, my_data = %d\n", ms, my_data);
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data,
 				 sizeof(my_data));
