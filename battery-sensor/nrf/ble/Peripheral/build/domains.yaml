@@ -1,7 +1,0 @@
-default: Peripheral
-build_dir: C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build
-domains:
-  - name: Peripheral
-    build_dir: C:/Users/david/ZephyrProjects/bt-fund/v2.9.0-v2.7.0/l3/Peripheral/build/Peripheral
-flash_order:
-  - Peripheral

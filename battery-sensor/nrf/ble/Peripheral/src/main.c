@@ -1,154 +1,185 @@
+/* main.c - Application main entry point */
+
 /*
- * Copyright (c) 2023 Nordic Semiconductor ASA
+ * Copyright (c) 2024 Nordic Semiconductor ASA
+ * Copyright (c) 2015-2016 Intel Corporation
  *
- * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+
 #include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/gap.h>
-#include <zephyr/bluetooth/gatt.h>
-#include <zephyr/bluetooth/uuid.h>
-#include <zephyr/bluetooth/addr.h>
-/* STEP 1 - Include the header file for managing Bluetooth LE Connections */
+#include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/conn.h>
-/* STEP 8.2 - Include the header file for the LED Button Service */
-#include <bluetooth/services/lbs.h>
-#include <dk_buttons_and_leds.h>
-
-#define USER_BUTTON DK_BTN1_MSK
-#define RUN_STATUS_LED DK_LED1
-/* STEP 3.1 - Define an LED to show the connection status */
-#define CONNECTION_STATUS_LED   DK_LED2
-#define RUN_LED_BLINK_INTERVAL 1000
-
-struct bt_conn *my_conn = NULL;
-
-static const struct bt_le_adv_param *adv_param = BT_LE_ADV_PARAM(
-	(BT_LE_ADV_OPT_CONNECTABLE |
-	 BT_LE_ADV_OPT_USE_IDENTITY), /* Connectable advertising and use identity address */
-	BT_GAP_ADV_FAST_INT_MIN_1, /* 0x30 units, 48 units, 30ms */
-	BT_GAP_ADV_FAST_INT_MAX_1, /* 0x60 units, 96 units, 60ms */
-	NULL); /* Set to NULL for undirected advertising */
-
-LOG_MODULE_REGISTER(Lesson3_Exercise1, LOG_LEVEL_INF);
-
-#define DEVICE_NAME CONFIG_BT_DEVICE_NAME
-#define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
+#include <zephyr/bluetooth/uuid.h>
+#include <zephyr/bluetooth/gatt.h>
+#include <zephyr/drivers/gpio.h>
 
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-	BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, DEVICE_NAME_LEN),
 };
 
 static const struct bt_data sd[] = {
-	BT_DATA_BYTES(BT_DATA_UUID128_ALL,
-		      BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd123)),
+	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
-/* STEP 2.2 - Implement the callback functions */
-void on_connected(struct bt_conn *conn, uint8_t err)
+/* Use atomic variable, 2 bits for connection and disconnection state */
+static ATOMIC_DEFINE(state, 2U);
+
+#define STATE_CONNECTED    1U
+#define STATE_DISCONNECTED 2U
+
+static void connected(struct bt_conn *conn, uint8_t err)
 {
-    if (err) {
-        LOG_ERR("Connection error %d", err);
-        return;
-    }
-    LOG_INF("Connected");
-    my_conn = bt_conn_ref(conn);
+	if (err) {
+		printk("Connection failed, err 0x%02x %s\n", err, bt_hci_err_to_str(err));
+	} else {
+		printk("Connected!!!\n");
 
-    /* STEP 3.2  Turn the connection status LED on */
-	dk_set_led(CONNECTION_STATUS_LED, 1);
-}
-
-void on_disconnected(struct bt_conn *conn, uint8_t reason)
-{
-    LOG_INF("Disconnected. Reason %d", reason);
-    bt_conn_unref(my_conn);
-
-    /* STEP 3.3  Turn the connection status LED off */
-	dk_set_led(CONNECTION_STATUS_LED, 0);
-}
-/* STEP 2.1 - Declare the connection_callback structure */
-struct bt_conn_cb connection_callbacks = {
-    .connected              = on_connected,
-    .disconnected           = on_disconnected,
-};
-/* STEP 8.3 - Send a notification using the LBS characteristic. */
-static void button_changed(uint32_t button_state, uint32_t has_changed)
-{
-	int err;
-	bool user_button_changed = (has_changed & USER_BUTTON) ? true : false;
-	bool user_button_pressed = (button_state & USER_BUTTON) ? true : false;
-	if (user_button_changed) {
-		LOG_INF("Button %s", (user_button_pressed ? "pressed" : "released"));
-
-		err = bt_lbs_send_button_state(user_button_pressed);
-		if (err) {
-			LOG_ERR("Couldn't send notification. (err: %d)", err);
-		}
+		(void)atomic_set_bit(state, STATE_CONNECTED);
 	}
 }
 
-static int init_button(void)
+static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	int err = 0;
-	/* STEP 8.4 - Complete the implementation of the init_button() function. */
-    err = dk_buttons_init(button_changed);
-    if (err) {
-        LOG_ERR("Cannot init buttons (err: %d)", err);
-    }
-	return err;
+	printk("Disconnected, reason 0x%02x %s\n", reason, bt_hci_err_to_str(reason));
+
+	(void)atomic_set_bit(state, STATE_DISCONNECTED);
 }
+
+BT_CONN_CB_DEFINE(conn_callbacks) = {
+	.connected = connected,
+	.disconnected = disconnected,
+};
+
+/* The devicetree node identifier for the "led0" alias. */
+#define LED0_NODE DT_ALIAS(led0)
+
+#define HAS_LED     1
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+#define BLINK_ONOFF K_MSEC(500)
+
+static struct k_work_delayable blink_work;
+static bool                  led_is_on;
+
+static void blink_timeout(struct k_work *work)
+{
+	led_is_on = !led_is_on;
+	gpio_pin_set(led.port, led.pin, (int)led_is_on);
+
+	k_work_schedule(&blink_work, BLINK_ONOFF);
+}
+
+static int blink_setup(void)
+{
+	int err;
+
+	printk("Checking LED device...");
+	if (!gpio_is_ready_dt(&led)) {
+		printk("failed.\n");
+		return -EIO;
+	}
+	printk("done.\n");
+
+	printk("Configuring GPIO pin...");
+	err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
+	if (err) {
+		printk("failed.\n");
+		return -EIO;
+	}
+	printk("done.\n");
+
+	k_work_init_delayable(&blink_work, blink_timeout);
+
+	return 0;
+}
+
+static void blink_start(void)
+{
+	printk("Start blinking LED...\n");
+	led_is_on = false;
+	gpio_pin_set(led.port, led.pin, (int)led_is_on);
+	k_work_schedule(&blink_work, BLINK_ONOFF);
+}
+
+static void blink_stop(void)
+{
+	struct k_work_sync work_sync;
+
+	printk("Stop blinking LED.\n");
+	k_work_cancel_delayable_sync(&blink_work, &work_sync);
+
+	/* Keep LED on */
+	led_is_on = true;
+	gpio_pin_set(led.port, led.pin, (int)led_is_on);
+}
+
+static uint8_t my_data = 123;
+static ssize_t read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+			 void *buf, uint16_t len, uint16_t offset)
+{
+	my_data += 1; // overflow -> loop around
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data,
+				 sizeof(my_data));
+}
+
+BT_GATT_SERVICE_DEFINE(vol_svc,
+	BT_GATT_PRIMARY_SERVICE(BT_UUID_GATT_V),
+	BT_GATT_CHARACTERISTIC(BT_UUID_GATT_V, BT_GATT_CHRC_READ,
+		BT_GATT_PERM_READ, read_function, NULL, NULL),
+);
+
 
 int main(void)
 {
-	int blink_status = 0;
 	int err;
 
-	LOG_INF("Starting Lesson 3 - Exercise 1\n");
-
-	err = dk_leds_init();
-	if (err) {
-		LOG_ERR("LEDs init failed (err %d)", err);
-		return -1;
-	}
-
-	err = init_button();
-	if (err) {
-		LOG_INF("Button init failed (err %d)", err);
-		return -1;
-	}
-	bt_addr_le_t addr;
-    err = bt_addr_le_from_str("FF:EE:DD:CC:BB:AA", "random", &addr);
-    if (err) {
-        printk("Invalid BT address (err %d)\n", err);
-    }
-
-    err = bt_id_create(&addr, NULL);
-    if (err < 0) {
-        printk("Creating new ID failed (err %d)\n", err);
-    }
-
-	/* STEP 2.3 - Register our custom callbacks */
-	bt_conn_cb_register(&connection_callbacks);
 	err = bt_enable(NULL);
 	if (err) {
-		LOG_ERR("Bluetooth init failed (err %d)", err);
-		return -1;
+		printk("Bluetooth init failed (err %d)\n", err);
+		return 0;
 	}
 
-	LOG_INF("Bluetooth initialized");
-	err = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	printk("Bluetooth initialized\n");
+
+	printk("Starting Legacy Advertising (connectable and scannable)\n");
+	err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 	if (err) {
-		LOG_ERR("Advertising failed to start (err %d)", err);
-		return -1;
+		printk("Advertising failed to start (err %d)\n", err);
+		return 0;
 	}
 
-	LOG_INF("Advertising successfully started");
+	printk("Advertising successfully started\n");
 
-	for (;;) {
-		dk_set_led(RUN_STATUS_LED, (++blink_status) % 2);
-		k_sleep(K_MSEC(RUN_LED_BLINK_INTERVAL));
+	err = blink_setup();
+	if (err) {
+		return 0;
 	}
+
+	blink_start();
+
+	/* Implement notification. */
+	while (1) {
+		k_sleep(K_SECONDS(1));
+
+		if (atomic_test_and_clear_bit(state, STATE_CONNECTED)) {
+			/* Connected callback executed */
+			blink_stop();
+		} else if (atomic_test_and_clear_bit(state, STATE_DISCONNECTED)) {
+			printk("Starting Legacy Advertising (connectable and scannable)\n");
+			err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_1, ad, ARRAY_SIZE(ad), sd,
+					      ARRAY_SIZE(sd));
+			if (err) {
+				printk("Advertising failed to start (err %d)\n", err);
+				return 0;
+			}
+
+			blink_start();
+		}
+	}
+
+	return 0;
 }
