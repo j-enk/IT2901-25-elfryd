@@ -163,7 +163,6 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	}
 
 	printk("Connected: %s\n", addr);
-	// bt_conn_disconnect(conn, BT_HCI_ERR_REMOTE_USER_TERM_CONN);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -212,13 +211,6 @@ int main(void)
 	k_timer_start(&regular_timer, K_SECONDS(2), K_SECONDS(2));
 
 	start_scan();
-
-	// keep main thread alive, probably not necessary
-	// while(1) {
-	// 	// printk("Timer %d\n", k_timer_status_get(&disconnect_timer));
-	// 	k_sleep(K_MSEC(10));
-	// }
-
 	
 	return 0;
 }
