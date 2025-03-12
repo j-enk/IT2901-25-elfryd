@@ -101,7 +101,7 @@ static int blink_setup(void)
 
 static void blink_start(void)
 {
-	printk("Start blinking LED...\n");
+	// printk("Start blinking LED...\n");
 	led_is_on = false;
 	gpio_pin_set(led.port, led.pin, (int)led_is_on);
 	k_work_schedule(&blink_work, BLINK_ONOFF);
@@ -111,7 +111,7 @@ static void blink_stop(void)
 {
 	struct k_work_sync work_sync;
 
-	printk("Stop blinking LED.\n");
+	// printk("Stop blinking LED.\n");
 	k_work_cancel_delayable_sync(&blink_work, &work_sync);
 
 	/* Keep LED on */
