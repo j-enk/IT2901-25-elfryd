@@ -72,25 +72,25 @@ cat ~/.ssh/id_ed25519.pub
 
 5. Initialize empty repo:
 ```bash
-git init ElfrydDockerTesting
-cd ElfrydDockerTesting
+git init elfryd
+cd elfryd
 ```
 
 6. Add the remote repository:
 ```bash
-git remote add origin git@github.com:yourusername/ElfrydDockerTesting.git
+git remote add origin git@github.com:j-enk/IT2901-25-elfryd.git
 ```
 
 7. Configure sparse checkout:
 ```bash
 git config core.sparseCheckout true
-echo "azure_broker" >> .git/info/sparse-checkout
+echo "battery-sensor/broker" >> .git/info/sparse-checkout
 ```
 
-8. Pull the `azure_broker` directory:
+8. Pull the `broker` directory:
 ```bash
 git pull origin main
-cd azure_broker
+cd battery-sensor/broker
 ```
 
 ### 6. Run the Installation Script
@@ -112,7 +112,7 @@ The script will:
 From your local machine:
 
 ```bash
-scp yourusername@your-vm-dns-name:~/ElfrydDockerTesting/azure_broker/elfryd_client_certs.tar.gz .
+scp yourusername@your-vm-dns-name:~/elfryd/battery-sensor/broker/elfryd_client_certs.tar.gz .
 tar -xzf elfryd_client_certs.tar.gz
 ```
 
@@ -342,4 +342,4 @@ Run `pip install paho-mqtt` to install the Paho MQTT client library if you don't
 
 ### Zephyr Example
 
-See the [nRF9160 Feather docs](../feather_chip/README.md) for a Zephyr-based MQTT client.
+See the [nRF9160 Feather docs](../nrf/hub/README.md) for a Zephyr-based MQTT client.
