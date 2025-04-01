@@ -1,0 +1,8 @@
+# Generated files
+log-*.txt
+build/
+
+# Hide actual certificates
+certs/ca.crt
+src/certificates.h
+
