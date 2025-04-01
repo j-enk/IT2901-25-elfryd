@@ -20,6 +20,9 @@
 #include <math.h>
 #include <zephyr/kernel.h>
 
+#define BAUT_VOLTAGE
+#define BAUT_TEMPERATURE
+
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
 };
@@ -60,12 +63,12 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
 
-#define HAS_LED     1
+#define HAS_LED 1
 static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 #define BLINK_ONOFF K_MSEC(500)
 
 static struct k_work_delayable blink_work;
-static bool                  led_is_on;
+static bool led_is_on;
 
 static void blink_timeout(struct k_work *work)
 {
@@ -119,8 +122,8 @@ static void blink_stop(void)
 	gpio_pin_set(led.port, led.pin, (int)led_is_on);
 }
 
-static ssize_t read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr,
-			 void *buf, uint16_t len, uint16_t offset)
+static ssize_t vol_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
+				 uint16_t len, uint16_t offset)
 {
 
 	int64_t ms = k_uptime_get();
@@ -128,20 +131,40 @@ static ssize_t read_function(struct bt_conn *conn, const struct bt_gatt_attr *at
 	double s = ms / 1000.0;
 	double y = cos(s / 10);
 
-	int32_t my_data = (int32_t) (y * 1000);
+	int32_t my_data = (int32_t)(y * 1000);
 
-	printk("uptime = %lld, my_data = %d\n", ms, my_data);
+	printk("VOLT: uptime = %8lld, value = %5d\n", ms, my_data);
 
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data,
-				 sizeof(my_data));
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data, sizeof(my_data));
 }
 
-BT_GATT_SERVICE_DEFINE(vol_svc,
-	BT_GATT_PRIMARY_SERVICE(BT_UUID_GATT_V),
-	BT_GATT_CHARACTERISTIC(BT_UUID_GATT_V, BT_GATT_CHRC_READ,
-		BT_GATT_PERM_READ, read_function, NULL, NULL),
-);
+static ssize_t temp_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
+				  uint16_t len, uint16_t offset)
+{
 
+	int64_t ms = k_uptime_get();
+
+	double s = ms / 1000.0;
+	double y = 20 + cos(s / 10) * 10; // 20 + [-10, 10] = [10, 30]
+
+	int32_t my_data = (int32_t)(y);
+
+	printk("TEMP: uptime = %8lld, value = %5d\n", ms, my_data);
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data, sizeof(my_data));
+}
+
+#ifdef BAUT_VOLTAGE
+BT_GATT_SERVICE_DEFINE(vol_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_GATT_V),
+		       BT_GATT_CHARACTERISTIC(BT_UUID_GATT_V, BT_GATT_CHRC_READ, BT_GATT_PERM_READ,
+					      vol_read_function, NULL, NULL), );
+#endif
+
+#ifdef BAUT_TEMPERATURE
+BT_GATT_SERVICE_DEFINE(tmp_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_TEMPERATURE),
+		       BT_GATT_CHARACTERISTIC(BT_UUID_TEMPERATURE, BT_GATT_CHRC_READ,
+					      BT_GATT_PERM_READ, temp_read_function, NULL, NULL), );
+#endif
 
 int main(void)
 {
@@ -171,7 +194,6 @@ int main(void)
 
 	blink_start();
 
-	/* Implement notification. */
 	while (1) {
 		k_sleep(K_SECONDS(1));
 
