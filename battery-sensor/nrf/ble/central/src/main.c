@@ -26,6 +26,7 @@ static void start_scan(void);
 
 static struct bt_conn *default_conn;
 
+
 static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 			 struct net_buf_simple *ad)
 {
