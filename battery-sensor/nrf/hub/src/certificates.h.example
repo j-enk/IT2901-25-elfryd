@@ -1,0 +1,11 @@
+#ifndef CERTIFICATES_H
+#define CERTIFICATES_H
+
+static const char ca_certificate[] = 
+"-----BEGIN CERTIFICATE-----\n"
+"MIIDvjCCAqagAwIBAgIUfCo4krceLgBEMbqMah9gjpSFLCkwDQYJKoZIhvcNAQEL\n"
+/* rest of the certificate */
+"4TU=\n"
+"-----END CERTIFICATE-----\n";
+
+#endif /* CERTIFICATES_H */

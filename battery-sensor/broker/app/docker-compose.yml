@@ -1,0 +1,72 @@
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    container_name: mqtt-broker
+    ports:
+      - "8885:8885"      # TLS MQTT port (for secure external devices)
+    volumes:
+      - ./mqtt-broker/config:/mosquitto/config
+      - ../certs:/mosquitto/certs
+      - mqtt-data:/mosquitto/data
+      - mqtt-log:/mosquitto/log
+    restart: always
+    networks:
+      - elfryd-network
+      
+  timescaledb:
+    image: timescale/timescaledb:latest-pg17
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mqtt_data
+    # No port exposing - only accessible from within Docker network
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - elfryd-network
+      
+  mqtt-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    container_name: mqtt-bridge
+    depends_on:
+      - mqtt-broker
+      - timescaledb
+    restart: always
+    volumes:
+      - ../certs:/app/certs
+    networks:
+      - elfryd-network
+      
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: elfryd-api
+    ports:
+      - "8000:8000"      # API port (exposed externally)
+    depends_on:
+      - mqtt-broker
+      - timescaledb
+      - mqtt-bridge
+    restart: always
+    volumes:
+      - ../certs:/app/certs
+    networks:
+      - elfryd-network
+
+networks:
+  elfryd-network:
+    name: elfryd-network
+    driver: bridge
+
+volumes:
+  timescaledb-data:
+    name: elfryd-timescaledb-data
+  mqtt-data:
+    name: elfryd-mqtt-data
+  mqtt-log:
+    name: elfryd-mqtt-log
