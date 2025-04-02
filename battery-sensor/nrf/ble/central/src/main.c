@@ -19,14 +19,14 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/sys/byteorder.h>
 
-
-int max_connections = 16;
 typedef struct{
 	struct bt_conn *kobling;
 	struct bt_addr_le_t address;
 } Connections;
 int connection_index = 0;
-Connections *connections = (*Connections) malloc(sizeof(Connections)*max_connections);
+
+#define MAX_CONNECTIONS 16;
+Connections connections[MAX_CONNECTIONS];
 
 
 static const uint8_t filter_uuid[] = {
@@ -79,7 +79,7 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
     // If UUID was not found, return
     if (!found_uuid) return;
 	int found = 0;
-	for(int i = 0; i<max_connections;i++){
+	for(int i = 0; i<MAX_CONNECTIONS;i++){
 		if (strncmp(addr_str, connections[i], 17) == 0) {
 			found = 1;
 			break;
