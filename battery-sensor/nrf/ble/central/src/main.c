@@ -19,6 +19,23 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/sys/byteorder.h>
 
+
+int max_connections = 16;
+typedef struct{
+	struct bt_conn *kobling;
+	struct bt_addr_le_t address;
+} Connections;
+int connection_index = 0;
+Connections *connections = (*Connections) malloc(sizeof(Connections)*max_connections);
+
+
+static const uint8_t filter_uuid[] = {
+    0xCD, 0xEE, 0x3D, 0x67,  
+    0x35, 0xCD, 0x3A, 0x94,  
+    0x1D, 0x45, 0xBD, 0xB7,  
+    0x5E, 0x67, 0x70, 0xBF  
+};
+
 static void regular(struct k_timer *);
 K_TIMER_DEFINE(regular_timer, regular, NULL);
 
@@ -32,6 +49,7 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 {
 	char addr_str[BT_ADDR_LE_STR_LEN];
 	int err;
+	struct bt_data data;
 
 	if (default_conn) {
 		return;
@@ -45,15 +63,29 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 	bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
 
 	/* connect only to devices in close proximity */
-	if (rssi < -60) {
-		return;
-	}
+	// if (rssi < -60) {
+	// 	return;
+	// }
 
-	if (strncmp(addr_str, "DB:F7:59:82:13:DA", 17) != 0) {
-		printk("Skip: %s (RSSI %d) (wanted %s)\n", addr_str, rssi, "DB:F7:59:82:13:DA");
-		return;
-	}
+	// Usikker på om dette er riktig måte å gjøre det på
+	bt_data_parse(ad, [](struct bt_data *data, void *user_data) {
+        if (data->type == BT_DATA_UUID128_ALL && data->data_len == 16) {
+            if (memcmp(data->data, target_uuid, 16) == 0) {
+                *(bool *)user_data = true;
+            }
+        }
+    }, &found_uuid);
 
+    // If UUID was not found, return
+    if (!found_uuid) return;
+	int found = 0;
+	for(int i = 0; i<max_connections;i++){
+		if (strncmp(addr_str, connections[i], 17) == 0) {
+			found = 1;
+			break;
+		}
+	}
+	if(!found)return;
 	printk("Device found: %s (RSSI %d)\n", addr_str, rssi);
 
 	if (bt_le_scan_stop()) {
@@ -61,10 +93,14 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 	}
 
 	err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN, BT_LE_CONN_PARAM_DEFAULT,
-				&default_conn);
+				&connections[connection_index].kobling);
 	if (err) {
 		printk("Create conn to %s failed (%d)\n", addr_str, err);
 		start_scan();
+	}	
+	int err = bt_addr_le_from_str(addr_str, &connections[connection_index++].addr);
+	if (err) {
+		printk("Failed to parse address: %s\n", addr_str);
 	}
 }
 
@@ -72,7 +108,7 @@ static void start_scan(void)
 {
 	int err;
 
-	/* This demo doesn't require active scan */
+	//Starts the scanning on chip
 	err = bt_le_scan_start(BT_LE_SCAN_PASSIVE, device_found);
 	if (err) {
 		printk("Scanning failed to start (err %d)\n", err);
@@ -202,6 +238,7 @@ int main(void)
 {
 	int err;
 
+	//Enable bluetooth
 	err = bt_enable(NULL);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
@@ -211,6 +248,7 @@ int main(void)
 	printk("Bluetooth initialized\n");
 	k_timer_start(&regular_timer, K_SECONDS(2), K_SECONDS(2));
 
+	//scan for a connection
 	start_scan();
 	
 	return 0;

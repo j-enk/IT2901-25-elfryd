@@ -23,8 +23,17 @@
 #define BAUT_VOLTAGE
 #define BAUT_TEMPERATURE
 
+// First filtering on central
+static const uint8_t custom_uuid[] = {
+    0xCD, 0xEE, 0x3D, 0x67, 
+    0x35, 0xCD, 0x3A, 0x94,  
+    0x1D, 0x45, 0xBD, 0xB7,  
+    0x5E, 0x67, 0x70, 0xBF  
+};
+
 static const struct bt_data ad[] = {
 	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+	BT_DATA(BT_DATA_UUID128_ALL, custom_uuid, sizeof(custom_uuid)), 
 };
 
 static const struct bt_data sd[] = {
