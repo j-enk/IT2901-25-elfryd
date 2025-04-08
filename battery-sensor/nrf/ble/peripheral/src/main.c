@@ -16,12 +16,14 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/drivers/gpio.h>
-
+#include <zephyr/drivers/adc.h>
 #include <math.h>
 #include <zephyr/kernel.h>
 
 #define BAUT_VOLTAGE
 #define BAUT_TEMPERATURE
+
+static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
 // First filtering on central
 static const uint8_t custom_uuid[] = {
@@ -131,20 +133,70 @@ static void blink_stop(void)
 	gpio_pin_set(led.port, led.pin, (int)led_is_on);
 }
 
+int baut_adc_init() {
+	if (!adc_is_ready_dt(&adc_channel)) {
+		printk("ADC controller devivce %s not ready\n", adc_channel.dev->name);
+		return -1;
+	}
+
+	int err = adc_channel_setup_dt(&adc_channel);
+	if (err) {
+		printk("Could not setup channel #%d (%d)\n", 0, err);
+		return err;
+	}
+
+	return 0;
+}
+
+int baut_adc_read(int32_t * mv) {
+	int16_t buf;
+	struct adc_sequence sequence = {
+		.buffer = &buf,
+		/* buffer size in bytes, not number of samples */
+		.buffer_size = sizeof(buf),
+		//Optional
+		//.calibrate = true,
+	};
+	int err = adc_sequence_init_dt(&adc_channel, &sequence);
+	if (err) {
+		printk("Could not initalize sequnce\n");
+		return -1;
+	}
+
+	err = adc_read(adc_channel.dev, &sequence);
+	if (err) {
+		printk("Could not read (%d)\n", err);
+		return -1;
+	}
+
+	// printk("dbg, %x\n", buf);
+
+	int32_t val_mv = buf;
+	err = adc_raw_to_millivolts_dt(&adc_channel, &val_mv);
+	if (err) {
+		printk("adc_raw_to_millivolts_dt failed: %d\n", err);
+		return -1;
+	}
+	// printk(" = %d mV\n", val_mv);
+
+	*mv = val_mv;
+	return 0;
+}
+
 static ssize_t vol_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
 				 uint16_t len, uint16_t offset)
 {
 
-	int64_t ms = k_uptime_get();
+	int32_t mv = -1;
+	if(baut_adc_read(&mv) == 0) {
+		printk("mV = %d\n", mv);
+	} else {
+		printk("mV failed\n");
+		mv = -1;
+		// return;
+	}
 
-	double s = ms / 1000.0;
-	double y = cos(s / 10);
-
-	int32_t my_data = (int32_t)(y * 1000);
-
-	printk("VOLT: uptime = %8lld, value = %5d\n", ms, my_data);
-
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data, sizeof(my_data));
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &mv, sizeof(mv));
 }
 
 static ssize_t temp_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
@@ -184,6 +236,11 @@ int main(void)
 		printk("Bluetooth init failed (err %d)\n", err);
 		return 0;
 	}
+
+#ifdef BAUT_VOLTAGE
+	// yolo, no error check
+	baut_adc_init();
+#endif
 
 	printk("Bluetooth initialized\n");
 
