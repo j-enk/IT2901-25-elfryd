@@ -26,16 +26,22 @@ if ! command -v jq &> /dev/null; then
     sudo apt-get update && sudo apt-get install -y jq
 fi
 
-
-# Function to clear screen and display title
-display_title() {
+# Function to clear screen and display title and data
+display_data() {
     clear
     echo "==============================="
     echo "  MQTT Message Monitor"
-    echo "  Lines: $interval, Refresh: ${interval}s"
+    echo "  Lines: $lines, Refresh: ${interval}s"
     echo "  Press 'q' to exit"
     echo "==============================="
+    echo "Last check: $(date '+%H:%M:%S')"
     echo
+
+    if [ -z "$1" ]; then
+        echo "No data available yet..."
+    else
+        echo "$1" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
+    fi
 }
 
 # Use an explicit flag to control the loop
@@ -45,24 +51,27 @@ running=true
 trap 'running=false' SIGINT SIGTERM
 
 last_data=""
-while $running; do 
-  current_data=$(curl -k -X GET "https://${ELFRYD_HOSTNAME}:443/messages" \
+display_data # Initial empty display
+
+while $running; do
+    current_data=$(curl -k -s -X GET "https://${ELFRYD_HOSTNAME}:443/messages" \
          -H "X-API-Key: $API_KEY")
-  if [ "$current_data" != "$last_data" ]; then 
-    clear
-    echo "MQTT message monitor started at $(date '+%H:%M:%S'). Press 'q' to exit."
-    echo "Showing up to $lines messages every $interval seconds."
-    echo "$current_data" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
-    last_data=$current_data
-  else 
-    echo -ne "\rLast check: $(date '+%H:%M:%S') - No changes"
-  fi
-  
-  # Check for 'q' key press with a timeout
-  read -t $interval -n 1 key
-  if [[ $key == "q" || $key == "Q" ]]; then
-    running=false
-  fi
+    
+    # Only update the display if data has changed
+    if [ "$current_data" != "$last_data" ]; then
+        display_data "$current_data"
+        last_data=$current_data
+    else
+        # Just update the timestamp
+        tput cup 4 12  # Position cursor at row 4, column 12 (after "Last check: ")
+        echo -n "$(date '+%H:%M:%S')"
+    fi
+    
+    # Check for 'q' key press with a timeout
+    read -t $interval -n 1 key
+    if [[ $key == "q" || $key == "Q" ]]; then
+        running=false
+    fi
 done
 
 echo -e "\nExiting MQTT monitor. Goodbye!"
