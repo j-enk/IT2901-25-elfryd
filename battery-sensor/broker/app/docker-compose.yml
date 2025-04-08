@@ -46,8 +46,10 @@ services:
       context: .
       dockerfile: Dockerfile.api
     container_name: elfryd-api
+    environment:
+      - API_KEY=your-secure-api-key
     ports:
-      - "8000:8000"      # API port (exposed externally)
+      - "443:443"      # HTTPS access
     depends_on:
       - mqtt-broker
       - timescaledb

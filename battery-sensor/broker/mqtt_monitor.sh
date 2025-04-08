@@ -22,7 +22,7 @@ echo "Showing up to $lines messages every $interval seconds."
 
 last_data=""
 while $running; do 
-  current_data=$(curl -s "http://localhost:8000/messages")
+  current_data=$(curl -s "http://localhost:443/messages")
   if [ "$current_data" != "$last_data" ]; then 
     clear
     echo "MQTT message monitor started at $(date '+%H:%M:%S'). Press 'q' to exit."

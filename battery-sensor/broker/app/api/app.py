@@ -10,8 +10,16 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
-app = FastAPI(title="Elfryd MQTT API", description="API for interacting with MQTT broker and retrieving stored messages")
+from fastapi.security.api_key import APIKeyHeader
+from fastapi import Security, HTTPException, Depends
+from starlette.status import HTTP_403_FORBIDDEN
+import secrets
 
+app = FastAPI(
+    title="Elfryd MQTT API", 
+    description="API for interacting with MQTT broker and retrieving stored messages",
+    openapi_tags=[{"name": "Authentication", "description": "Requires X-API-Key header for protected endpoints"}]
+)
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
@@ -79,6 +87,19 @@ def get_mqtt_client():
         return client
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MQTT connection failed: {str(e)}")
+    
+# Define API key header
+API_KEY = os.environ.get("API_KEY", "your-secure-api-key")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Create a dependency
+async def get_api_key(api_key: str = Security(api_key_header)):
+    if api_key != API_KEY:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Invalid API key",
+        )
+    return api_key
 
 # API Endpoints
 @app.get("/", summary="Root endpoint")
@@ -107,6 +128,7 @@ def publish_message(message: MQTTMessage):
 
 @app.get("/messages", response_model=List[StoredMessage], summary="Get stored messages")
 def get_messages(
+    api_key: str = Depends(get_api_key),
     topic: Optional[str] = Query(None, description="Filter by topic (supports SQL LIKE patterns)"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of messages to return"),
     offset: int = Query(0, ge=0, description="Number of messages to skip"),

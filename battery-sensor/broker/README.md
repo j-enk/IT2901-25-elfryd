@@ -32,7 +32,7 @@ The architecture ensures that only the necessary services are exposed externally
 3. Add rules for:
    - MQTT (port 1883)
    - MQTT over TLS (port 8885)
-   - API (port 8000)
+   - API over HTTPS (port 443)
 
 ### 3. Configure DNS Name
 
@@ -128,17 +128,17 @@ mosquitto_pub -h your-vm-dns-name -p 8885 --cafile ./client_certs/ca.crt -t test
 
 Check system health:
 ```bash
-curl http://your-vm-dns-name:8000/health
+curl http://your-vm-dns-name:443/health
 ```
 
 Get recent messages:
 ```bash
-curl http://your-vm-dns-name:8000/messages
+curl http://your-vm-dns-name:443/messages
 ```
 
 Publish a message via API:
 ```bash
-curl -X POST http://your-vm-dns-name:8000/messages \
+curl -X POST http://your-vm-dns-name:443/messages \
   -H "Content-Type: application/json" \
   -d '{"topic": "api/test", "message": "Hello from API"}'
 ```
@@ -296,7 +296,7 @@ sudo kill <PID>
 ```
 Similarly, for the API, bridge and database ports:
 ```bash
-sudo lsof -i :8000
+sudo lsof -i :443
 sudo lsof -i :5432
 sudo lsof -i :1883
 sudo kill <PID>

@@ -122,7 +122,7 @@ echo "Waiting for API to become available..."
 max_retries=30
 retry_count=0
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s http://localhost:8000/health | grep -q "healthy"; then
+  if curl -s http://localhost:443/health | grep -q "healthy"; then
     echo "✅ API is ready!"
     break
   fi
@@ -160,7 +160,7 @@ max_retries=10
 retry_count=0
 
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s "http://localhost:8000/messages?topic=$TEST_TOPIC&limit=1" | grep -q "$TEST_MESSAGE"; then
+  if curl -s "http://localhost:443/messages?topic=$TEST_TOPIC&limit=1" | grep -q "$TEST_MESSAGE"; then
     echo "✅ MQTT bridge is working correctly! Message successfully stored in database."
     BRIDGE_WORKING=true
     break
@@ -180,7 +180,7 @@ fi
 print_section "Setup complete!"
 echo "System setup is completed with the following services:"
 echo "  - MQTT Broker: port 8885 (TLS-secured)"
-echo "  - FastAPI: port 8000"
+echo "  - FastAPI: port 443"
 echo "  - TimescaleDB: internal only (not accessible externally)"
 echo "  - MQTT-DB Bridge: running internally"
 echo ""
@@ -195,7 +195,7 @@ echo "  scp yourusername@$CommonName:$BASE_DIR/elfryd_client_certs.tar.gz ."
 echo ""
 echo "To test from this VM:"
 echo "  - TLS MQTT: mosquitto_pub -h $CommonName -p 8885 --cafile $BASE_DIR/certs/ca.crt -t test/topic -m \"secure test message\""
-echo "  - API: curl http://localhost:8000/health"
+echo "  - API: curl http://localhost:443/health"
 echo ""
 echo "To stop and remove all containers and generated files, run: sudo bash cleanup.sh"
 echo ""
