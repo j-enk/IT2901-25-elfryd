@@ -53,6 +53,10 @@ running=true
 # Signal handling for clean exit
 trap 'running=false' SIGINT SIGTERM
 
+# Save current terminal settings and disable echo
+old_settings=$(stty -g)
+stty -echo
+
 last_data=""
 display_data # Initial empty display
 
@@ -77,6 +81,9 @@ while $running; do
         running=false
     fi
 done
+
+# Restore terminal settings
+stty "$old_settings"
 
 echo -e "\nExiting MQTT monitor. Goodbye!"
 exit 0
