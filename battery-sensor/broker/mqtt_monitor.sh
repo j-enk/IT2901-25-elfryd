@@ -30,37 +30,31 @@ display_title() {
     echo
 }
 
-# last_data=""
-# while true; do 
-#   current_data=$(curl -s "http://localhost:443/messages")
-#   if [ "$current_data" != "$last_data" ]; then 
-#     clear
-#     echo "MQTT message monitor started at $(date '+%H:%M:%S'). Press 'q' to exit."
-#     echo "Showing up to $lines messages every $interval seconds."
-#     echo "$current_data" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
-#     last_data=$current_data
-#   else 
-#     echo -ne "\rLast check: $(date '+%H:%M:%S') - No changes"
-#   fi
-  
-#   # Check for 'q' key press with a timeout
-#   read -t $interval -n 1 key
-#   if [[ $key == "q" || $key == "Q" ]]; then
-#     running=false
-#   fi
-# done
+# Use an explicit flag to control the loop
+running=true
 
-# Main monitoring loop
-while true; do
-    display_title
-    
-    # Get last messages using API with API key
-    curl -k -s "https://localhost:443/messages?limit=$LINES" \
-         -H "X-API-Key: $API_KEY" | \
-    jq -r '.[] | "\(.timestamp) - \(.topic): \(.payload)"' | \
-    sort -r
-    
-    sleep $INTERVAL
+# Signal handling for clean exit
+trap 'running=false' SIGINT SIGTERM
+
+last_data=""
+while $running; do 
+  current_data=$(curl -k -s "https://localhost:443/messages?limit=$LINES" \
+         -H "X-API-Key: $API_KEY")
+  if [ "$current_data" != "$last_data" ]; then 
+    clear
+    echo "MQTT message monitor started at $(date '+%H:%M:%S'). Press 'q' to exit."
+    echo "Showing up to $lines messages every $interval seconds."
+    echo "$current_data" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
+    last_data=$current_data
+  else 
+    echo -ne "\rLast check: $(date '+%H:%M:%S') - No changes"
+  fi
+  
+  # Check for 'q' key press with a timeout
+  read -t $interval -n 1 key
+  if [[ $key == "q" || $key == "Q" ]]; then
+    running=false
+  fi
 done
 
 echo -e "\nExiting MQTT monitor. Goodbye!"
