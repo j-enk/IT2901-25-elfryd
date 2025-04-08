@@ -63,9 +63,9 @@ while $running; do
         last_data=$current_data
     else
         # Just update the timestamp without affecting the rest of the display
-        tput cup 4 12  # Position cursor at row 4, column 12 (after "Last check: ")
+        tput cup 5 12  # Position cursor at row 5, column 12 (after "Last check: ")
         echo -n "$(date '+%H:%M:%S')"
-        tput cup $((lines + 10)) 0  # Move cursor to the bottom of the display area
+        tput cup $((lines + 8)) 0  # Move cursor to the bottom of the display area
     fi
     
     # Check for 'q' key press with a timeout
