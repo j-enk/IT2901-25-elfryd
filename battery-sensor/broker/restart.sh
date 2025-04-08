@@ -62,6 +62,8 @@ if [ ! -f "$BASE_DIR/certs/ca.crt" ] || [ ! -f "$BASE_DIR/certs/server.crt" ] ||
   exit 1
 fi
 
+print_section "Generating API security"
+
 # Check if API key exists
 if [ -f "$BASE_DIR/app/.env" ]; then
   read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
