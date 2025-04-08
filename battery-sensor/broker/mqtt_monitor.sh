@@ -46,7 +46,7 @@ trap 'running=false' SIGINT SIGTERM
 
 last_data=""
 while $running; do 
-  current_data=$(curl -k -X GET "https://${ELFRYD_HOSTNAME}:443/health" \
+  current_data=$(curl -k -X GET "https://${ELFRYD_HOSTNAME}:443/messages" \
          -H "X-API-Key: $API_KEY")
   if [ "$current_data" != "$last_data" ]; then 
     clear
