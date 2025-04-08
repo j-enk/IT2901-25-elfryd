@@ -36,9 +36,9 @@ display_data() {
     echo " ==============================="
     echo " Last check: $(date '+%H:%M:%S')"
     echo
-    echo " ---------------------------------"
-    echo "  Timestamp | Topic | Message"
-    echo " ---------------------------------"
+    echo " ---------------------------"
+    echo " Timestamp | Topic | Message"
+    echo " ---------------------------"
 
     if [ -z "$1" ]; then
         echo "No data available yet..."
