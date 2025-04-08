@@ -34,14 +34,13 @@ display_data() {
     echo "  Lines: $lines, Refresh: ${interval}s"
     echo "  Press 'q' to exit"
     echo "==============================="
+    echo "Last check: $(date '+%H:%M:%S')"
     echo
 
     if [ -z "$1" ]; then
         echo "No data available yet..."
-        echo "Last check: $(date '+%H:%M:%S')"
     else
         echo "$1" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
-        echo "Last check: $(date '+%H:%M:%S')"
     fi
 }
 
@@ -63,9 +62,10 @@ while $running; do
         display_data "$current_data"
         last_data=$current_data
     else
-        # Just update the timestamp
+        # Just update the timestamp without affecting the rest of the display
         tput cup 4 12  # Position cursor at row 4, column 12 (after "Last check: ")
         echo -n "$(date '+%H:%M:%S')"
+        tput cup $((lines + 10)) 0  # Move cursor to the bottom of the display area
     fi
     
     # Check for 'q' key press with a timeout
