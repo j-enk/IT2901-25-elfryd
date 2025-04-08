@@ -30,20 +30,20 @@ fi
 display_data() {
     clear
     echo " ==============================="
-    echo "     MQTT Message Monitor"
-    echo "     Lines: $lines, Refresh: ${interval}s"
-    echo "     Press 'q' to exit"
+    echo " MQTT Message Monitor"
+    echo " Lines: $lines, Refresh: ${interval}s"
+    echo " Press 'q' to exit"
     echo " ==============================="
     echo " Last check: $(date '+%H:%M:%S')"
     echo
-    echo "---------------------------------"
-    echo " Timestamp | Topic | Message"
-    echo "---------------------------------"
+    echo " ---------------------------------"
+    echo "  Timestamp | Topic | Message"
+    echo " ---------------------------------"
 
     if [ -z "$1" ]; then
         echo "No data available yet..."
     else
-        echo "$1" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
+        echo "$1" | jq -r '.[] | " \(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
     fi
 }
 
