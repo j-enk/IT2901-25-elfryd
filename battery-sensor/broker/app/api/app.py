@@ -16,9 +16,14 @@ from starlette.status import HTTP_403_FORBIDDEN
 import secrets
 
 app = FastAPI(
-    title="Elfryd MQTT API", 
+    title="Elfryd MQTT API",
     description="API for interacting with MQTT broker and retrieving stored messages",
-    openapi_tags=[{"name": "Authentication", "description": "Requires X-API-Key header for protected endpoints"}]
+    openapi_tags=[
+        {
+            "name": "Authentication",
+            "description": "Requires X-API-Key header for protected endpoints",
+        }
+    ],
 )
 # Enable CORS
 app.add_middleware(
@@ -40,18 +45,21 @@ DB_PASSWORD = "mypassword"
 MQTT_BROKER = "mqtt-broker"
 MQTT_PORT = 1883
 MQTT_TLS_PORT = 8885
-USE_TLS = os.environ.get('USE_TLS', 'false').lower() == 'true'
+USE_TLS = os.environ.get("USE_TLS", "false").lower() == "true"
+
 
 # Pydantic models
 class MQTTMessage(BaseModel):
     topic: str
     message: str
 
+
 class StoredMessage(BaseModel):
     id: int
     topic: str
     message: str
     timestamp: datetime
+
 
 # Database connection pool
 def get_db_connection():
@@ -61,36 +69,47 @@ def get_db_connection():
             port=DB_PORT,
             dbname=DB_NAME,
             user=DB_USER,
-            password=DB_PASSWORD
+            password=DB_PASSWORD,
         )
         return conn
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database connection failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Database connection failed: {str(e)}"
+        )
+
 
 # MQTT client setup
 def get_mqtt_client():
-    client = mqtt.Client(client_id="api-client", protocol=mqtt.MQTTv5, callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-    
+    client = mqtt.Client(
+        client_id="api-client",
+        protocol=mqtt.MQTTv5,
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+    )
+
     if USE_TLS:
         client.tls_set(
-            ca_certs="/app/certs/ca.crt", 
+            ca_certs="/app/certs/ca.crt",
             cert_reqs=ssl.CERT_REQUIRED,
-            tls_version=ssl.PROTOCOL_TLSv1_2
+            tls_version=ssl.PROTOCOL_TLSv1_2,
         )
         client.tls_insecure_set(False)
         port = MQTT_TLS_PORT
     else:
         port = MQTT_PORT
-        
+
     try:
         client.connect(MQTT_BROKER, port, 60)
         return client
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MQTT connection failed: {str(e)}")
-    
-# Define API key header
-API_KEY = os.environ.get("API_KEY", "your-secure-api-key")
+
+
+# Get API key from environment variable
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError("API_KEY environment variable not set")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
 
 # Create a dependency
 async def get_api_key(api_key: str = Security(api_key_header)):
@@ -101,6 +120,7 @@ async def get_api_key(api_key: str = Security(api_key_header)):
         )
     return api_key
 
+
 # API Endpoints
 @app.get("/", summary="Root endpoint")
 def read_root():
@@ -109,8 +129,12 @@ def read_root():
     """
     return {"message": "Elfryd MQTT API is running", "version": "1.0"}
 
+
 @app.post("/messages", summary="Publish an MQTT message")
-def publish_message(message: MQTTMessage):
+def publish_message(
+    message: MQTTMessage,
+    _: str = Depends(get_api_key),
+):
     """
     Publish a message to the MQTT broker
     """
@@ -118,21 +142,33 @@ def publish_message(message: MQTTMessage):
         client = get_mqtt_client()
         result = client.publish(message.topic, message.message, qos=1)
         client.disconnect()
-        
+
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
-            raise HTTPException(status_code=500, detail=f"Failed to publish message: {mqtt.error_string(result.rc)}")
-            
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to publish message: {mqtt.error_string(result.rc)}",
+            )
+
         return {"status": "success", "message": "Message published successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error publishing message: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error publishing message: {str(e)}"
+        )
+
 
 @app.get("/messages", response_model=List[StoredMessage], summary="Get stored messages")
 def get_messages(
-    api_key: str = Depends(get_api_key),
-    topic: Optional[str] = Query(None, description="Filter by topic (supports SQL LIKE patterns)"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of messages to return"),
+    topic: Optional[str] = Query(
+        None, description="Filter by topic (supports SQL LIKE patterns)"
+    ),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of messages to return"
+    ),
     offset: int = Query(0, ge=0, description="Number of messages to skip"),
-    hours: Optional[float] = Query(None, ge=0, description="Get messages from the last X hours")
+    hours: Optional[float] = Query(
+        None, ge=0, description="Get messages from the last X hours"
+    ),
+    _: str = Depends(get_api_key),
 ):
     """
     Get messages stored in the database with optional filtering
@@ -140,41 +176,39 @@ def get_messages(
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
         # Build the query based on parameters
         query = "SELECT id, topic, message, timestamp FROM mqtt_messages WHERE 1=1"
         params = []
-        
+
         if topic:
             query += " AND topic LIKE %s"
             params.append(f"%{topic}%")
-            
+
         if hours is not None:
             query += " AND timestamp > %s"
             params.append(datetime.now() - timedelta(hours=hours))
-            
+
         query += " ORDER BY timestamp DESC LIMIT %s OFFSET %s"
         params.extend([limit, offset])
-        
+
         cur.execute(query, params)
         results = [
-            {
-                "id": row[0],
-                "topic": row[1],
-                "message": row[2],
-                "timestamp": row[3]
-            }
+            {"id": row[0], "topic": row[1], "message": row[2], "timestamp": row[3]}
             for row in cur.fetchall()
         ]
-        
+
         cur.close()
         conn.close()
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
+
 @app.get("/topics", summary="Get list of topics")
-def get_topics():
+def get_topics(
+    _: str = Depends(get_api_key),
+):
     """
     Get a list of all unique topics in the database
     """
@@ -189,13 +223,14 @@ def get_topics():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
+
 @app.get("/health", summary="Check API health")
 def health_check():
     """
     Check the health of connections to MQTT broker and database
     """
     health_status = {"status": "healthy", "mqtt": False, "database": False}
-    
+
     # Check DB connection
     try:
         conn = get_db_connection()
@@ -207,7 +242,7 @@ def health_check():
     except Exception as e:
         health_status["status"] = "degraded"
         health_status["database_error"] = str(e)
-    
+
     # Check MQTT connection
     try:
         client = get_mqtt_client()
@@ -216,8 +251,8 @@ def health_check():
     except Exception as e:
         health_status["status"] = "degraded"
         health_status["mqtt_error"] = str(e)
-        
+
     if not health_status["mqtt"] or not health_status["database"]:
         health_status["status"] = "degraded"
-        
+
     return health_status

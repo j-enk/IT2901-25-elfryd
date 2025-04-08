@@ -48,6 +48,15 @@ if [[ $KEEP_CERTS =~ ^[Yy]$ ]]; then
     echo "TLS certificates will be preserved."
 fi
 
+# Ask about API key
+read -p "Do you want to preserve the API key? (y/n): " -n 1 -r KEEP_API_KEY
+echo
+REMOVE_API_KEY=true
+if [[ $KEEP_API_KEY =~ ^[Yy]$ ]]; then
+    REMOVE_API_KEY=false
+    echo "API key will be preserved."
+fi
+
 # Get confirmation for everything else
 read -p "This will remove all containers and selected files. Continue? (y/n): " -n 1 -r
 echo
@@ -108,6 +117,14 @@ else
     echo "Preserving TLS certificates for reuse..."
     # Just remove the MQTT broker configuration, keep certificates
     echo "Preserved certificates in $BASE_DIR/certs/"
+fi
+
+# Remove API key
+if [ "$REMOVE_API_KEY" = true ]; then
+    echo "Removing API key..."
+    rm -f $BASE_DIR/app/.env
+else
+    echo "Preserving API key for reuse..."
 fi
 
 # Always remove the MQTT broker configuration to ensure clean restart

@@ -83,6 +83,28 @@ openssl rsa -in server.key -out server.key
 # Set permissions
 chmod a+r *.key
 
+print_section "Generating API security"
+
+# Generate a random API key if it doesn't exist
+if [ -f "$BASE_DIR/app/.env" ]; then
+  read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
+  echo
+  
+  if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
+    API_KEY=$(openssl rand -hex 32)
+    echo "API_KEY=$API_KEY" > $BASE_DIR/app/.env
+    echo "✅ Generated new API key: $API_KEY"
+    echo "⚠️  Warning: Previous API key is no longer valid"
+  else
+    source $BASE_DIR/app/.env
+    echo "✅ Using existing API key"
+  fi
+else
+  API_KEY=$(openssl rand -hex 32)
+  echo "API_KEY=$API_KEY" > $BASE_DIR/app/.env
+  echo "✅ Generated secure API key: $API_KEY"
+fi
+
 # Create Mosquitto configuration
 print_section "Configuring MQTT broker"
 
@@ -122,7 +144,7 @@ echo "Waiting for API to become available..."
 max_retries=30
 retry_count=0
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s http://localhost:443/health | grep -q "healthy"; then
+  if curl -k -s https://$CommonName:443/health | grep -q "healthy"; then
     echo "✅ API is ready!"
     break
   fi
@@ -160,7 +182,7 @@ max_retries=10
 retry_count=0
 
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s "http://localhost:443/messages?topic=$TEST_TOPIC&limit=1" | grep -q "$TEST_MESSAGE"; then
+  if curl -k -s "https://$CommonName:443/messages?topic=$TEST_TOPIC&limit=1 -H \"X-API-Key: $API_KEY\"" | grep -q "$TEST_MESSAGE"; then
     echo "✅ MQTT bridge is working correctly! Message successfully stored in database."
     BRIDGE_WORKING=true
     break
@@ -180,8 +202,8 @@ fi
 print_section "Setup complete!"
 echo "System setup is completed with the following services:"
 echo "  - MQTT Broker: port 8885 (TLS-secured)"
-echo "  - FastAPI: port 443"
-echo "  - TimescaleDB: internal only (not accessible externally)"
+echo "  - FastAPI: port 443 (HTTPS)"
+echo "  - TimescaleDB: internal only (only accessible through API)"
 echo "  - MQTT-DB Bridge: running internally"
 echo ""
 echo "Available API endpoints:"
@@ -195,7 +217,12 @@ echo "  scp yourusername@$CommonName:$BASE_DIR/elfryd_client_certs.tar.gz ."
 echo ""
 echo "To test from this VM:"
 echo "  - TLS MQTT: mosquitto_pub -h $CommonName -p 8885 --cafile $BASE_DIR/certs/ca.crt -t test/topic -m \"secure test message\""
-echo "  - API: curl http://localhost:443/health"
+echo "  - API (Public): curl -k -X GET https://$CommonName:443/health -w '\n'"
+echo "  - API (Protected): curl -k -X GET https://$CommonName:443/messages -H \"X-API-Key: $API_KEY\" -w '\n'"
 echo ""
 echo "To stop and remove all containers and generated files, run: sudo bash cleanup.sh"
+echo ""
+echo -e "${GREEN}=================== ACTIVE API KEY ===================${NC}"
+echo -e "${YELLOW}API Key: $API_KEY${NC}"
+echo -e "${GREEN}=====================================================${NC}"
 echo ""
