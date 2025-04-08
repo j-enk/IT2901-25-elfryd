@@ -166,7 +166,7 @@ max_retries=10
 retry_count=0
 
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s "https://$CommonName:443/messages?topic=$TEST_TOPIC&limit=1 -H \"X-API-Key: $API_KEY\"" | grep -q "$TEST_MESSAGE"; then
+  if curl -s "https://$CommonName:443/messages?topic=$TEST_TOPIC&limit=1" -H "X-API-Key: $API_KEY" | grep -q "$TEST_MESSAGE"; then
     echo "✅ MQTT bridge is working correctly! Message successfully stored in database."
     BRIDGE_WORKING=true
     break
