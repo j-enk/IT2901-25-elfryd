@@ -25,8 +25,8 @@
 // } Connections;
 // int connection_index = 0;
 
-#define MAX_CONNECTIONS 16
-static uint8_t volatile conn_count;
+#define MAX_CONNECTIONS 2
+static uint8_t conn_count;
 static bool volatile is_disconnecting;
 // Connections connections[MAX_CONNECTIONS];
 
@@ -43,7 +43,7 @@ K_TIMER_DEFINE(regular_timer, regular, NULL);
 
 static void start_scan(void);
 
-static struct bt_conn *default_conn;
+static struct bt_conn *connections[MAX_CONNECTIONS];
 
 static void print_hex(const uint8_t *data, size_t len) {
     for (size_t i = 0; i < len; i++) {
@@ -53,17 +53,10 @@ static void print_hex(const uint8_t *data, size_t len) {
 
 static bool parse_debug(struct bt_data *data, void *user_data) {
     bool *found = (bool *)user_data;
-    
-    printk("[AD Data] Type: 0x%02x, Length: %u, Data: ", data->type, data->data_len);
-    print_hex(data->data, data->data_len);
-    printk("\n");
 
     if (data->type == BT_DATA_UUID128_ALL || data->type == BT_DATA_UUID128_SOME) {
-        printk("  UUID128 detected - ");
         if (data->data_len == 16) {
-            printk("Valid length\n");
             if (memcmp(data->data, target_uuid, 16) == 0) {
-                printk("  >> UUID MATCH FOUND <<\n");
                 *found = true;
                 return false;
             } else {
@@ -80,20 +73,9 @@ bool debug_adv_data(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
                    struct net_buf_simple *ad) {
     char addr_str[BT_ADDR_LE_STR_LEN];
     bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
-    
-    printk("\n=== Advertisement Packet ===\n");
-    printk("Device: %s\n", addr_str);
-    printk("RSSI: %d dBm\n", rssi);
-    printk("Type: 0x%02x (%s)\n", type, 
-          (type == BT_GAP_ADV_TYPE_ADV_IND) ? "Connectable Undirected" :
-          (type == BT_GAP_ADV_TYPE_ADV_DIRECT_IND) ? "Connectable Directed" :
-          "Other");
-    
+
     bool found = false;
     bt_data_parse(ad, parse_debug, &found);
-    
-    printk("UUID Match: %s\n", found ? "YES" : "NO");
-    printk("=== End of Packet ===\n");
     return found;
 }
 
@@ -104,7 +86,8 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 	int err;
 	// struct bt_data data;
 
-	if (default_conn) {
+	if (conn_count >= MAX_CONNECTIONS) {
+		printk("Max connections reached\n");
 		return;
 	}
 
@@ -115,37 +98,6 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 
 	bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
 
-	/* connect only to devices in close proximity */
-	// if (rssi < -60) {
-	// 	return;
-	// }
-
-	// Usikker på om dette er riktig måte å gjøre det på
-	// printk("DATA PARSE...\n")
-	// bt_data_parse(ad, [](struct bt_data *data, void *user_data) {
-    //     if (data->type == BT_DATA_UUID128_ALL && data->data_len == 16) {
-    //         if (memcmp(data->data, target_uuid, 16) == 0) {
-    //             *(bool *)user_data = true;
-    //         }
-    //     }
-    // }, &found_uuid);
-	// printk("DATA PARSE FINISH: %s\n")
-
-    // If UUID was not found, return
-    // if (!found_uuid) return;
-
-	// nrf51dks:
-	// D6:13:6C:7E:F6:C6
-	// C9:22:D6:F4:67:96
-
-	// if (
-	// 	strncmp(addr_str, "DB:F7:59:82:13:DA", 17) != 0
-	// 	&&
-	// 	strncmp(addr_str, "C9:22:D6:F4:67:96", 17) != 0
-	// ) {
-	// 	printk("Skip: %s (RSSI %d)\n", addr_str, rssi);
-	// 	return;
-	// }
 	if(!debug_adv_data(addr, rssi, type, ad)){
         return;
     }
@@ -157,15 +109,11 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 	}
 
 	err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN, BT_LE_CONN_PARAM_DEFAULT,
-				&default_conn);
+				&connections[conn_count]);
 	if (err) {
 		printk("Create conn to %s failed (%d)\n", addr_str, err);
 		start_scan();
 	}	
-	// int err = bt_addr_le_from_str(addr_str, &connections[connection_index++].addr);
-	// if (err) {
-	// 	printk("Failed to parse address: %s\n", addr_str);
-	// }
 }
 
 static void start_scan(void)
@@ -186,25 +134,41 @@ static struct bt_uuid_16 uuid = BT_UUID_INIT_16(0);
 static struct bt_gatt_read_params read_params;
 
 static uint8_t read_func(struct bt_conn *conn, uint8_t err,
-			 struct bt_gatt_read_params *params,
-			 const void *data, uint16_t length)
+	struct bt_gatt_read_params *params,
+	const void *data, uint16_t length)
 {
-	printk("Read complete: err 0x%02x length %u\n", err, length);
+char addr[BT_ADDR_LE_STR_LEN];
+bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	if (!data) {
-		(void)memset(params, 0, sizeof(*params));
-		return BT_GATT_ITER_STOP;
-	} else {
-		// bt_shell_hexdump(data, length);
-		if(length == 4) {
-			// assume endianess is correct :)
-			int32_t value = *((int32_t *)data);
-			printk("as int %d\n", value);
-		}
-	}
+printk("\n[GATT READ CALLBACK]\n");
+printk("Device: %s\n", addr);
 
-	return BT_GATT_ITER_CONTINUE;
+if (!data) {
+printk("  ✅ GATT Read complete. No more data.\n");
+(void)memset(params, 0, sizeof(*params));
+printk("[/GATT READ CALLBACK]\n");
+return BT_GATT_ITER_STOP;
 }
+
+printk("  ✅ GATT Read successful\n");
+printk("  Handle: 0x%04x\n", params->single.handle);
+printk("  Data Length: %u bytes\n", length);
+printk("  Raw Data: ");
+for (uint16_t i = 0; i < length; i++) {
+printk("%02x ", ((const uint8_t *)data)[i]);
+}
+printk("\n");
+
+if (length == 4) {
+int32_t value = *((int32_t *)data);
+printk("  Interpreted Value:\n");
+printk("    - int32_t: %d\n", value);
+}
+
+printk("[/GATT READ CALLBACK]\n");
+return BT_GATT_ITER_CONTINUE;
+}
+
 
 static int cmd_read_uuid(struct bt_conn *conn, int target)
 {
@@ -252,48 +216,32 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	if (err) {
 		printk("Failed to connect to %s %u %s\n", addr, err, bt_hci_err_to_str(err));
 
-		bt_conn_unref(default_conn);
-		default_conn = NULL;
-
 		start_scan();
 		return;
 	}
 
-	// if (conn != default_conn) {
-	// 	printk("Uhohnr2??\n")
-	// 	return;
-	// }
-
 	conn_count++;
 	if (conn_count < MAX_CONNECTIONS) {
 		start_scan();
+		printk("Scanning for more devices...\n");
 	}
-
+	connections[conn_count] = bt_conn_ref(conn);
 	printk("Connected (%u): %s\n", conn_count, addr);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
-
-	if (conn != default_conn) {
-		printk("UH OH? or ok?\n");
-		// return;
+	for (int i = 0; i < conn_count; i++) {
+		if (connections[i] == conn) {
+			bt_conn_unref(connections[i]);
+			for (int j = i; j < conn_count - 1; j++) {
+				connections[j] = connections[j + 1];
+			}
+			conn_count--;
+			break;
+		}
 	}
-
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-
-	printk("Disconnected: %s, reason 0x%02x %s\n", addr, reason, bt_hci_err_to_str(reason));
-
-	bt_conn_unref(default_conn);
-	default_conn = NULL;
-
-	// start_scan();
-	if ((conn_count == 1U) && (is_disconnecting || (reason == BT_HCI_ERR_CONN_FAIL_TO_ESTAB))) {
-		is_disconnecting = false;
-		start_scan();
-	}
-	conn_count--;
+	start_scan();	
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
@@ -309,24 +257,31 @@ static void foreach_function(struct bt_conn *conn, void *data)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	printk("Get remote info %s...\n", addr);
+	printk("Connection #%d: %s\n", *(uint8_t *)data + 1, addr);
+
 	err = bt_conn_get_remote_info(conn, &remote_info);
 	if (err) {
-		printk("Failed remote info %s.\n", addr);
+		printk("  ❌ Failed to get remote info: err %d\n", err);
 		return;
 	}
-	printk("success.\n");
 
-	uint8_t *actual_count = (void *)data;
+	// Optional: check and print features, PHY, or other remote info here if needed
 
+	uint8_t *actual_count = (uint8_t *)data;
 	(*actual_count)++;
 
-	cmd_read_uuid(conn, BT_UUID_GATT_V_VAL);
+	printk("  🔄 Initiating GATT read by UUID...\n");
+	int read_err = cmd_read_uuid(conn, BT_UUID_GATT_V_VAL);
+	if (read_err) {
+		printk("  ❌ GATT read failed with err %d\n", read_err);
+	} else {
+		printk("  📬 GATT read pending\n");
+	}
 }
 
 
 static void regular(struct k_timer *) {
-	if(default_conn) {
+	if(connections[0] != NULL) {
 		// cmd_read_uuid(BT_UUID_GATT_V_VAL);
 		uint8_t actual_count = 0U;
 		bt_conn_foreach(BT_CONN_TYPE_LE, foreach_function, &actual_count);
