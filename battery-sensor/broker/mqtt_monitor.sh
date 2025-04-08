@@ -8,6 +8,14 @@ else
   exit 1
 fi
 
+# Get hostname from environment file
+if [ -f /etc/elfryd/elfryd.env ]; then
+  source /etc/elfryd/elfryd.env
+else
+  echo "Warning: Environment file not found, using default hostname"
+  ELFRYD_HOSTNAME="localhost"  # Fallback
+fi
+
 # Default values
 lines=${1:-10}
 interval=${2:-1}
@@ -38,7 +46,7 @@ trap 'running=false' SIGINT SIGTERM
 
 last_data=""
 while $running; do 
-  current_data=$(curl -k -s "https://localhost:443/messages" \
+  current_data=$(curl -k -X GET "https://${ELFRYD_HOSTNAME}:443/health" \
          -H "X-API-Key: $API_KEY")
   if [ "$current_data" != "$last_data" ]; then 
     clear

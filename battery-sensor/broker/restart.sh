@@ -27,16 +27,32 @@ fi
 print_section "Elfryd MQTT/TLS Service Restart"
 echo "This script will restart the MQTT broker, database, and API services without recreating certificates."
 
-# After line 28, add this section to get the hostname for TLS certificate
-HOSTNAME=$(hostname -f)
-read -p "Enter the VM's fully qualified domain name (press Enter to use $HOSTNAME): " USER_HOSTNAME
+# Check for existing hostname in environment file
+STORED_HOSTNAME=""
+if [ -f "/etc/elfryd/elfryd.env" ]; then
+  source /etc/elfryd/elfryd.env
+  STORED_HOSTNAME=$ELFRYD_HOSTNAME
+fi
+
+# Get hostname for TLS certificate
+SYSTEM_HOSTNAME=$(hostname -f)
+DEFAULT_HOSTNAME=${STORED_HOSTNAME:-$SYSTEM_HOSTNAME}
+
+read -p "Enter the VM's fully qualified domain name (press Enter to use $DEFAULT_HOSTNAME): " USER_HOSTNAME
 if [ -n "$USER_HOSTNAME" ]; then
   CommonName=$USER_HOSTNAME
 else
-  CommonName=$HOSTNAME
+  CommonName=$DEFAULT_HOSTNAME
 fi
 
 echo "Using hostname: $CommonName for connections"
+
+# Save the hostname to environment file for other scripts
+print_section "Saving hostname to environment file"
+mkdir -p /etc/elfryd
+echo "ELFRYD_HOSTNAME=$CommonName" > /etc/elfryd/elfryd.env
+chmod 644 /etc/elfryd/elfryd.env
+echo "✅ Hostname saved to /etc/elfryd/elfryd.env"
 
 # Check if certificate exists
 BASE_DIR=$(pwd)
