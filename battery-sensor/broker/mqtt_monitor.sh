@@ -34,13 +34,14 @@ display_data() {
     echo "  Lines: $lines, Refresh: ${interval}s"
     echo "  Press 'q' to exit"
     echo "==============================="
-    echo "Last check: $(date '+%H:%M:%S')"
     echo
 
     if [ -z "$1" ]; then
         echo "No data available yet..."
+        echo "Last check: $(date '+%H:%M:%S')"
     else
         echo "$1" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
+        echo "Last check: $(date '+%H:%M:%S')"
     fi
 }
 
