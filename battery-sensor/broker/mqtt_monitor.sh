@@ -85,5 +85,5 @@ done
 # Restore terminal settings
 stty "$old_settings"
 
-echo -e "\nExiting MQTT monitor. Goodbye!"
+echo -e "Exiting MQTT monitor. Goodbye!"
 exit 0
