@@ -9,8 +9,8 @@ else
 fi
 
 # Default values
-LINES=${1:-10}
-INTERVAL=${2:-1}
+lines=${1:-10}
+interval=${2:-1}
 
 # Check if jq is installed
 if ! command -v jq &> /dev/null; then
@@ -24,7 +24,7 @@ display_title() {
     clear
     echo "==============================="
     echo "  MQTT Message Monitor"
-    echo "  Lines: $LINES, Refresh: ${INTERVAL}s"
+    echo "  Lines: $interval, Refresh: ${interval}s"
     echo "  Press 'q' to exit"
     echo "==============================="
     echo
@@ -38,7 +38,7 @@ trap 'running=false' SIGINT SIGTERM
 
 last_data=""
 while $running; do 
-  current_data=$(curl -k -s "https://localhost:443/messages?limit=$LINES" \
+  current_data=$(curl -k -s "https://localhost:443/messages" \
          -H "X-API-Key: $API_KEY")
   if [ "$current_data" != "$last_data" ]; then 
     clear
