@@ -20,8 +20,16 @@
 #include <math.h>
 #include <zephyr/kernel.h>
 
+static const uint8_t custom_uuid[] = {
+    0xCD, 0xEE, 0x3D, 0x67, 
+    0x35, 0xCD, 0x3A, 0x94,
+    0x1D, 0x45, 0xBD, 0xB7,
+    0x5E, 0x67, 0x70, 0xBF
+};
+
 static const struct bt_data ad[] = {
-	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+    BT_DATA(BT_DATA_UUID128_ALL, custom_uuid, sizeof(custom_uuid)), 
 };
 
 static const struct bt_data sd[] = {
@@ -146,7 +154,17 @@ BT_GATT_SERVICE_DEFINE(vol_svc,
 int main(void)
 {
 	int err;
+	
+	bt_addr_le_t addr;
+    err = bt_addr_le_from_str("FF:EE:DD:CC:BB:AA", "random", &addr);
+    if (err) {
+        printk("Invalid BT address (err %d)\n", err);
+    }
 
+    err = bt_id_create(&addr, NULL);
+    if (err < 0) {
+        printk("Creating new ID failed (err %d)\n", err);
+    }
 	err = bt_enable(NULL);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
