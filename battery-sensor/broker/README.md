@@ -9,7 +9,7 @@ This repository provides an easy way to set up a secure MQTT infrastructure with
 - Eclipse Mosquitto MQTT broker with TLS support
 - TimescaleDB for storing MQTT messages
 - A Python bridge connecting MQTT to the database
-- FastAPI REST API for interacting with stored data
+- FastAPI REST API for interacting with stored data (secured with API keys)
 
 The architecture ensures that only the necessary services are exposed externally while keeping the database secure.
 
@@ -103,6 +103,7 @@ The script will:
 
 - Install Docker and required packages
 - Generate TLS certificates for the MQTT server
+- Generate a secure API key for protected endpoints
 - Set up Docker containers for all services
 - Start all services and run tests
 - Create a certificate package for clients
@@ -128,35 +129,37 @@ mosquitto_pub -h your-vm-dns-name -p 8885 --cafile ./client_certs/ca.crt -t test
 
 Check system health:
 ```bash
-curl http://your-vm-dns-name:443/health
+curl -k -X GET https://your-vm-dns-name:443/health -w '\n'
 ```
 
-Get recent messages:
+Get recent messages (protected endpoint):
 ```bash
-curl http://your-vm-dns-name:443/messages
+curl -k -X GET https://your-vm-dns-name:443/messages -H "X-API-Key: $API_KEY" -w '\n'
 ```
 
-Publish a message via API:
+Publish a message via API (protected endpoint):
 ```bash
-curl -X POST http://your-vm-dns-name:443/messages \
+curl -k -X POST https://your-vm-dns-name:443/messages \
   -H "Content-Type: application/json" \
-  -d '{"topic": "api/test", "message": "Hello from API"}'
+  -H "X-API-Key: $API_KEY" \
+  -d '{"topic": "api/test", "message": "Hello from API"}' -w '\n'
 ```
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Check system health status |
-| `/messages` | GET | Get stored messages with optional filters |
-| `/messages` | POST | Publish a message to MQTT |
-| `/topics` | GET | Get list of unique topics |
+| Endpoint | Method | Description | Security |
+|----------|--------|-------------|----------|
+| `/health` | GET | Check system health status | Public |
+| `/messages` | GET | Get stored messages with optional filters | API Key Required |
+| `/messages` | POST | Publish a message to MQTT | API Key Required |
+| `/topics` | GET | Get list of unique topics | API Key Required |
 
 ## Repository Structure
 
 ```
 azure_broker/
 ├── app/                          # Main application directory
+│   ├── .env                      # Environment file storing API key
 │   ├── mqtt-broker/              # MQTT broker configuration
 │   │   └── config/               # Broker config files
 │   ├── api/                      # FastAPI application
@@ -185,39 +188,40 @@ When you need to stop and clean up the services, you can use the `cleanup.sh` sc
 sudo bash cleanup.sh
 ```
 
-The cleanup script offers two preservation options:
+The cleanup script offers three preservation options:
 
 1. **Database preservation** - Keep your TimescaleDB data volumes intact so all historical message data is preserved
 2. **Certificate preservation** - Keep your TLS certificates so you don't need to regenerate them
+3. **API key preservation** - Keep your API key so clients don't need to update their credentials
 
-This gives you three different cleanup/restart workflows:
+This gives you several different cleanup/restart workflows:
 
 ### Complete Reinstallation
 If you choose not to preserve anything during cleanup, you'll need to run the full installation script to restart:
 ```bash
-sudo bash cleanup.sh    # Answer 'n' to both preservation questions
-sudo bash install.sh    # Full reinstallation with new certificates
+sudo bash cleanup.sh    # Answer 'n' to all preservation questions
+sudo bash install.sh    # Full reinstallation with new certificates and API key
 ```
 
-### Quick Restart with Preserved Certificates
-If you preserve certificates during cleanup, you can use the restart script:
+### Quick Restart with Preserved Certificates and API Key
+If you preserve certificates and API key during cleanup, you can use the restart script:
 ```bash
-sudo bash cleanup.sh    # Answer 'y' to certificate preservation question
-sudo bash restart.sh    # Quick restart using existing certificates
+sudo bash cleanup.sh    # Answer 'y' to certificate and API key preservation questions
+sudo bash restart.sh    # Quick restart using existing certificates and API key
 ```
 
-### Fresh Start with Preserved Data
-If you preserve only the database, you'll get new certificates but keep all message history:
+### Fresh Start with Preserved Data but New Security
+If you preserve only the database, you'll get new certificates and API key but keep all message history:
 ```bash
-sudo bash cleanup.sh    # Answer 'y' to database preservation, 'n' to certificates
-sudo bash install.sh    # Fresh installation with new certificates but preserved database
+sudo bash cleanup.sh    # Answer 'y' to database preservation, 'n' to others
+sudo bash install.sh    # Fresh installation with new certificates and API key but preserved database
 ```
 
-> **Note:** The restart script (`restart.sh`, described below) requires existing certificates to work. If you've removed certificates with cleanup, you must run the full `install.sh` script instead.
+> **Note:** The restart script (`restart.sh`) requires existing certificates to work. If you've removed certificates with cleanup, you must run the full `install.sh` script instead.
 
 ## Restarting Services
 
-If you need to restart the services without reinstalling everything (for example, after a system reboot or after running `cleanup.sh` but keeping the certificates), you can use the restart script:
+If you need to restart the services without reinstalling everything (for example, after a system reboot or after running `cleanup.sh` while preserving certificates), you can use the restart script:
 
 ```bash
 sudo bash restart.sh
@@ -226,16 +230,26 @@ sudo bash restart.sh
 This script will:
 - Check for existing certificates
 - Recreate any missing configuration files
+- Optionally generate a new API key or use the existing one
 - Start all Docker containers
 - Verify that services are running properly
 - Test the MQTT bridge connection to ensure messages flow through to the database
 
-Unlike the full installation script, this script:
-- Does not regenerate TLS certificates if they already exist
-- Does not reinstall Docker or other dependencies
+When running either `install.sh` or `restart.sh`, you'll be asked if you want to generate a new API key (if one already exists). This allows you to easily rotate your API key for security purposes.
 
-If the certificates or Docker installation are missing, you'll need to run the full `install.sh` script instead.
+At the end of both scripts, the currently active API key will be displayed for your reference.
 
+## API Key Management
+
+The system uses API keys to secure sensitive endpoints. The API key is:
+- Generated automatically during first installation
+- Stored securely in the `.env` file within the app directory
+- Passed to the API container as an environment variable
+- Required in the `X-API-Key` header for protected API calls
+
+You can generate a new API key in two ways:
+1. During installation or restart by answering 'y' when prompted to generate a new key
+2. By manually updating the `.env` file and restarting services
 
 ## Monitoring MQTT Messages
 
@@ -245,7 +259,7 @@ To monitor MQTT messages in real-time on the server, you can use the included mo
 bash mqtt_monitor.sh
 ```
 
-This script polls the API for new messages and displays them in a clear format, automatically refreshing when new messages arrive. 
+This script polls the API for new messages and displays them in a clear format, automatically refreshing when new messages arrive. It automatically uses the API key stored in the `.env` file for authentication.
 
 The default display shows the last 10 messages with a 1-second refresh interval, but you can customize these settings with arguments:
 
