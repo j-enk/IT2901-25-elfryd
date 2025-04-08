@@ -29,18 +29,21 @@ fi
 # Function to clear screen and display title and data
 display_data() {
     clear
-    echo "==============================="
+    echo " ==============================="
     echo "  MQTT Message Monitor"
     echo "  Lines: $lines, Refresh: ${interval}s"
     echo "  Press 'q' to exit"
-    echo "==============================="
-    echo "Last check: $(date '+%H:%M:%S')"
+    echo " ==============================="
+    echo "  Last check: $(date '+%H:%M:%S')"
     echo
+    echo "---------------------------------"
+    echo " Timestamp | Topic | Message"
+    echo "---------------------------------"
 
-    if [ -z "$1" ]; then
+    if [ -z " $1" ]; then
         echo "No data available yet..."
     else
-        echo "$1" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
+        echo " $1" | jq -r '.[] | "\(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
     fi
 }
 
@@ -65,7 +68,7 @@ while $running; do
         # Just update the timestamp without affecting the rest of the display
         tput cup 5 12  # Position cursor at row 5, column 12 (after "Last check: ")
         echo -n "$(date '+%H:%M:%S')"
-        tput cup $((lines + 8)) 0  # Move cursor to the bottom of the display area
+        tput cup $((lines + 11)) 0  # Move cursor to the bottom of the display area
     fi
     
     # Check for 'q' key press with a timeout
