@@ -30,9 +30,9 @@ fi
 display_data() {
     clear
     echo " ==============================="
-    echo "  MQTT Message Monitor"
-    echo "  Lines: $lines, Refresh: ${interval}s"
-    echo "  Press 'q' to exit"
+    echo "     MQTT Message Monitor"
+    echo "     Lines: $lines, Refresh: ${interval}s"
+    echo "     Press 'q' to exit"
     echo " ==============================="
     echo " Last check: $(date '+%H:%M:%S')"
     echo
