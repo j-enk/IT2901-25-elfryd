@@ -106,6 +106,12 @@ stty -echo
 last_data=""
 display_data # Initial empty display
 
+# Calculate base header offset (add 1 if we have a topic filter)
+header_offset=0
+if [ -n "$topic_filter" ]; then
+    header_offset=1
+fi
+
 while $running; do
     # Construct API URL with optional topic filter
     api_url="https://${ELFRYD_HOSTNAME}:443/messages?limit=$lines"
@@ -121,12 +127,14 @@ while $running; do
         last_data=$current_data
     else
         # Just update the timestamp without affecting the rest of the display
-        tput cup 5 13  # Position cursor at row 5, column 12 (after "Last check: ")
+        # Adjust the row position based on whether we have a topic filter
+        timestamp_row=$((5 + header_offset))
+        tput cup $timestamp_row 13  # Position cursor after "Last check: "
         echo -n "$(date '+%H:%M:%S')"
         
         # Calculate the appropriate cursor position based on actual displayed lines
         # Base position (headers) + displayed lines + 1 (for good measure)
-        base_position=10  # Header lines before data
+        base_position=$((9 + header_offset))  # Header lines before data
         cursor_position=$((base_position + displayed_lines + 1))
         tput cup $cursor_position 0
     fi
@@ -141,5 +149,5 @@ done
 # Restore terminal settings
 stty "$old_settings"
 
-echo -e "Exiting MQTT monitor. Goodbye!"
+echo -e "\nExiting MQTT monitor. Goodbye!"
 exit 0
