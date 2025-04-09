@@ -11,25 +11,55 @@ const error = ref<string | null>(null);
 
 // Computed properties for cleaner template
 // Computed properties with proper type safety
-const currentVoltage = computed(() => {
-  // Check if array has elements before accessing the last one
-  if (!voltageData.value || voltageData.value.length === 0) return 'N/A';
+// const currentVoltage = computed(() => {
+//   // Check if array has elements before accessing the last one
+//   if (!voltageData.value || voltageData.value.length === 0) return 'N/A';
   
-  const lastValue = voltageData.value[voltageData.value.length - 1];
-  // Make sure the value is a number before using toFixed
-  return typeof lastValue === 'number' ? lastValue.toFixed(2) : 'N/A';
+//   const lastValue = voltageData.value[voltageData.value.length - 1];
+//   // Make sure the value is a number before using toFixed
+//   return typeof lastValue === 'number' ? lastValue.toFixed(2) : 'N/A';
+// });
+
+const currentVoltage = computed(() => {
+  if (!voltageData.value.length) return null;
+  const last = voltageData.value[voltageData.value.length - 1];
+  return typeof last === 'number' ? last : null;
 });
 
-const averageVoltage = computed(() => {
-  // Check if array has elements before calculating average
-  if (!voltageData.value || voltageData.value.length === 0) return 'N/A';
-  
-  const sum = voltageData.value.reduce((a, b) => {
-    return a + (typeof b === 'number' ? b : 0);
-  }, 0);
-  
+const formattedVoltage = computed(() =>
+  currentVoltage.value !== null ? currentVoltage.value.toFixed(2) : 'N/A'
+);
+
+const formattedAverageVoltage = computed(() => {
+  if (!voltageData.value.length) return 'N/A';
+  const sum = voltageData.value.reduce((a, b) => a + b, 0);
   return (sum / voltageData.value.length).toFixed(2);
 });
+
+const batteryStatus = computed(() => {
+  if (currentVoltage.value === null) return 'N/A';
+  if (currentVoltage.value > 18.0) return 'Good';
+  if (currentVoltage.value > 14.0) return 'Low';
+  return 'Critical';
+});
+
+const batteryStatusClass = computed(() => {
+  if (currentVoltage.value === null) return '';
+  if (currentVoltage.value > 18.0) return 'good';
+  if (currentVoltage.value > 14.0) return 'warning';
+  return 'critical';
+});
+
+// const averageVoltage = computed(() => {
+//   // Check if array has elements before calculating average
+//   if (!voltageData.value || voltageData.value.length === 0) return 'N/A';
+  
+//   const sum = voltageData.value.reduce((a, b) => {
+//     return a + (typeof b === 'number' ? b : 0);
+//   }, 0);
+  
+//   return (sum / voltageData.value.length).toFixed(2);
+// });
 
 // Function to initialize chart
 const initChart = () => {
@@ -39,10 +69,10 @@ const initChart = () => {
   chartInstance.value = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: timestamps.value,
+      labels: [...timestamps.value],
       datasets: [{
         label: 'Battery Voltage (V)',
-        data: voltageData.value,
+        data: [...voltageData.value],
         borderColor: '#36A2EB',
         backgroundColor: 'rgba(54, 162, 235, 0.2)',
         borderWidth: 2,
@@ -91,6 +121,8 @@ const initChart = () => {
 // Function to update chart with new data
 const updateChart = () => {
   if (chartInstance.value) {
+    chartInstance.value.data.labels = [...timestamps.value];
+    chartInstance.value.data.datasets[0].data = [...voltageData.value];
     chartInstance.value.update();
   }
 };
@@ -181,24 +213,22 @@ onBeforeUnmount(() => {
     <div class="data-summary">
       <div class="data-card" v-if="voltageData.length > 0">
         <h3>Current Voltage</h3>
-        <p class="value">{{ currentVoltage }} V</p>
-        <div class="battery-indicator" :style="{ width: `${(Number(currentVoltage) - 3.2) / (4.2 - 3.2) * 100}%` }"></div>
+        <p class="value">{{ formattedVoltage }} V</p>
+        <div class="battery-indicator" :style="{
+    width: currentVoltage.value !== null
+      ? `${Math.max(0, Math.min(100, ((currentVoltage.value - 3.2) / (4.2 - 3.2) * 100)))}%`
+      : '0%'
+  }"></div>
       </div>
       
       <div class="data-card" v-if="voltageData.length > 0">
         <h3>Average Voltage</h3>
-        <p class="value">{{ averageVoltage }} V</p>
+        <p class="value">{{ formattedAverageVoltage }} V</p>
       </div>
       
       <div class="data-card" v-if="voltageData.length > 0">
         <h3>Battery Status</h3>
-        <p class="status" :class="{
-          'good': Number(currentVoltage) > 18.0,
-          'warning': Number(currentVoltage) <= 18.0 && Number(currentVoltage) > 14.0,
-          'critical': Number(currentVoltage) <= 14.0
-        }">
-          {{ Number(currentVoltage) > 18.0 ? 'Good' : (Number(currentVoltage) > 14.0 ? 'Low' : 'Critical') }}
-        </p>
+        <p class="status" :class="{batteryStatusClass}">{{ batteryStatus }}</p>
       </div>
     </div>
   </div>
