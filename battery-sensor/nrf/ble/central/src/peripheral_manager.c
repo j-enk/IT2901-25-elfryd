@@ -84,10 +84,22 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 }
 
 
-
+void print_connection_pool_state(void) {
+    printk("📋 Connection Pool State:\n");
+    for (int i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+        if (connections[i]) {
+            char addr[BT_ADDR_LE_STR_LEN];
+            bt_addr_le_to_str(bt_conn_get_dst(connections[i]), addr, sizeof(addr));
+            printk("  Slot %d: %s\n", i, addr);
+        } else {
+            printk("  Slot %d: [Empty]\n", i);
+        }
+    }
+}
 
 void peripheral_manager_start_scan(void)
 {
+    print_connection_pool_state();
     int err = bt_le_scan_start(BT_LE_SCAN_PASSIVE, device_found);
 
     if (err) {

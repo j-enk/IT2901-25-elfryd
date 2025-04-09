@@ -4,26 +4,44 @@ static uint8_t conn_count;
 struct bt_conn *connections[CONFIG_BT_MAX_CONN];
 
 
-
 static void connected(struct bt_conn *conn, uint8_t err)
 {
     char addr[BT_ADDR_LE_STR_LEN];
-
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
+    printk("\n[CONNECTED CALLBACK] Attempting to connect to %s\n", addr);
+
     if (err) {
-        printk("Failed to connect to %s (%u)\n", addr, err);
+        printk("❌ Connection failed with error code %u\n", err);
         return;
     }
 
-    conn_count++;
-	if (conn_count < CONFIG_BT_MAX_CONN) {
-		peripheral_manager_start_scan();
-		printk("Scanning for more devices...\n");
-	}
-	connections[conn_count] = bt_conn_ref(conn);
-	printk("Connected (%u): %s\n", conn_count, addr);
+    printk("✅ Connection successful! Scanning for empty slot...\n");
+
+    bool added = false;
+
+    for (int i = 0; i < CONFIG_BT_MAX_CONN; i++) {
+        if (connections[i] == NULL) {
+            conn_count++;
+            printk("📌 Assigned connection to slot %d\n", i);
+            printk("🔢 Connection count incremented: %d\n", conn_count);
+            added = true;
+            break;
+        } else {
+            char existing[BT_ADDR_LE_STR_LEN];
+            bt_addr_le_to_str(bt_conn_get_dst(connections[i]), existing, sizeof(existing));
+            printk("  🔒 Slot %d already in use by %s\n", i, existing);
+        }
+    }
+
+    if (!added) {
+        printk("⚠️  No available slots for %s — connection NOT stored!\n", addr);
+    }
+
+    printk("🔁 Restarting scan...\n");
+    peripheral_manager_start_scan();
 }
+
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
 {

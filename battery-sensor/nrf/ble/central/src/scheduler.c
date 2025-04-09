@@ -4,6 +4,8 @@
 #include "connection_scanner.h"
 
 static struct bt_uuid_16 uuid = BT_UUID_INIT_16(0);
+struct bt_gatt_read_params read_params_array[CONFIG_BT_MAX_CONN];
+
 
 static uint8_t read_callback(struct bt_conn *conn, uint8_t err, struct bt_gatt_read_params *params, const void *data, uint16_t length)
 {
@@ -22,11 +24,6 @@ static uint8_t read_callback(struct bt_conn *conn, uint8_t err, struct bt_gatt_r
 	printk("  ✅ GATT Read successful\n");
 	printk("  Handle: 0x%04x\n", params->single.handle);
 	printk("  Data Length: %u bytes\n", length);
-	printk("  Raw Data: ");
-	for (uint16_t i = 0; i < length; i++) {
-	printk("%02x ", ((const uint8_t *)data)[i]);
-	}
-	printk("\n");
 
 	if (length == 4) {
 	int32_t value = *((int32_t *)data);
@@ -40,60 +37,45 @@ static uint8_t read_callback(struct bt_conn *conn, uint8_t err, struct bt_gatt_r
 
 
 
-static void gatt_read(struct bt_conn *conn)
+static void gatt_read(struct bt_conn *conn, int index)
 {
-	struct bt_conn_remote_info remote_info;
-	char addr[BT_ADDR_LE_STR_LEN];
-	int err;
+    char addr[BT_ADDR_LE_STR_LEN];
+    int err;
 
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+    printk("GATT Read for: %s\n", addr);
 
-	printk("Connection #%d: %s\n", *(uint8_t *)data + 1, addr);
+    
 
-	err = bt_conn_get_remote_info(conn, &remote_info);
+    read_params_array[index].func = read_callback;
+    read_params_array[index].by_uuid.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;
+    read_params_array[index].by_uuid.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
+    uuid.val = BT_UUID_GATT_V_VAL;
+    read_params_array[index].by_uuid.uuid = &uuid.uuid;
 
-	if (err) {
-		printk("  ❌ Failed to get remote info: err %d\n", err);
-		return;
-	}
-
-    struct bt_gatt_read_params read_params;
-
-    memset(&read_params, 0, sizeof(read_params));
-
-    read_params.func = read_callback;
-    read_params.handle_count = 0;
-	read_params.by_uuid.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;
-	read_params.by_uuid.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
-	uuid.val = BT_UUID_GATT_V_VAL;
-	read_params.by_uuid.uuid = &uuid.uuid;
-
-    err = bt_gatt_read(conn, &read_params);
-	if (err) {
-		printk("  ❌ GATT read failed with err %d\n", err);
-	} else {
-		printk("  📬 GATT read pending\n");
-	}
+    err = bt_gatt_read(conn, &read_params_array[index]);
+    if (err) {
+        printk("  ❌ GATT read failed with err %d\n", err);
+    } else {
+        printk("  📬 GATT read pending\n");
+    }
 }
+
 
 
 
 
 static void schedule_read(struct k_timer *timer)
 {
-    if(connections[0] != NULL) {
-		uint8_t count = 0U;
-		for(int i = 0; i<connection_pool_count; i++){
-			struct bt_conn *conn = connections[i];
-			if(conn){
-				gatt_read(conn)
-			}
-		}
-		printk("foreach suceeded for %d devices\n", count);
-	} else {
-		printk("no connections\n");
-	}
+    for (int i = 0; i < connection_pool_count(); i++) {
+        struct bt_conn *conn = connection_pool_get(i);
+        if (conn) {
+			printk("READING GYYYAAATTT");
+            gatt_read(conn, i);
+        }
+    }
 }
+
 
 
 
