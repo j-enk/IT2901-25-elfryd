@@ -127,7 +127,7 @@ namespace BatterySensorAPI.Services
                 // Use most recent cached reading if available
                 if (_cachedReadings.Count > 0 && DateTime.UtcNow.Subtract(_lastCacheUpdate).TotalMinutes < 30)
                 {
-                    return _cachedReadings.OrderByDescending(r => r.Timestamp).FirstOrDefault();
+                    return _cachedReadings.OrderByDescending(r => r.timestamp).FirstOrDefault();
                 }
                 
                 // Fall back to mock data
@@ -147,7 +147,7 @@ namespace BatterySensorAPI.Services
             // Filter readings to the specified time window
             var cutoffTime = DateTime.UtcNow.AddHours(-hours);
             var filteredReadings = readings
-                .Where(r => r.Timestamp >= cutoffTime)
+                .Where(r => r.timestamp >= cutoffTime)
                 .ToList();
             
             if (filteredReadings.Count == 0)
@@ -158,12 +158,12 @@ namespace BatterySensorAPI.Services
             // Calculate statistics
             return new BatteryStats
             {
-                MinVoltage = filteredReadings.Min(r => r.Voltage),
-                MaxVoltage = filteredReadings.Max(r => r.Voltage),
-                AverageVoltage = filteredReadings.Average(r => r.Voltage),
+                MinVoltage = filteredReadings.Min(r => r.voltage),
+                MaxVoltage = filteredReadings.Max(r => r.voltage),
+                AverageVoltage = filteredReadings.Average(r => r.voltage),
                 ReadingCount = filteredReadings.Count,
                 TimeWindowHours = hours,
-                LatestReading = filteredReadings.OrderByDescending(r => r.Timestamp).First()
+                LatestReading = filteredReadings.OrderByDescending(r => r.timestamp).First()
             };
         }
 
@@ -187,7 +187,7 @@ namespace BatterySensorAPI.Services
         }
 
         // Generate mock data for development without FastAPI access
-        private List<BatteryReading> GenerateMockReadings(int count, string sensorId = null)
+        public List<BatteryReading> GenerateMockReadings(int count, string sensorId = null)
 {
     var readings = new List<BatteryReading>();
     var now = DateTime.UtcNow;
@@ -223,18 +223,18 @@ namespace BatterySensorAPI.Services
         // Generate readings going backward in time
         var reading = new BatteryReading
         {
-            Id = i + 1,
-            SensorId = sensorId,
-            Timestamp = now.AddMinutes(-5 * i),  // 5-minute intervals
-            Voltage = voltage,
-            Temperature = 20 + _random.NextDouble() * 10,  // 20-30°C
-            StateOfCharge = soc
+            id = i + 1,
+            sensorId = sensorId,
+            timestamp = now.AddMinutes(-5 * i),  // 5-minute intervals
+            voltage = voltage,
+            temperature = 20 + _random.NextDouble() * 10,  // 20-30°C
+            stateOfCharge = soc
         };
         
         readings.Add(reading);
     }
 
-    return readings.OrderByDescending(r => r.Timestamp).ToList();
+    return readings;
 }
     }
 }

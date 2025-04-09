@@ -12,17 +12,20 @@ namespace BatterySensorAPI.Controllers
     [ApiController]
     [Route("api/[controller]")]
     public class BatterySensorController : ControllerBase
-    {
-        private readonly BatterySensorService _sensorService;
-        private readonly ILogger<BatterySensorController> _logger;
+{
+    private readonly BatterySensorService _sensorService;
+    private readonly BatteryDataGenerator _dataGenerator;
+    private readonly ILogger<BatterySensorController> _logger;
 
-        public BatterySensorController(
-            BatterySensorService sensorService,
-            ILogger<BatterySensorController> logger)
-        {
-            _sensorService = sensorService;
-            _logger = logger;
-        }
+    public BatterySensorController(
+        BatterySensorService sensorService,
+        BatteryDataGenerator dataGenerator,
+        ILogger<BatterySensorController> logger)
+    {
+        _sensorService = sensorService;
+        _dataGenerator = dataGenerator;
+        _logger = logger;
+    }
 
         // GET: api/BatterySensor/readings
         [HttpGet("recent")]
@@ -96,9 +99,9 @@ namespace BatterySensorAPI.Controllers
                     latestReading = latestReading != null ?
                         new
                         {
-                            voltage = latestReading.Voltage,
-                            timestamp = latestReading.Timestamp,
-                            sensorId = latestReading.SensorId
+                            voltage = latestReading.voltage,
+                            timestamp = latestReading.timestamp,
+                            sensorId = latestReading.sensorId
                         } : null
                 });
             }
@@ -108,5 +111,78 @@ namespace BatterySensorAPI.Controllers
                 return StatusCode(500, "Error checking API status");
             }
         }
+        [HttpGet("stream")]
+public async Task GetBatteryStream(CancellationToken cancellationToken)
+{
+    Response.Headers.Add("Content-Type", "text/event-stream");
+    Response.Headers.Add("Cache-Control", "no-cache");
+    Response.Headers.Add("Connection", "keep-alive");
+    Response.Headers.Add("Access-Control-Allow-Origin", "*");
+
+    _logger.LogInformation("SSE stream requested");
+    
+    // Track last sent data timestamp to avoid duplicates
+    DateTime lastSentTimestamp = DateTime.MinValue;
+
+    try
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            // Get the latest data from the generator
+            var readings = _dataGenerator.GetLatestReadings(20);
+            
+            if (readings.Count > 0)
+            {
+                var newestTimestamp = readings[0].timestamp;
+                
+                // Only send if we have new data
+                if (newestTimestamp > lastSentTimestamp)
+                {
+                    _logger.LogInformation(readings[9].ToString());
+                    _logger.LogInformation($"Sending {readings.Count} readings via SSE");
+                    lastSentTimestamp = newestTimestamp;
+                    
+                    var json = System.Text.Json.JsonSerializer.Serialize(readings);
+                    await Response.WriteAsync($"data: {json}\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                }
+                else
+                {
+                    // Send heartbeat to keep connection alive
+                    await Response.WriteAsync(": heartbeat\n\n", cancellationToken);
+                    await Response.Body.FlushAsync(cancellationToken);
+                    _logger.LogDebug("Sent SSE heartbeat");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("No readings available for SSE");
+                await Response.WriteAsync(": no data\n\n", cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+            
+            // Check for new data every 5 seconds
+            await Task.Delay(5000, cancellationToken);
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        _logger.LogInformation("SSE connection cancelled");
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error in SSE stream");
+    }
+    
+    _logger.LogInformation("SSE stream ended");
+}
+
+    // Helper method to get your battery readings
+    private async Task<List<BatteryReading>> GetLatestBatteryReadings()
+    {
+        // Replace with your actual data retrieval logic
+        // This would likely query your database for the most recent readings
+        return await _sensorService.GetRecentReadings();
+    }
     }
 }

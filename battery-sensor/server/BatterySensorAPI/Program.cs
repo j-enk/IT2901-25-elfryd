@@ -12,6 +12,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient<BatterySensorService>();
 builder.Services.AddScoped<BatterySensorService>();
 
+// Register BatterySensorService as a singleton
+builder.Services.AddSingleton<BatterySensorService>();
+
+// Register BatteryDataGenerator as both a singleton service and a hosted service
+builder.Services.AddSingleton<BatteryDataGenerator>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BatteryDataGenerator>());
+
 // Add CORS support
 builder.Services.AddCors(options =>
 {

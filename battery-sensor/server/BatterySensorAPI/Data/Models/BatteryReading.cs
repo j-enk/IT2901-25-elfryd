@@ -5,17 +5,17 @@ namespace BatterySensorAPI.Models
 {
     public class BatteryReading
     {
-        public long Id { get; set; }
+        public long id { get; set; }
         
-        public double Voltage { get; set; }
+        public double voltage { get; set; }
         
-        public DateTime Timestamp { get; set; }
+        public DateTime timestamp { get; set; }
         
-        public string SensorId { get; set; }
+        public string sensorId { get; set; }
         
-        public double? Temperature { get; set; }
+        public double? temperature { get; set; }
         
-        public double? StateOfCharge { get; set; }
+        public double? stateOfCharge { get; set; }
     }
 
     public class BatteryStats
