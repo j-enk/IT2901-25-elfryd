@@ -1,3 +1,4 @@
+import re
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 import paho.mqtt.client as mqtt
@@ -6,7 +7,7 @@ from psycopg2 import sql
 import os
 import ssl
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
