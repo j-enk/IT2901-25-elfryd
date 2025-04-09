@@ -1,8 +1,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/bluetooth/bluetooth.h>
-#include "peripheral_manager.h"
-#include "connection_pool.h"
+#include "connection_scanner.h"
 #include "scheduler.h"
+
 
 int main(void)
 {
