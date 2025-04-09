@@ -218,7 +218,374 @@ def publish_message(
 
 
 
+@app.get("/messages", response_model=List[Union[StoredMessage, BatteryData, TemperatureData, GyroData, ConfigData]], 
+         summary="Get stored messages")
+def get_messages(
+    topic: Optional[str] = Query(
+        None, description="Filter by topic (supports SQL LIKE patterns)"
+    ),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of messages to return"
+    ),
+    offset: int = Query(0, ge=0, description="Number of messages to skip"),
+    hours: Optional[float] = Query(
+        None, ge=0, description="Get messages from the last X hours"
+    ),
+    _: str = Depends(get_api_key),
+):
+    """
+    Get messages stored in the database with optional filtering.
+    Returns specialized data structures for known topics.
+    """
+    try:
+        conn = get_db_connection()
+        all_results = []
+        
+        # Decide which tables to query
+        if topic:
+            # If a topic filter is provided, only query the relevant table
+            tables = [get_table_name(topic)]
+        else:
+            # Without a specific topic, query all tables
+            tables = get_all_message_tables(conn)
+        
+        # For each table, construct and execute a query
+        for table in tables:
+            try:
+                cur = conn.cursor()
+                
+                # Build the query based on parameters and table structure
+                if table == "elfryd_battery":
+                    query = sql.SQL("""
+                        SELECT id, battery_id, voltage, device_timestamp, topic, raw_message, timestamp 
+                        FROM {} WHERE 1=1
+                    """).format(sql.Identifier(table))
+                elif table == "elfryd_temp":
+                    query = sql.SQL("""
+                        SELECT id, sensor_id, temperature, device_timestamp, topic, raw_message, timestamp 
+                        FROM {} WHERE 1=1
+                    """).format(sql.Identifier(table))
+                elif table == "elfryd_gyro":
+                    query = sql.SQL("""
+                        SELECT id, sensor_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
+                               device_timestamp, topic, raw_message, timestamp 
+                        FROM {} WHERE 1=1
+                    """).format(sql.Identifier(table))
+                elif table == "elfryd_config":
+                    query = sql.SQL("""
+                        SELECT id, command, topic, raw_message, timestamp 
+                        FROM {} WHERE 1=1
+                    """).format(sql.Identifier(table))
+                else:
+                    # Default query for standard message tables
+                    query = sql.SQL("SELECT id, topic, message, timestamp FROM {} WHERE 1=1").format(
+                        sql.Identifier(table)
+                    )
+                
+                params = []
+                
+                if topic:
+                    query = sql.SQL("{} AND topic LIKE %s").format(query)
+                    params.append(f"%{topic}%")
+                
+                if hours is not None:
+                    query = sql.SQL("{} AND timestamp > %s").format(query)
+                    params.append(datetime.now() - timedelta(hours=hours))
+                
+                query = sql.SQL("{} ORDER BY timestamp DESC").format(query)
+                
+                cur.execute(query, params)
+                rows = cur.fetchall()
+                
+                # Convert rows to appropriate data model based on table
+                if table == "elfryd_battery":
+                    table_results = [
+                        {
+                            "id": row[0], 
+                            "battery_id": row[1], 
+                            "voltage": row[2], 
+                            "device_timestamp": row[3], 
+                            "topic": row[4], 
+                            "raw_message": row[5], 
+                            "timestamp": row[6]
+                        } for row in rows
+                    ]
+                elif table == "elfryd_temp":
+                    table_results = [
+                        {
+                            "id": row[0], 
+                            "sensor_id": row[1], 
+                            "temperature": row[2], 
+                            "device_timestamp": row[3], 
+                            "topic": row[4], 
+                            "raw_message": row[5], 
+                            "timestamp": row[6]
+                        } for row in rows
+                    ]
+                elif table == "elfryd_gyro":
+                    table_results = [
+                        {
+                            "id": row[0], 
+                            "sensor_id": row[1], 
+                            "accel_x": row[2], 
+                            "accel_y": row[3], 
+                            "accel_z": row[4], 
+                            "gyro_x": row[5], 
+                            "gyro_y": row[6], 
+                            "gyro_z": row[7], 
+                            "device_timestamp": row[8], 
+                            "topic": row[9], 
+                            "raw_message": row[10], 
+                            "timestamp": row[11]
+                        } for row in rows
+                    ]
+                elif table == "elfryd_config":
+                    table_results = [
+                        {
+                            "id": row[0], 
+                            "command": row[1], 
+                            "topic": row[2], 
+                            "raw_message": row[3], 
+                            "timestamp": row[4]
+                        } for row in rows
+                    ]
+                else:
+                    # Standard message format
+                    table_results = [
+                        {"id": row[0], "topic": row[1], "message": row[2], "timestamp": row[3]}
+                        for row in rows
+                    ]
+                
+                all_results.extend(table_results)
+                cur.close()
+            except Exception as table_error:
+                # If a specific table query fails, log it but continue with other tables
+                print(f"Error querying table {table}: {str(table_error)}")
+                continue
+        
+        # Sort combined results by timestamp (newest first)
+        all_results.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        # Apply limit and offset to the combined results
+        paginated_results = all_results[offset:offset+limit]
+        
+        conn.close()
+        return paginated_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
+# Add new endpoints for specific data types
+@app.get("/battery", response_model=List[BatteryData], summary="Get battery data")
+def get_battery_data(
+    battery_id: Optional[int] = Query(None, description="Filter by battery ID"),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of records to return"
+    ),
+    hours: Optional[float] = Query(
+        24, ge=0, description="Get data from the last X hours"
+    ),
+    _: str = Depends(get_api_key),
+):
+    """
+    Get battery data with optional filtering
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = sql.SQL("""
+            SELECT id, battery_id, voltage, device_timestamp, topic, raw_message, timestamp 
+            FROM elfryd_battery WHERE 1=1
+        """)
+        
+        params = []
+        
+        if battery_id is not None:
+            query = sql.SQL("{} AND battery_id = %s").format(query)
+            params.append(battery_id)
+        
+        if hours is not None:
+            query = sql.SQL("{} AND timestamp > %s").format(query)
+            params.append(datetime.now() - timedelta(hours=hours))
+        
+        query = sql.SQL("{} ORDER BY timestamp DESC LIMIT %s").format(query)
+        params.append(limit)
+        
+        cur.execute(query, params)
+        
+        results = [
+            {
+                "id": row[0], 
+                "battery_id": row[1], 
+                "voltage": row[2], 
+                "device_timestamp": row[3], 
+                "topic": row[4], 
+                "raw_message": row[5], 
+                "timestamp": row[6]
+            } for row in cur.fetchall()
+        ]
+        
+        cur.close()
+        conn.close()
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
+@app.get("/temperature", response_model=List[TemperatureData], summary="Get temperature data")
+def get_temperature_data(
+    sensor_id: Optional[int] = Query(None, description="Filter by sensor ID"),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of records to return"
+    ),
+    hours: Optional[float] = Query(
+        24, ge=0, description="Get data from the last X hours"
+    ),
+    _: str = Depends(get_api_key),
+):
+    """
+    Get temperature data with optional filtering
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = sql.SQL("""
+            SELECT id, sensor_id, temperature, device_timestamp, topic, raw_message, timestamp 
+            FROM elfryd_temp WHERE 1=1
+        """)
+        
+        params = []
+        
+        if sensor_id is not None:
+            query = sql.SQL("{} AND sensor_id = %s").format(query)
+            params.append(sensor_id)
+        
+        if hours is not None:
+            query = sql.SQL("{} AND timestamp > %s").format(query)
+            params.append(datetime.now() - timedelta(hours=hours))
+        
+        query = sql.SQL("{} ORDER BY timestamp DESC LIMIT %s").format(query)
+        params.append(limit)
+        
+        cur.execute(query, params)
+        
+        results = [
+            {
+                "id": row[0], 
+                "sensor_id": row[1], 
+                "temperature": row[2], 
+                "device_timestamp": row[3], 
+                "topic": row[4], 
+                "raw_message": row[5], 
+                "timestamp": row[6]
+            } for row in cur.fetchall()
+        ]
+        
+        cur.close()
+        conn.close()
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
+@app.get("/gyro", response_model=List[GyroData], summary="Get gyroscope data")
+def get_gyro_data(
+    sensor_id: Optional[int] = Query(None, description="Filter by sensor ID"),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Maximum number of records to return"
+    ),
+    hours: Optional[float] = Query(
+        24, ge=0, description="Get data from the last X hours"
+    ),
+    _: str = Depends(get_api_key),
+):
+    """
+    Get gyroscope data with optional filtering
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = sql.SQL("""
+            SELECT id, sensor_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
+                   device_timestamp, topic, raw_message, timestamp 
+            FROM elfryd_gyro WHERE 1=1
+        """)
+        
+        params = []
+        
+        if sensor_id is not None:
+            query = sql.SQL("{} AND sensor_id = %s").format(query)
+            params.append(sensor_id)
+        
+        if hours is not None:
+            query = sql.SQL("{} AND timestamp > %s").format(query)
+            params.append(datetime.now() - timedelta(hours=hours))
+        
+        query = sql.SQL("{} ORDER BY timestamp DESC LIMIT %s").format(query)
+        params.append(limit)
+        
+        cur.execute(query, params)
+        
+        results = [
+            {
+                "id": row[0], 
+                "sensor_id": row[1], 
+                "accel_x": row[2], 
+                "accel_y": row[3], 
+                "accel_z": row[4], 
+                "gyro_x": row[5], 
+                "gyro_y": row[6], 
+                "gyro_z": row[7], 
+                "device_timestamp": row[8], 
+                "topic": row[9], 
+                "raw_message": row[10], 
+                "timestamp": row[11]
+            } for row in cur.fetchall()
+        ]
+        
+        cur.close()
+        conn.close()
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
+@app.post("/config", summary="Send a config command")
+def send_config_command(
+    command: str = Query(..., description="Config command to send"),
+    _: str = Depends(get_api_key),
+):
+    """
+    Send a configuration command to the MQTT broker
+    """
+    try:
+        # Validate config command
+        valid_commands = ["battery", "temp", "gyro"]
+        freq_pattern = re.compile(r"^freq\d+$")
+        
+        if not (command in valid_commands or freq_pattern.match(command)):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid command. Must be one of {valid_commands} or 'freqX' where X is a number"
+            )
+        
+        # Publish command to MQTT
+        client = get_mqtt_client()
+        result = client.publish("elfryd/config", command, qos=1)
+        client.disconnect()
+
+        if result.rc != mqtt.MQTT_ERR_SUCCESS:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to publish command: {mqtt.error_string(result.rc)}",
+            )
+
+        return {"status": "success", "message": f"Config command '{command}' sent successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error sending config command: {str(e)}"
+        )
 
 @app.get("/topics", summary="Get list of topics")
 def get_topics(
