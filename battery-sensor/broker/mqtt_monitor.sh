@@ -70,9 +70,27 @@ display_data() {
 
     if [ -z "$1" ]; then
         echo "No data available yet..."
+        # Store that we displayed 1 line (the "No data" message)
+        displayed_lines=1
     else
-        echo "$1" | jq -r '.[] | " \(.timestamp) | \(.topic) | \(.message)"' | head -n $lines
+        # Parse and display the data, counting actual lines displayed
+        data_lines=$(echo "$1" | jq -r '.[] | " \(.timestamp) | \(.topic) | \(.message)"')
+        if [ -z "$data_lines" ]; then
+            echo "No matching messages found."
+            displayed_lines=1
+        else
+            echo "$data_lines" | head -n $lines
+            # Count how many lines were actually displayed
+            displayed_lines=$(echo "$data_lines" | wc -l)
+            # If displayed_lines exceeds our requested lines, cap it
+            if [ "$displayed_lines" -gt "$lines" ]; then
+                displayed_lines=$lines
+            fi
+        fi
     fi
+    
+    # Store the displayed_lines as a global variable for later cursor positioning
+    export displayed_lines
 }
 
 # Use an explicit flag to control the loop
@@ -105,7 +123,12 @@ while $running; do
         # Just update the timestamp without affecting the rest of the display
         tput cup 5 13  # Position cursor at row 5, column 12 (after "Last check: ")
         echo -n "$(date '+%H:%M:%S')"
-        tput cup $((lines + 11)) 0  # Move cursor to the bottom of the display area
+        
+        # Calculate the appropriate cursor position based on actual displayed lines
+        # Base position (headers) + displayed lines + 1 (for good measure)
+        base_position=10  # Header lines before data
+        cursor_position=$((base_position + displayed_lines + 1))
+        tput cup $cursor_position 0
     fi
     
     # Check for 'q' key press with a timeout
