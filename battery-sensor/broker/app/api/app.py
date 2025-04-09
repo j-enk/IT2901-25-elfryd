@@ -79,17 +79,56 @@ def get_all_message_tables(conn):
     return tables
 
 
-# Pydantic models
+# Pydantic models for various data types
 class MQTTMessage(BaseModel):
     topic: str
     message: str
-
 
 class StoredMessage(BaseModel):
     id: int
     topic: str
     message: str
     timestamp: datetime
+
+class BatteryData(BaseModel):
+    id: int
+    battery_id: int
+    voltage: int
+    device_timestamp: int
+    topic: str
+    raw_message: str
+    timestamp: datetime
+
+class TemperatureData(BaseModel):
+    id: int
+    sensor_id: int
+    temperature: int
+    device_timestamp: int
+    topic: str
+    raw_message: str
+    timestamp: datetime
+
+class GyroData(BaseModel):
+    id: int
+    sensor_id: int
+    accel_x: int
+    accel_y: int
+    accel_z: int
+    gyro_x: int
+    gyro_y: int
+    gyro_z: int
+    device_timestamp: int
+    topic: str
+    raw_message: str
+    timestamp: datetime
+
+class ConfigData(BaseModel):
+    id: int
+    command: str
+    topic: str
+    raw_message: str
+    timestamp: datetime
+
 
 
 # Database connection pool
@@ -178,79 +217,7 @@ def publish_message(
         )
 
 
-@app.get("/messages", response_model=List[StoredMessage], summary="Get stored messages")
-def get_messages(
-    topic: Optional[str] = Query(
-        None, description="Filter by topic (supports SQL LIKE patterns)"
-    ),
-    limit: int = Query(
-        100, ge=1, le=1000, description="Maximum number of messages to return"
-    ),
-    offset: int = Query(0, ge=0, description="Number of messages to skip"),
-    hours: Optional[float] = Query(
-        None, ge=0, description="Get messages from the last X hours"
-    ),
-    _: str = Depends(get_api_key),
-):
-    """
-    Get messages stored in the database with optional filtering
-    """
-    try:
-        conn = get_db_connection()
-        all_results = []
-        
-        # Decide which tables to query
-        if topic:
-            # If a topic filter is provided, only query the relevant table
-            tables = [get_table_name(topic)]
-        else:
-            # Without a specific topic, query all tables
-            tables = get_all_message_tables(conn)
-        
-        # For each table, construct and execute a query
-        for table in tables:
-            try:
-                cur = conn.cursor()
-                
-                # Build the query based on parameters
-                query = sql.SQL("SELECT id, topic, message, timestamp FROM {} WHERE 1=1").format(
-                    sql.Identifier(table)
-                )
-                params = []
-                
-                if topic:
-                    query = sql.SQL("{} AND topic LIKE %s").format(query)
-                    params.append(f"%{topic}%")
-                
-                if hours is not None:
-                    query = sql.SQL("{} AND timestamp > %s").format(query)
-                    params.append(datetime.now() - timedelta(hours=hours))
-                
-                query = sql.SQL("{} ORDER BY timestamp DESC").format(query)
-                
-                cur.execute(query, params)
-                table_results = [
-                    {"id": row[0], "topic": row[1], "message": row[2], "timestamp": row[3]}
-                    for row in cur.fetchall()
-                ]
-                
-                all_results.extend(table_results)
-                cur.close()
-            except Exception as table_error:
-                # If a specific table query fails, log it but continue with other tables
-                print(f"Error querying table {table}: {str(table_error)}")
-                continue
-        
-        # Sort combined results by timestamp (newest first)
-        all_results.sort(key=lambda x: x["timestamp"], reverse=True)
-        
-        # Apply limit and offset to the combined results
-        paginated_results = all_results[offset:offset+limit]
-        
-        conn.close()
-        return paginated_results
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
+
 
 
 @app.get("/topics", summary="Get list of topics")
