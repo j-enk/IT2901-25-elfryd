@@ -9,7 +9,6 @@ router = APIRouter(tags=["Gyroscope"])
 
 @router.get("/gyro", response_model=List[GyroData], summary="Get gyroscope data")
 def get_gyro_data(
-    sensor_id: Optional[int] = Query(None, description="Filter by sensor ID"),
     limit: int = Query(
         100, ge=1, le=1000, description="Maximum number of records to return"
     ),
@@ -26,8 +25,8 @@ def get_gyro_data(
         results = query_specific_data(
             conn, 
             "elfryd_gyro", 
-            "sensor_id", 
-            sensor_id, 
+            None, 
+            None, 
             limit, 
             hours
         )

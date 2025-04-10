@@ -25,8 +25,6 @@ def ensure_table_exists(table_name):
                 battery_id INTEGER NOT NULL,
                 voltage INTEGER NOT NULL,
                 device_timestamp BIGINT NOT NULL,
-                topic TEXT NOT NULL,
-                raw_message TEXT NOT NULL,
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
             """).format(sql.Identifier(table_name))
@@ -34,11 +32,8 @@ def ensure_table_exists(table_name):
             create_table_query = sql.SQL("""
             CREATE TABLE IF NOT EXISTS {} (
                 id SERIAL PRIMARY KEY,
-                sensor_id INTEGER NOT NULL,
                 temperature INTEGER NOT NULL,
                 device_timestamp BIGINT NOT NULL,
-                topic TEXT NOT NULL,
-                raw_message TEXT NOT NULL,
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
             """).format(sql.Identifier(table_name))
@@ -46,7 +41,6 @@ def ensure_table_exists(table_name):
             create_table_query = sql.SQL("""
             CREATE TABLE IF NOT EXISTS {} (
                 id SERIAL PRIMARY KEY,
-                sensor_id INTEGER NOT NULL,
                 accel_x INTEGER NOT NULL,
                 accel_y INTEGER NOT NULL,
                 accel_z INTEGER NOT NULL,
@@ -54,8 +48,6 @@ def ensure_table_exists(table_name):
                 gyro_y INTEGER NOT NULL,
                 gyro_z INTEGER NOT NULL,
                 device_timestamp BIGINT NOT NULL,
-                topic TEXT NOT NULL,
-                raw_message TEXT NOT NULL,
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
             """).format(sql.Identifier(table_name))
@@ -65,7 +57,6 @@ def ensure_table_exists(table_name):
                 id SERIAL PRIMARY KEY,
                 command TEXT NOT NULL,
                 topic TEXT NOT NULL,
-                raw_message TEXT NOT NULL,
                 timestamp TIMESTAMPTZ DEFAULT NOW()
             );
             """).format(sql.Identifier(table_name))
@@ -92,7 +83,7 @@ def ensure_table_exists(table_name):
         print(f"Error creating table {table_name}: {str(e)}")
 
 # Callback when a MQTT message is received
-def on_message(client, userdata, msg: mqtt.MQTTMessage):
+def on_message(_, __, msg: mqtt.MQTTMessage):
     """Handle incoming MQTT messages"""
     try:
         topic = msg.topic
@@ -108,11 +99,11 @@ def on_message(client, userdata, msg: mqtt.MQTTMessage):
         # Process message based on topic with match-case (Python 3.10+)
         match table_name:
             case "elfryd_battery":
-                battery_handler.process_message(topic, payload)
+                battery_handler.process_message(payload)
             case "elfryd_temp":
-                temperature_handler.process_message(topic, payload)
+                temperature_handler.process_message(payload)
             case "elfryd_gyro":
-                gyro_handler.process_message(topic, payload)
+                gyro_handler.process_message(payload)
             case "elfryd_config":
                 config_handler.process_message(topic, payload)
             case _:

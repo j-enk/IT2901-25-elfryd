@@ -3,10 +3,10 @@ from psycopg2 import sql
 from core.models import BatteryData
 from core.database import get_connection
 
-def process_message(topic: str, payload: str):
+def process_message(payload: str):
     """Process and store battery data from string format"""
     try:  
-        # Parse payload - Format: "1X/Voltage/Timestamp"
+        # Parse payload: "X/Voltage/Timestamp"
         parts = payload.split('/')
         if len(parts) != 3:
             print(f"Invalid battery data format: {payload}")
@@ -17,9 +17,7 @@ def process_message(topic: str, payload: str):
             battery_data = BatteryData(
                 battery_id=int(parts[0]),
                 voltage=int(parts[1]),
-                device_timestamp=int(parts[2]),
-                topic=topic,
-                raw_message=payload
+                device_timestamp=int(parts[2])
             )
             
             # Store in database
@@ -40,16 +38,14 @@ def store_battery_data(data: BatteryData):
         cursor = conn.cursor()
         
         insert_query = sql.SQL("""
-            INSERT INTO {} (battery_id, voltage, device_timestamp, topic, raw_message)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO {} (battery_id, voltage, device_timestamp)
+            VALUES (%s, %s, %s)
         """).format(sql.Identifier(f"elfryd_battery"))
         
         cursor.execute(insert_query, (
             data.battery_id,
             data.voltage,
-            data.device_timestamp,
-            data.topic,
-            data.raw_message
+            data.device_timestamp
         ))
         conn.commit()
         cursor.close()

@@ -28,8 +28,7 @@ def process_message(topic: str, payload: str):
         # Create ConfigData model
         config_data = ConfigData(
             command=payload,
-            topic=topic,
-            raw_message=payload
+            topic=topic
         )
         
         # Store in database
@@ -47,14 +46,13 @@ def store_config_data(data: ConfigData):
         cursor = conn.cursor()
         
         insert_query = sql.SQL("""
-            INSERT INTO {} (command, topic, raw_message)
-            VALUES (%s, %s, %s)
+            INSERT INTO {} (command, topic)
+            VALUES (%s, %s)
         """).format(sql.Identifier(f"elfryd_config"))
         
         cursor.execute(insert_query, (
             data.command,
             data.topic,
-            data.raw_message
         ))
         conn.commit()
         cursor.close()

@@ -16,26 +16,20 @@ class StoredMessage(BaseModel):
 
 # Specialized data models
 class BatteryData(BaseModel):
-    id: Optional[int] = None  # Optional for creating new records
+    id: Optional[int] = None
     battery_id: int
     voltage: int
     device_timestamp: int
-    topic: str
-    raw_message: str
-    timestamp: Optional[datetime] = None  # Optional for creating new records
+    timestamp: Optional[datetime] = None
 
 class TemperatureData(BaseModel):
     id: Optional[int] = None
-    sensor_id: int
     temperature: int
     device_timestamp: int
-    topic: str
-    raw_message: str
     timestamp: Optional[datetime] = None
 
 class GyroData(BaseModel):
     id: Optional[int] = None
-    sensor_id: int
     accel_x: int
     accel_y: int
     accel_z: int
@@ -43,13 +37,10 @@ class GyroData(BaseModel):
     gyro_y: int
     gyro_z: int
     device_timestamp: int
-    topic: str
-    raw_message: str
     timestamp: Optional[datetime] = None
 
 class ConfigData(BaseModel):
     id: Optional[int] = None
     command: str
     topic: str
-    raw_message: str
     timestamp: Optional[datetime] = None

@@ -3,23 +3,20 @@ from psycopg2 import sql
 from core.models import TemperatureData
 from core.database import get_connection
 
-def process_message(topic: str, payload: str):
+def process_message(payload: str):
     """Process and store temperature data from string format"""
     try:
-        # Parse payload - Format: "2/Temp/Timestamp"
+        # Parse payload: "Temp/Timestamp"
         parts = payload.strip().split('/')
-        if len(parts) != 3:
+        if len(parts) != 2:
             print(f"Invalid temperature data format: {payload}")
             return
             
         try:
             # Create TemperatureData model
             temp_data = TemperatureData(
-                sensor_id=int(parts[0]),
-                temperature=int(parts[1]),
-                device_timestamp=int(parts[2]),
-                topic=topic,
-                raw_message=payload
+                temperature=int(parts[0]),
+                device_timestamp=int(parts[1])
             )
             
             # Store in database
@@ -40,16 +37,13 @@ def store_temperature_data(data: TemperatureData):
         cursor = conn.cursor()
         
         insert_query = sql.SQL("""
-            INSERT INTO {} (sensor_id, temperature, device_timestamp, topic, raw_message)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO {} (temperature, device_timestamp)
+            VALUES (%s, %s)
         """).format(sql.Identifier(f"elfryd_temp"))
         
         cursor.execute(insert_query, (
-            data.sensor_id,
             data.temperature,
-            data.device_timestamp,
-            data.topic,
-            data.raw_message
+            data.device_timestamp
         ))
         conn.commit()
         cursor.close()

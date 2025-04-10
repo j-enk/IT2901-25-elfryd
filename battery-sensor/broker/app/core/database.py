@@ -49,8 +49,7 @@ def get_all_message_tables(conn: Connection) -> List[str]:
     cursor = conn.cursor()
     query = sql.SQL("""
         SELECT table_name FROM information_schema.tables 
-        WHERE table_schema = 'public' AND 
-        (table_name LIKE '%_%' OR table_name = 'mqtt_messages')
+        WHERE table_schema = 'public'
     """)
     cursor.execute(query)
     tables = [row[0] for row in cursor.fetchall()]
@@ -64,23 +63,23 @@ def get_table_query(table: str) -> sql.Composed:
     match table:
         case "elfryd_battery":
             return sql.SQL("""
-                SELECT id, battery_id, voltage, device_timestamp, topic, raw_message, timestamp 
+                SELECT id, battery_id, voltage, device_timestamp, timestamp 
                 FROM {} WHERE 1=1
             """)
         case "elfryd_temp":
             return sql.SQL("""
-                SELECT id, sensor_id, temperature, device_timestamp, topic, raw_message, timestamp 
+                SELECT id, temperature, device_timestamp, timestamp 
                 FROM {} WHERE 1=1
             """)
         case "elfryd_gyro":
             return sql.SQL("""
-                SELECT id, sensor_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
-                       device_timestamp, topic, raw_message, timestamp 
+                SELECT id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
+                       device_timestamp, timestamp 
                 FROM {} WHERE 1=1
             """)
         case "elfryd_config":
             return sql.SQL("""
-                SELECT id, command, topic, raw_message, timestamp 
+                SELECT id, command, topic, timestamp 
                 FROM {} WHERE 1=1
             """)
         case _:
@@ -98,42 +97,33 @@ def row_to_model(table: str, row: tuple) -> Union[BatteryData, TemperatureData, 
                 battery_id=row[1],
                 voltage=row[2],
                 device_timestamp=row[3],
-                topic=row[4],
-                raw_message=row[5],
-                timestamp=row[6]
+                timestamp=row[4]
             )
         case "elfryd_temp":
             return TemperatureData(
                 id=row[0],
-                sensor_id=row[1],
-                temperature=row[2],
-                device_timestamp=row[3],
-                topic=row[4],
-                raw_message=row[5],
-                timestamp=row[6]
+                temperature=row[1],
+                device_timestamp=row[2],
+                timestamp=row[3]
             )
         case "elfryd_gyro":
             return GyroData(
                 id=row[0],
-                sensor_id=row[1],
-                accel_x=row[2],
-                accel_y=row[3],
-                accel_z=row[4],
-                gyro_x=row[5],
-                gyro_y=row[6],
-                gyro_z=row[7],
-                device_timestamp=row[8],
-                topic=row[9],
-                raw_message=row[10],
-                timestamp=row[11]
+                accel_x=row[1],
+                accel_y=row[2],
+                accel_z=row[3],
+                gyro_x=row[4],
+                gyro_y=row[5],
+                gyro_z=row[6],
+                device_timestamp=row[7],
+                timestamp=row[8]
             )
         case "elfryd_config":
             return ConfigData(
                 id=row[0],
                 command=row[1],
                 topic=row[2],
-                raw_message=row[3],
-                timestamp=row[4]
+                timestamp=row[3]
             )
         case _:
             # Default message format
