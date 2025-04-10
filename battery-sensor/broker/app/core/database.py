@@ -1,5 +1,8 @@
+import time
 import psycopg2
 from psycopg2 import sql
+from psycopg2.extensions import connection as Connection
+
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any, Union
 from fastapi import HTTPException
@@ -25,6 +28,28 @@ def get_connection():
         raise HTTPException(
             status_code=500, detail=f"Database connection failed: {str(e)}"
         )
+    
+
+def check_database_connection(max_retries=30, retry_delay=2):
+    """Verify database connection is working before proceeding"""
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.close()
+            conn.close()
+            print("✅ Database connection successful")
+            return True
+        except Exception as e:
+            retry_count += 1
+            print(f"Database connection attempt {retry_count}/{max_retries} failed: {str(e)}")
+            print(f"Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+    
+    print("❌ Failed to establish database connection after maximum retries")
+    return False
 
 def get_table_name(topic: str) -> str:
     """
@@ -39,16 +64,17 @@ def get_table_name(topic: str) -> str:
     # Use two parts of the topic to create a table name
     return f"{parts[0]}_{parts[1]}"
 
-def get_all_message_tables(conn) -> List[str]:
+def get_all_message_tables(conn: Connection) -> List[str]:                    
     """
     Get all table names in the database that are message tables.
     """
     cursor = conn.cursor()
-    cursor.execute("""
+    query = sql.SQL("""
         SELECT table_name FROM information_schema.tables 
         WHERE table_schema = 'public' AND 
         (table_name LIKE '%_%' OR table_name = 'mqtt_messages')
     """)
+    cursor.execute(query)
     tables = [row[0] for row in cursor.fetchall()]
     cursor.close()
     return tables
@@ -141,7 +167,7 @@ def row_to_model(table: str, row: tuple) -> Union[BatteryData, TemperatureData, 
             )
 
 def query_messages(
-    conn,
+    conn: Connection,
     topic: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
@@ -206,7 +232,7 @@ def query_messages(
     return paginated_results
 
 def query_specific_data(
-    conn,
+    conn: Connection,
     table_name: str,
     id_column: Optional[str] = None,
     id_value: Optional[int] = None,
@@ -256,7 +282,7 @@ def query_specific_data(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
-def get_topics(conn) -> List[str]:
+def get_topics(conn: Connection) -> List[str]:
     """
     Get a list of all unique topics in the database from all message tables
     """

@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 from psycopg2 import sql
 from core.config import MQTT_CONFIG
-from core.database import get_table_name, get_connection
+from core.database import get_table_name, get_connection, check_database_connection
 from core.mqtt import create_mqtt_client
 from bridge.handlers import battery_handler, temperature_handler, gyro_handler, config_handler, default_handler
 
@@ -122,7 +122,13 @@ def on_message(client, userdata, msg: mqtt.MQTTMessage):
     except Exception as e:
         print(f"Error processing message: {str(e)}")
 
+
 def main():
+    # Ensure database connection is established
+    if not check_database_connection():
+        print("Database connection failed. Exiting...")
+        return
+
     # Get MQTT client from core module
     client = create_mqtt_client("mqtt_bridge")
     
