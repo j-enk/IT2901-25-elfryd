@@ -39,17 +39,17 @@ def get_config_data(
 
 @router.post("/config/send", response_model=dict, summary="Send configuration command")
 def send_config_command(
-    message: MQTTMessage = Body(...),
+    command: str = Body(..., description="Configuration command to send", embed=True),
     _: str = Depends(get_api_key),
 ):
     """
-    Send a configuration command via MQTT
+    Send a configuration command via MQTT to the predefined config topic
     """
     # Validate config command format
-    if not message.message.strip():
-        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if not command.strip():
+        raise HTTPException(status_code=400, detail="Command cannot be empty")
     
-    command = message.message.strip()
+    command = command.strip()
     
     # Validate command format
     if command.startswith("freq "):
@@ -68,14 +68,13 @@ def send_config_command(
                 detail=f"Invalid command. Must be one of: {', '.join(VALID_CONFIG_COMMANDS)} or 'freq [number]'"
             )
     
-    # Topic validation
-    if not message.topic.strip():
-        raise HTTPException(status_code=400, detail="Topic cannot be empty")
+    # Set fixed topic for all configuration commands
+    topic = "elfryd/config/send"
     
     # Publish to MQTT broker
     try:
-        publish_message(message.topic, message.message)
-        return {"success": True, "message": "Configuration command sent"}
+        publish_message(topic, command)
+        return {"success": True, "message": "Configuration command sent", "topic": topic}
     except HTTPException:
         raise
     except Exception as e:
