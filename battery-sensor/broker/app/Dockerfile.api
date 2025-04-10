@@ -1,11 +1,11 @@
-FROM python:3.9-slim
+FROM python:3.13-alpine
 
 WORKDIR /app
 
 RUN mkdir -p /app/certs
 
 COPY ./api/app.py /app/
-COPY ./requirements.txt /app/
+COPY ./api/requirements.txt /app/
 
 RUN pip install --no-cache-dir -r requirements.txt
 
