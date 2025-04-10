@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from .config import MQTT_CONFIG
 
-def create_mqtt_client(client_id: str, host: str = None, use_tls: bool = False) -> mqtt.Client:
+def create_mqtt_client(client_id: str, use_tls: bool = False) -> mqtt.Client:
     """
     Create and configure an MQTT client
     """
