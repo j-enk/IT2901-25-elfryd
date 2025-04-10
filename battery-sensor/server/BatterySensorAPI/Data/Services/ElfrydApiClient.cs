@@ -49,4 +49,49 @@ public class ElfrydApiClient
         
         return await response.Content.ReadAsStringAsync();
     }
+
+    public async Task<string> UpdateFrequencyAsync( string command)
+    {
+        var content = new StringContent(
+            JsonSerializer.Serialize(new { command }), 
+            System.Text.Encoding.UTF8, 
+            "application/json");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "config/send");
+        request.Headers.Add("X-API-Key", _apiKey);
+        request.Content = content;
+
+        var response = await _client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    // public async Task<string> SendSensorConfigAsync(string topic, string message)
+    // {
+    //     var content = new StringContent(
+    //         JsonSerializer.Serialize(new { topic, message }), 
+    //         System.Text.Encoding.UTF8, 
+    //         "application/json");
+
+    //     var request = new HttpRequestMessage(HttpMethod.Post, "config/send");
+    //     request.Headers.Add("X-API-Key", _apiKey);
+    //     request.Content = content;
+
+    //     var response = await _client.SendAsync(request);
+    //     response.EnsureSuccessStatusCode();
+        
+    //     return await response.Content.ReadAsStringAsync();
+    // }
+
+    public async Task<string> GetConfigAsync()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "config");
+        request.Headers.Add("X-API-Key", _apiKey);
+
+        var response = await _client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        
+        return await response.Content.ReadAsStringAsync();
+    }
 }

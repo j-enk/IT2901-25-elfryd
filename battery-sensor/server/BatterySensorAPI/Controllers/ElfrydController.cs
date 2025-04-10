@@ -58,5 +58,40 @@ namespace BatterySensorAPI.Controllers
                 return StatusCode(500, "Error publishing message to Elfryd API");
             }
         }
+
+        [HttpPost("config/frequency")]
+public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRequest request)
+{
+    if (request.Command == null) 
+    {
+        return BadRequest("Config frequency is required");
+    }
+    
+    try 
+    {
+        var result = await _elfrydClient.UpdateFrequencyAsync(request.Command);
+        return Ok(new { success = true, result = result });
+    }
+    catch (Exception ex) 
+    {
+        _logger.LogError(ex, "Error updating frequency");
+        return StatusCode(500, "Error updating frequency configuration");
+    }
+}
+
+        [HttpGet("config")]
+        public async Task<IActionResult> GetConfig()
+        {
+            try
+            {
+                var config = await _elfrydClient.GetConfigAsync();
+                return Content(config, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving Elfryd config");
+                return StatusCode(500, "Error retrieving config from Elfryd API");
+            }
+        }
     }
 }
