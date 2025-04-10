@@ -18,24 +18,6 @@ MQTT_CONFIG = {
     "default_topic": "#"
 }
 
-# API configuration
-API_CONFIG = {
-    "title": "Elfryd MQTT API",
-    "description": "API for interacting with MQTT broker and retrieving stored messages",
-    "version": "1.0.0",
-    "openapi_tags": [
-        {
-            "name": "Authentication",
-            "description": "Requires X-API-Key header for protected endpoints",
-        }
-    ]
-}
-
-# Authentication
-API_KEY = os.getenv("API_KEY")
-if not API_KEY:
-    raise ValueError("API_KEY environment variable not set")
-
 # Constants for table naming
 DEFAULT_TABLE = "mqtt_messages"
 
