@@ -33,7 +33,7 @@ def get_messages(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
-@router.post("/messages/publish", response_model=dict, summary="Publish MQTT message")
+@router.post("/messages", response_model=dict, summary="Publish MQTT message")
 def publish_mqtt_message(
     message: MQTTMessage = Body(...),
     _: str = Depends(get_api_key),
