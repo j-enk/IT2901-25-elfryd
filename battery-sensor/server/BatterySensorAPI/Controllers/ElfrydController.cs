@@ -93,5 +93,19 @@ public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRe
                 return StatusCode(500, "Error retrieving config from Elfryd API");
             }
         }
+
+        [HttpGet("battery")]
+        public async Task<IActionResult> GetBatteryData(){
+            try{
+
+            var result = await _elfrydClient.GetBatteryDataAsync();
+            return Content(result, "application/json");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving battery data");
+            return StatusCode(500, "Error retrieving battery data from Elfryd API");
+        }
+        }
     }
 }

@@ -94,4 +94,14 @@ public class ElfrydApiClient
         
         return await response.Content.ReadAsStringAsync();
     }
+
+    public async Task<string> GetBatteryDataAsync(){
+        var request = new HttpRequestMessage(HttpMethod.Get, "battery");
+        request.Headers.Add("X-API-Key", _apiKey);
+
+        var response = await _client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        
+        return await response.Content.ReadAsStringAsync();
+    }
 }
