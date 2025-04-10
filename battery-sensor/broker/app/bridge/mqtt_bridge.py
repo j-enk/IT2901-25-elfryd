@@ -1,12 +1,13 @@
 import time
 
+import paho.mqtt.client as mqtt
 from core.config import MQTT_CONFIG
 from core.database import get_table_name
 from core.mqtt import create_mqtt_client
 from bridge.handlers import battery_handler, temperature_handler, gyro_handler, config_handler, default_handler
 
 # Callback when a MQTT message is received
-def on_message(msg):
+def on_message(msg: mqtt.MQTTMessage):
     """Handle incoming MQTT messages"""
     try:
         topic = msg.topic
@@ -39,19 +40,6 @@ def main():
     
     # Set message callback
     client.on_message = on_message
-    
-    # Connect to broker
-    connected = False
-    while not connected:
-        try:
-            print(f"Attempting to connect to MQTT broker at {MQTT_CONFIG['broker']}")
-            client.connect()
-            connected = True
-            print("Connected to MQTT broker")
-        except Exception as e:
-            print(f"Failed to connect to MQTT broker: {str(e)}")
-            print("Retrying in 5 seconds...")
-            time.sleep(5)
     
     # Subscribe to all topics
     client.subscribe(MQTT_CONFIG["default_topic"], qos=2)
