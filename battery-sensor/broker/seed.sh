@@ -146,8 +146,9 @@ done
 
 # Send some other types of configuration commands
 send_config_command "battery"
-send_config_command "mode normal"
-send_config_command "sleep 300"
+send_config_command "temp"
+send_config_command "battery"
+send_config_command "gyro"
 
 echo "Sending test verification messages..."
 # Send some generic test messages
