@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from typing import List, Optional
-import re
 
 from core.database import get_connection, query_specific_data
 from core.models import ConfigData, MQTTMessage
@@ -50,30 +49,24 @@ def send_config_command(
     if not message.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     
-    command_parts = message.message.strip().split()
+    command = message.message.strip()
     
-    # Command format validation
-    if len(command_parts) != 2:
-        raise HTTPException(
-            status_code=400, 
-            detail="Command must be in format: [command_type] [frequency]"
-        )
-    
-    command_type, frequency = command_parts
-    
-    # Validate command type
-    if command_type not in VALID_CONFIG_COMMANDS:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Invalid command type. Must be one of: {', '.join(VALID_CONFIG_COMMANDS)}"
-        )
-    
-    # Validate frequency format
-    if not re.match(CONFIG_FREQ_PATTERN, frequency):
-        raise HTTPException(
-            status_code=400, 
-            detail="Frequency must be in format: freq[number]"
-        )
+    # Validate command format
+    if command.startswith("freq "):
+        # Handle frequency command
+        parts = command.split()
+        if len(parts) != 2 or not parts[1].isdigit():
+            raise HTTPException(
+                status_code=400, 
+                detail="Frequency command must be in format: freq [number]"
+            )
+    else:
+        # Handle sensor type commands
+        if command not in VALID_CONFIG_COMMANDS:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid command. Must be one of: {', '.join(VALID_CONFIG_COMMANDS)} or 'freq [number]'"
+            )
     
     # Topic validation
     if not message.topic.strip():

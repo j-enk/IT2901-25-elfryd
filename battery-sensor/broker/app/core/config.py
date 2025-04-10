@@ -21,6 +21,5 @@ MQTT_CONFIG = {
 # Constants for table naming
 DEFAULT_TABLE = "mqtt_messages"
 
-# Regex patterns
-CONFIG_FREQ_PATTERN = r"^freq\d+$"
+# List of valid configuration commands
 VALID_CONFIG_COMMANDS = ["battery", "temp", "gyro"]
