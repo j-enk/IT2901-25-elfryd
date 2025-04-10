@@ -1,5 +1,4 @@
 import os
-from fastapi.security.api_key import APIKeyHeader
 
 # Database connection parameters - only accessible within Docker network
 DB_CONFIG = {
@@ -36,8 +35,6 @@ API_CONFIG = {
 API_KEY = os.getenv("API_KEY")
 if not API_KEY:
     raise ValueError("API_KEY environment variable not set")
-
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 # Constants for table naming
 DEFAULT_TABLE = "mqtt_messages"
