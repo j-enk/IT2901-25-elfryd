@@ -202,7 +202,7 @@ def publish_message(
     """
     try:
         client = get_mqtt_client()
-        result = client.publish(message.topic, message.message, qos=1)
+        result = client.publish(message.topic, message.message, qos=2)
         client.disconnect()
 
         if result.rc != mqtt.MQTT_ERR_SUCCESS:

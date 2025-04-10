@@ -6,6 +6,7 @@ import time
 import os
 import re
 from datetime import datetime
+from pydantic import BaseModel, ValidationError
 
 # MQTT Setup - use container names instead of localhost
 MQTT_BROKER = "mqtt-broker"
@@ -23,6 +24,38 @@ DB_PASSWORD = "mypassword"
 
 # Dictionary to track which tables have been created
 created_tables = {}
+
+# Pydantic models for data validation and parsing
+class BatteryData(BaseModel):
+    battery_id: int
+    voltage: int
+    device_timestamp: int
+    topic: str
+    raw_message: str
+
+class TemperatureData(BaseModel):
+    sensor_id: int
+    temperature: int
+    device_timestamp: int
+    topic: str
+    raw_message: str
+
+class GyroData(BaseModel):
+    sensor_id: int
+    accel_x: int
+    accel_y: int
+    accel_z: int
+    gyro_x: int
+    gyro_y: int
+    gyro_z: int
+    device_timestamp: int
+    topic: str
+    raw_message: str
+
+class ConfigData(BaseModel):
+    command: str
+    topic: str
+    raw_message: str
 
 # Function to determine table name from topic
 def get_table_name(topic):
@@ -110,67 +143,61 @@ def ensure_table_exists(table_name, cursor, connection):
 
 # Parse message based on topic and format
 def parse_message(topic, message):
-    if topic == "elfryd/battery":
-        # Format: "1X/Voltage/Timestamp"
-        try:
+    try:
+        if topic == "elfryd/battery":
+            # Format: "1X/Voltage/Timestamp"
             parts = message.split('/')
             if len(parts) == 3:
-                battery_id = int(parts[0])
-                voltage = int(parts[1])
-                device_timestamp = int(parts[2])
-                return {
-                    "battery_id": battery_id,
-                    "voltage": voltage,
-                    "device_timestamp": device_timestamp
-                }
-        except (ValueError, IndexError) as e:
-            print(f"Error parsing battery message: {e}")
-    
-    elif topic == "elfryd/temp":
-        # Format: "2/Temp/Timestamp"
-        try:
+                return BatteryData(
+                    battery_id=int(parts[0]),
+                    voltage=int(parts[1]),
+                    device_timestamp=int(parts[2]),
+                    topic=topic,
+                    raw_message=message
+                )
+        
+        elif topic == "elfryd/temp":
+            # Format: "2/Temp/Timestamp"
             parts = message.split('/')
             if len(parts) == 3:
-                sensor_id = int(parts[0])
-                temperature = int(parts[1])
-                device_timestamp = int(parts[2])
-                return {
-                    "sensor_id": sensor_id,
-                    "temperature": temperature,
-                    "device_timestamp": device_timestamp
-                }
-        except (ValueError, IndexError) as e:
-            print(f"Error parsing temperature message: {e}")
-    
-    elif topic == "elfryd/gyro":
-        # Format: "3/AccelX,AccelY,AccelZ/GyroX,GyroY,GyroZ/Timestamp"
-        try:
+                return TemperatureData(
+                    sensor_id=int(parts[0]),
+                    temperature=int(parts[1]),
+                    device_timestamp=int(parts[2]),
+                    topic=topic,
+                    raw_message=message
+                )
+        
+        elif topic == "elfryd/gyro":
+            # Format: "3/AccelX,AccelY,AccelZ/GyroX,GyroY,GyroZ/Timestamp"
             parts = message.split('/')
             if len(parts) == 4:
-                sensor_id = int(parts[0])
                 accel_parts = parts[1].split(',')
                 gyro_parts = parts[2].split(',')
-                device_timestamp = int(parts[3])
                 
                 if len(accel_parts) == 3 and len(gyro_parts) == 3:
-                    return {
-                        "sensor_id": sensor_id,
-                        "accel_x": int(accel_parts[0]),
-                        "accel_y": int(accel_parts[1]),
-                        "accel_z": int(accel_parts[2]),
-                        "gyro_x": int(gyro_parts[0]),
-                        "gyro_y": int(gyro_parts[1]),
-                        "gyro_z": int(gyro_parts[2]),
-                        "device_timestamp": device_timestamp
-                    }
-        except (ValueError, IndexError) as e:
-            print(f"Error parsing gyro message: {e}")
+                    return GyroData(
+                        sensor_id=int(parts[0]),
+                        accel_x=int(accel_parts[0]),
+                        accel_y=int(accel_parts[1]),
+                        accel_z=int(accel_parts[2]),
+                        gyro_x=int(gyro_parts[0]),
+                        gyro_y=int(gyro_parts[1]),
+                        gyro_z=int(gyro_parts[2]),
+                        device_timestamp=int(parts[3]),
+                        topic=topic,
+                        raw_message=message
+                    )
+        
+        elif topic == "elfryd/config":
+            return ConfigData(
+                command=message,
+                topic=topic,
+                raw_message=message
+            )
     
-    elif topic == "elfryd/config":
-        # Format could be "freqX", "battery", "temp", or "gyro"
-        return {
-            "command": message
-        }
+    except (ValidationError, ValueError, IndexError) as e:
+        print(f"Error parsing message on topic {topic}: {e}")
     
     # Return None if parsing fails or for unrecognized formats
     return None
@@ -225,62 +252,63 @@ def on_message(client, userdata, msg):
     parsed_data = parse_message(topic, message)
     
     # Insert the message into the appropriate table
-    if parsed_data and table_name == "elfryd_battery":
-        insert_query = sql.SQL("""
-            INSERT INTO {} (battery_id, voltage, device_timestamp, topic, raw_message)
-            VALUES (%s, %s, %s, %s, %s)
-        """).format(sql.Identifier(table_name))
-        
-        cur.execute(insert_query, (
-            parsed_data["battery_id"],
-            parsed_data["voltage"],
-            parsed_data["device_timestamp"],
-            topic,
-            message
-        ))
-    elif parsed_data and table_name == "elfryd_temp":
-        insert_query = sql.SQL("""
-            INSERT INTO {} (sensor_id, temperature, device_timestamp, topic, raw_message)
-            VALUES (%s, %s, %s, %s, %s)
-        """).format(sql.Identifier(table_name))
-        
-        cur.execute(insert_query, (
-            parsed_data["sensor_id"],
-            parsed_data["temperature"],
-            parsed_data["device_timestamp"],
-            topic,
-            message
-        ))
-    elif parsed_data and table_name == "elfryd_gyro":
-        insert_query = sql.SQL("""
-            INSERT INTO {} (sensor_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
-                           device_timestamp, topic, raw_message)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """).format(sql.Identifier(table_name))
-        
-        cur.execute(insert_query, (
-            parsed_data["sensor_id"],
-            parsed_data["accel_x"],
-            parsed_data["accel_y"],
-            parsed_data["accel_z"],
-            parsed_data["gyro_x"],
-            parsed_data["gyro_y"],
-            parsed_data["gyro_z"],
-            parsed_data["device_timestamp"],
-            topic,
-            message
-        ))
-    elif parsed_data and table_name == "elfryd_config":
-        insert_query = sql.SQL("""
-            INSERT INTO {} (command, topic, raw_message)
-            VALUES (%s, %s, %s)
-        """).format(sql.Identifier(table_name))
-        
-        cur.execute(insert_query, (
-            parsed_data["command"],
-            topic,
-            message
-        ))
+    if parsed_data:
+        if isinstance(parsed_data, BatteryData):
+            insert_query = sql.SQL("""
+                INSERT INTO {} (battery_id, voltage, device_timestamp, topic, raw_message)
+                VALUES (%s, %s, %s, %s, %s)
+            """).format(sql.Identifier(table_name))
+            
+            cur.execute(insert_query, (
+                parsed_data.battery_id,
+                parsed_data.voltage,
+                parsed_data.device_timestamp,
+                parsed_data.topic,
+                parsed_data.raw_message
+            ))
+        elif isinstance(parsed_data, TemperatureData):
+            insert_query = sql.SQL("""
+                INSERT INTO {} (sensor_id, temperature, device_timestamp, topic, raw_message)
+                VALUES (%s, %s, %s, %s, %s)
+            """).format(sql.Identifier(table_name))
+            
+            cur.execute(insert_query, (
+                parsed_data.sensor_id,
+                parsed_data.temperature,
+                parsed_data.device_timestamp,
+                parsed_data.topic,
+                parsed_data.raw_message
+            ))
+        elif isinstance(parsed_data, GyroData):
+            insert_query = sql.SQL("""
+                INSERT INTO {} (sensor_id, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
+                               device_timestamp, topic, raw_message)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """).format(sql.Identifier(table_name))
+            
+            cur.execute(insert_query, (
+                parsed_data.sensor_id,
+                parsed_data.accel_x,
+                parsed_data.accel_y,
+                parsed_data.accel_z,
+                parsed_data.gyro_x,
+                parsed_data.gyro_y,
+                parsed_data.gyro_z,
+                parsed_data.device_timestamp,
+                parsed_data.topic,
+                parsed_data.raw_message
+            ))
+        elif isinstance(parsed_data, ConfigData):
+            insert_query = sql.SQL("""
+                INSERT INTO {} (command, topic, raw_message)
+                VALUES (%s, %s, %s)
+            """).format(sql.Identifier(table_name))
+            
+            cur.execute(insert_query, (
+                parsed_data.command,
+                parsed_data.topic,
+                parsed_data.raw_message
+            ))
     else:
         # Default insertion for unparsed or unrecognized messages
         insert_query = sql.SQL("INSERT INTO {} (topic, message) VALUES (%s, %s)").format(
