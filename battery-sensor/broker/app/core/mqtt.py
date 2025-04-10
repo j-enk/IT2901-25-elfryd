@@ -39,20 +39,28 @@ def publish_message(topic, message, qos=2):
     Publish a message to the MQTT broker
     """
     try:
+        print(f"Attempting to publish to {topic}: {message}")
         client = create_mqtt_client("mqtt_publisher", use_tls=True)
+        print(f"MQTT client created successfully")
+        print(f"Using broker: {MQTT_CONFIG['tls_broker']}:{MQTT_CONFIG['tls_port']}")
         result = client.publish(topic, message, qos=qos)
+        print(f"Publish result code: {result.rc}, message: {mqtt.error_string(result.rc)}")
+        
+        # Add a short wait before disconnecting
+        client.loop_start()
+        import time
+        time.sleep(2)  # Give time for the publish to complete
+        client.loop_stop()
         client.disconnect()
-
+        
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to publish message: {mqtt.error_string(result.rc)}",
             )
-            
+        
         return True
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error publishing message: {str(e)}"
-        )
+        print(f"MQTT publish error: {str(e)}")
+        # Re-raise the exception
+        raise
