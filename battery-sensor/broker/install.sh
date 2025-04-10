@@ -151,8 +151,7 @@ tar -czf elfryd_client_certs.tar.gz client_certs
 print_section "Starting Docker containers"
 cd $BASE_DIR/app
 docker compose up -d --force-recreate
-
-
+echo "✅ Docker containers started successfully"
 echo "Waiting to ensure all services are up and running..."
 sleep 15
 
