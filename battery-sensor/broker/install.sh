@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BASE_DIR=$(pwd)
+
 # Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -85,7 +87,6 @@ apt-get install -y mosquitto-clients
 
 # Setup directory structure 
 print_section "Setting up directories"
-BASE_DIR=$(pwd)
 
 # Generate TLS certificates
 print_section "Generating TLS certificates"

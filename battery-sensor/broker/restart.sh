@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BASE_DIR=$(pwd)
+
 # Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -56,7 +58,6 @@ fi
 echo "✅ Hostname saved to app/.env file"
 
 # Check if certificate exists
-BASE_DIR=$(pwd)
 if [ ! -f "$BASE_DIR/certs/ca.crt" ] || [ ! -f "$BASE_DIR/certs/server.crt" ] || [ ! -f "$BASE_DIR/certs/server.key" ]; then
   print_error "TLS certificates not found. Please run install.sh first."
   echo "If you've previously run cleanup.sh, you'll need to run install.sh to recreate certificates."

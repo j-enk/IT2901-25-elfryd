@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BASE_DIR=$(pwd)
+
 # Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -26,9 +28,6 @@ fi
 
 print_section "Elfryd MQTT/TLS Cleanup"
 echo "This script will stop and remove all Docker containers and generated files."
-
-# Working directory
-BASE_DIR=$(pwd)
 
 # Ask about database volume
 read -p "Do you want to preserve the database volume to keep your data? (y/n): " -n 1 -r KEEP_DB_DATA
