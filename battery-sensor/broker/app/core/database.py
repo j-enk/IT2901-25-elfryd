@@ -1,4 +1,3 @@
-import time
 import psycopg2
 from psycopg2 import sql
 from psycopg2.extensions import connection as Connection
@@ -29,27 +28,6 @@ def get_connection():
             status_code=500, detail=f"Database connection failed: {str(e)}"
         )
     
-
-def check_database_connection(max_retries=30, retry_delay=2):
-    """Verify database connection is working before proceeding"""
-    retry_count = 0
-    while retry_count < max_retries:
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.close()
-            conn.close()
-            print("✅ Database connection successful")
-            return True
-        except Exception as e:
-            retry_count += 1
-            print(f"Database connection attempt {retry_count}/{max_retries} failed: {str(e)}")
-            print(f"Retrying in {retry_delay} seconds...")
-            time.sleep(retry_delay)
-    
-    print("❌ Failed to establish database connection after maximum retries")
-    return False
 
 def get_table_name(topic: str) -> str:
     """

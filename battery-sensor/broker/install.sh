@@ -152,6 +152,8 @@ print_section "Starting Docker containers"
 cd $BASE_DIR/app
 docker compose up -d --force-recreate
 
+sleep 15
+
 # Wait for services to be ready
 print_section "Testing API readiness"
 echo "Waiting for API to become available..."
@@ -196,7 +198,7 @@ sleep 5
 
 # Check if message made it to the database through API
 BRIDGE_WORKING=false
-max_retries=10
+max_retries=30
 retry_count=0
 
 while [ $retry_count -lt $max_retries ]; do
