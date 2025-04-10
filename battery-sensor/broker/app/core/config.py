@@ -14,7 +14,7 @@ MQTT_CONFIG = {
     "broker": "mqtt-broker",
     "port": 1883,
     "tls_port": 8885,
-    "use_tls": os.environ.get("USE_TLS", "false").lower() == "true",
+    "use_tls": os.environ.get("USE_TLS", "true").lower() == "true",
     "default_topic": "#"
 }
 
