@@ -18,8 +18,5 @@ MQTT_CONFIG = {
     "default_topic": "#"
 }
 
-# Constants for table naming
-DEFAULT_TABLE = "mqtt_messages"
-
 # List of valid configuration commands
 VALID_CONFIG_COMMANDS = ["battery", "temp", "gyro"]

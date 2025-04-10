@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any, Union
 from fastapi import HTTPException
 
-from .config import DB_CONFIG, DEFAULT_TABLE
+from .config import DB_CONFIG
 from .models import BatteryData, TemperatureData, GyroData, ConfigData, StoredMessage
 
 
@@ -37,7 +37,7 @@ def get_table_name(topic: str) -> str:
     
     # Need at least two parts for a valid table name
     if len(parts) < 2:
-        return DEFAULT_TABLE  # Default table for unrecognized formats
+        return parts[0]
     
     # Use two parts of the topic to create a table name
     return f"{parts[0]}_{parts[1]}"
