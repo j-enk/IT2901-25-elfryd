@@ -1,31 +1,29 @@
-import re
 from pydantic import ValidationError
 from psycopg2 import sql
 from core.models import ConfigData
 from core.database import get_connection
-from core.config import CONFIG_FREQ_PATTERN, VALID_CONFIG_COMMANDS
+from core.config import VALID_CONFIG_COMMANDS
 
 def process_message(topic: str, payload: str):
     """Process and store configuration commands"""
     try:
-        # Validate command format
-        command_parts = payload.strip().split()
+        payload = payload.strip()
         
-        if len(command_parts) != 2:
-            print(f"Invalid config command format: {payload}")
-            return
+        # Handle two types of messages:
+        # 1. Simple commands: "battery", "temp", "gyro"
+        # 2. Frequency commands: "freq XXX" where XXX is a number
         
-        command_type, frequency = command_parts
-        
-        # Validate command type
-        if command_type not in VALID_CONFIG_COMMANDS:
-            print(f"Invalid config command type: {command_type}")
-            return
-        
-        # Validate frequency format
-        if not re.match(CONFIG_FREQ_PATTERN, frequency):
-            print(f"Invalid frequency format: {frequency}")
-            return
+        if payload.startswith("freq "):
+            # Handle frequency command
+            parts = payload.split()
+            if len(parts) != 2 or not parts[1].isdigit():
+                print(f"Invalid frequency command format: {payload}")
+                return
+        else:
+            # Handle sensor type commands
+            if payload not in VALID_CONFIG_COMMANDS:
+                print(f"Invalid config command: {payload}")
+                return
         
         # Create ConfigData model
         config_data = ConfigData(
