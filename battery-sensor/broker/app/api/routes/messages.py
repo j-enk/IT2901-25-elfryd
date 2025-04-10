@@ -10,7 +10,7 @@ router = APIRouter(tags=["Messages"])
 
 @router.get("/messages", response_model=List[StoredMessage], summary="Get stored messages")
 def get_messages(
-    topic: Optional[str] = Query(None, description="Filter by topic (partial match)"),
+    topic: str = Query(..., description="Filter by topic (partial match)"), 
     limit: int = Query(
         100, ge=1, le=1000, description="Maximum number of records to return"
     ),
@@ -23,7 +23,7 @@ def get_messages(
     _: str = Depends(get_api_key),
 ):
     """
-    Get stored MQTT messages with optional filtering
+    Get stored MQTT messages with filtering by topic (required)
     """
     try:
         conn = get_connection()

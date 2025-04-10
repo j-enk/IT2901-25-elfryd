@@ -156,50 +156,45 @@ def query_messages(
     """
     all_results = []
     
-    # Decide which tables to query
-    if topic:
-        # If a topic filter is provided, only query the relevant table
-        tables = [get_table_name(topic)]
-    else:
-        # Without a specific topic, query all tables
-        tables = get_all_message_tables(conn)
+    # Exit early if no topic is provided
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic is required")
     
-    # For each table, construct and execute a query
-    for table in tables:
-        try:
-            cur = conn.cursor()
-            
-            # Build the query based on parameters and table structure
-            query = get_table_query(table).format(sql.Identifier(table))
-            
-            params = []
-            
-            if topic:
-                query = sql.SQL("{} AND topic LIKE %s").format(query)
-                params.append(f"%{topic}%")
-            
-            if hours is not None:
-                query = sql.SQL("{} AND timestamp > %s").format(query)
-                params.append(datetime.now() - timedelta(hours=hours))
-            
-            query = sql.SQL("{} ORDER BY timestamp DESC").format(query)
-            
-            cur.execute(query, params)
-            rows = cur.fetchall()
-            
-            # Convert rows to model instances and then to dictionaries
-            table_results = []
-            for row in rows:
-                model = row_to_model(table, row)
-                # Convert model to dictionary for API response
-                table_results.append(model.model_dump())
-            
-            all_results.extend(table_results)
-            cur.close()
-        except Exception as table_error:
-            # If a specific table query fails, log it but continue with other tables
-            print(f"Error querying table {table}: {str(table_error)}")
-            continue
+    table = get_table_name(topic)
+    
+    try:
+        cur = conn.cursor()
+        
+        # Build the query based on parameters and table structure
+        query = get_table_query(table).format(sql.Identifier(table))
+        
+        params = []
+        
+        if topic:
+            query = sql.SQL("{} AND topic LIKE %s").format(query)
+            params.append(f"%{topic}%")
+        
+        if hours is not None:
+            query = sql.SQL("{} AND timestamp > %s").format(query)
+            params.append(datetime.now() - timedelta(hours=hours))
+        
+        query = sql.SQL("{} ORDER BY timestamp DESC").format(query)
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        # Convert rows to model instances and then to dictionaries
+        table_results = []
+        for row in rows:
+            model = row_to_model(table, row)
+            # Convert model to dictionary for API response
+            table_results.append(model.model_dump())
+        
+        all_results.extend(table_results)
+        cur.close()
+
+    except Exception as table_error:
+        print(f"Error querying table {table}: {str(table_error)}")
     
     # Sort combined results by timestamp (newest first)
     all_results.sort(key=lambda x: x["timestamp"], reverse=True)
