@@ -8,6 +8,14 @@ from api.dependencies import get_api_key
 
 router = APIRouter(tags=["Messages"])
 
+# Define special topics that have dedicated endpoints
+SPECIAL_TOPICS = {
+    "elfryd/battery": "/battery",
+    "elfryd/temp": "/temperature",
+    "elfryd/gyro": "/gyro",
+    "elfryd/config": "/config"
+}
+
 @router.get("/messages", response_model=List[StoredMessage], summary="Get stored messages")
 def get_messages(
     topic: str = Query(..., description="Filter by topic (partial match)"), 
@@ -25,6 +33,14 @@ def get_messages(
     """
     Get stored MQTT messages with filtering by topic (required)
     """
+    # Check if topic matches any special topics that have dedicated endpoints
+    for special_topic, endpoint in SPECIAL_TOPICS.items():
+        if special_topic in topic.lower():
+            raise HTTPException(
+                status_code=400, 
+                detail=f"This topic contains specialized data. Please use the dedicated endpoint: {endpoint}"
+            )
+    
     try:
         conn = get_connection()
         results = query_messages(conn, topic, limit, offset, hours)
@@ -46,6 +62,14 @@ def publish_mqtt_message(
     
     if not message.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+    
+    # Check if posting to special topics
+    for special_topic in SPECIAL_TOPICS:
+        if special_topic in message.topic.lower():
+            raise HTTPException(
+                status_code=403, 
+                detail="Publishing to specialized data topics via API is not allowed. Use MQTT with TLS for secure publishing."
+            )
     
     try:
         publish_message(message.topic, message.message)
