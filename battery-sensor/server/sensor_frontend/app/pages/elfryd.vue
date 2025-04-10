@@ -1,11 +1,84 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import type { RadioGroupItem, RadioGroupValue } from '@nuxt/ui'
 
-const rawData = ref<any>(null);
+const configFreq = ref<RadioGroupItem[]>(['Freq: 10', 'Freq: 60', 'Freq: 120'])
+const configFreqVal = ref<RadioGroupValue>("Freq: 10")
+const sendFromSensor = ref<RadioGroupItem[]>(["Battery", "Gyro", "Temp"])
+const sendFromSensorVal = ref<RadioGroupValue>()
+
+const data = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 const topic = ref<string>('');
 const limit = ref<number>(10);
+const configData = ref<any>(null);
+const configLoading = ref(false);
+
+const updateFrequency = () => {
+  const frequencyValue = configFreqVal.value?.toString().replace('Freq: ', '') || '10';
+  
+  const formattedFrequency = `freq ${frequencyValue}`;
+  
+  console.log('Updating frequency with:', formattedFrequency);
+  
+  const url = new URL('http://localhost:5196/api/Elfryd/config/frequency');
+  
+  fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      command: formattedFrequency,
+    }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((dataResponse) => {
+      console.log('Frequency updated successfully:', dataResponse);
+    })
+    .catch((err) => {
+      console.error('Error updating frequency:', err);
+      error.value = err instanceof Error ? err.message : 'Unknown error';
+    });
+};
+
+const retrieveFromSensor = () => {
+  console.log('Retrieve data from sensor:', sendFromSensorVal.value);
+  // Add logic to retrieve data from the selected sensor
+};
+
+const fetchConfig = async () => {
+  configLoading.value = true;
+  error.value = null;
+  
+  try {
+    console.log('Fetching ElfrydAPI config data...');
+    
+    const url = new URL('http://localhost:5196/api/Elfryd/config');
+    
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const dataResponse = await response.json();
+    console.log('Received config data:', dataResponse);
+    configData.value = dataResponse;
+  } catch (err) {
+    console.error('Error fetching config data:', err);
+    error.value = err instanceof Error ? err.message : 'Unknown error';
+  } finally {
+    configLoading.value = false;
+  }
+};
+
 
 const fetchMessages = async () => {
   isLoading.value = true;
@@ -26,11 +99,11 @@ const fetchMessages = async () => {
       throw new Error(`API error: ${response.status}`);
     }
     
-    const data = await response.json();
-    console.log('Received raw data:', data);
-    rawData.value = data;
+    const dataResponse = await response.json();
+    console.log('Received data:', dataResponse);
+    data.value = dataResponse;
   } catch (err) {
-    console.error('Error fetching raw data:', err);
+    console.error('Error fetching data:', err);
     error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {
     isLoading.value = false;
@@ -39,144 +112,106 @@ const fetchMessages = async () => {
 
 onMounted(() => {
   fetchMessages();
+  // fetchConfig();
 });
 </script>
 
 <template>
-  <div class="container">
-    <h1>Elfryd Raw Data</h1>
+  <div class="flex flex-row gap-6 p-4 max-w-[1600px] mx-auto">
+    <!-- Left side - Data Display -->
+    <div class="w-2/3 bg-pink rounded-lg shadow-md p-6">
+      <h1 class="text-2xl font-bold mb-4">Elfryd Data</h1>
+      
+      <div class="bg-green-100 rounded-lg p-4 mb-6 flex gap-4 items-end">
+        <div class="flex-1">
+          <label for="topic" class="font-semibold block mb-1">Topic (optional):</label>
+          <input 
+            id="topic" 
+            v-model="topic" 
+            type="text" 
+            placeholder="Enter topic name or leave blank for all topics"
+            class="w-full p-2 border rounded"
+          />
+        </div>
+        
+        <div class="flex-1">
+          <label for="limit" class="font-semibold block mb-1">Limit:</label>
+          <input 
+            id="limit" 
+            v-model="limit" 
+            type="number" 
+            min="1" 
+            max="100"
+            class="w-full p-2 border rounded"
+          />
+        </div>
+        
+        <button 
+          @click="fetchMessages" 
+          :disabled="isLoading"
+          class="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded"
+        >
+          {{ isLoading ? 'Loading...' : 'Fetch Data' }}
+        </button>
+      </div>
+      
+      <div v-if="error" class="bg-red-100 border border-red-300 text-red-800 p-4 rounded mb-4">
+        <p>Error: {{ error }}</p>
+      </div>
+      
+      <div v-if="isLoading" class="text-center text-gray-600 p-6">
+        <p>Loading data from ElfrydAPI...</p>
+      </div>
+      
+      <div v-else-if="data" class="mt-4">
+        <h2 class="text-xl font-bold mb-2">Raw JSON Response</h2>
+        <pre class=" text-red-500 bg-gray-100 p-4 rounded-lg overflow-auto max-h-[500px] font-mono text-sm">{{ JSON.stringify(data, null, 2) }}</pre>
+      </div>
+    </div>
+
+    <!-- Right side - Config Section -->
+  <div class="w-1/3 bg-white rounded-lg shadow-md p-6">
+    <h3 class="text-xl font-bold mb-4">Config</h3>
     
-    <div class="controls">
-      <div class="form-group">
-        <label for="topic">Topic (optional):</label>
-        <input 
-          id="topic" 
-          v-model="topic" 
-          type="text" 
-          placeholder="Enter topic name or leave blank for all topics"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label for="limit">Limit:</label>
-        <input 
-          id="limit" 
-          v-model="limit" 
-          type="number" 
-          min="1" 
-          max="100"
-        />
-      </div>
-      
-      <button @click="fetchMessages" :disabled="isLoading">
-        {{ isLoading ? 'Loading...' : 'Fetch Data' }}
+    <div class="mb-6">
+      <h5 class="text-lg font-medium mb-2">Update frequency</h5>
+      <URadioGroup legend="Frequency" v-model="configFreqVal" :items="configFreq" class="mb-3" />
+      <UButton @click="updateFrequency" class="w-full">Click me to update frequency</UButton>
+    </div>
+    
+    <div class="mb-4">
+      <h5 class="text-lg font-medium mb-2">Retrieve data from sensor</h5>
+      <URadioGroup legend="Sensor" v-model="sendFromSensorVal" :items="sendFromSensor" class="mb-3" />
+      <UButton @click="retrieveFromSensor" class="w-full">Click me to get sensor data</UButton>
+    </div>
+    
+    <div class="mb-6">
+      <h5 class="text-lg font-medium mb-2">Configuration Data</h5>
+      <button 
+        @click="fetchConfig" 
+        :disabled="configLoading"
+        class="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded w-full mb-4"
+      >
+        {{ configLoading ? 'Loading...' : 'Fetch Config Data' }}
       </button>
+      
+      <!-- Config Data Display Section -->
+      <div v-if="configData" class="mt-4">
+        <div class="bg-orange-50 border border-gray-200 rounded-lg p-4">
+          <pre class="text-red-500 text-sm font-mono overflow-auto max-h-[300px]">{{ JSON.stringify(configData, null, 2) }}</pre>
+        </div>
+      </div>
+      <div v-else-if="configLoading" class="text-center text-gray-600 p-3">
+        <p>Loading configuration data...</p>
+      </div>
+      <div v-else-if="error" class="bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">
+        <p>{{ error }}</p>
+      </div>
+      <div v-else class="text-red-500 text-center p-3 italic">
+        <p>Click the button to load configuration data</p>
+      </div>
     </div>
-    
-    <div v-if="error" class="error-box">
-      <p>Error: {{ error }}</p>
-    </div>
-    
-    <div v-if="isLoading" class="loading">
-      <p>Loading data from ElfrydAPI...</p>
-    </div>
-    
-    <div v-else-if="rawData" class="data-display">
-      <h2>Raw JSON Response</h2>
-      <pre class="json-display">{{ JSON.stringify(rawData, null, 2) }}</pre>
-    </div>
+  </div>
   </div>
 </template>
 
-<style scoped>
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-}
-
-h1 {
-  color: #333;
-  margin-bottom: 20px;
-}
-
-.controls {
-  display: flex;
-  gap: 15px;
-  align-items: flex-end;
-  margin-bottom: 20px;
-  padding: 15px;
-  background-color: green;
-  border-radius: 8px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-label {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-input {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-button {
-  padding: 8px 16px;
-  background-color: #36A2EB;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  height: 35px;
-  font-size: 14px;
-}
-
-button:hover {
-  background-color: #2a8fc7;
-}
-
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.error-box {
-  padding: 15px;
-  background-color: #ffeeee;
-  border: 1px solid #ff8888;
-  border-radius: 4px;
-  color: #cc0000;
-  margin-bottom: 20px;
-}
-
-.data-display {
-  margin-top: 20px;
-}
-
-.json-display {
-  background-color: redgray;
-  padding: 15px;
-  border-radius: 4px;
-  overflow: auto;
-  max-height: 600px;
-  border: 1px solid #e0e0e0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: 'Courier New', Courier, monospace;
-}
-
-.loading {
-  padding: 20px;
-  text-align: center;
-  color: #666;
-}
-</style>
