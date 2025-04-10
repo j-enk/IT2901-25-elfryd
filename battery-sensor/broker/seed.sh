@@ -38,10 +38,9 @@ send_battery_reading() {
 
 # Function to send a temperature reading
 send_temperature_reading() {
-    local sensor_id="$1"
-    local temperature="$2"
-    local timestamp="$3"
-    local message="${sensor_id}/${temperature}/${timestamp}"
+    local temperature="$1"
+    local timestamp="$2"
+    local message="${temperature}/${timestamp}"
     local topic="elfryd/temp"
     
     echo "Sending temperature reading: $message"
@@ -51,15 +50,14 @@ send_temperature_reading() {
 
 # Function to send a gyroscope reading
 send_gyro_reading() {
-    local sensor_id="$1"
-    local accel_x="$2"
-    local accel_y="$3"
-    local accel_z="$4"
-    local gyro_x="$5"
-    local gyro_y="$6"
-    local gyro_z="$7"
-    local timestamp="$8"
-    local message="${sensor_id}/${accel_x},${accel_y},${accel_z}/${gyro_x},${gyro_y},${gyro_z}/${timestamp}"
+    local accel_x="$1"
+    local accel_y="$2"
+    local accel_z="$3"
+    local gyro_x="$4"
+    local gyro_y="$5"
+    local gyro_z="$6"
+    local timestamp="$7"
+    local message="${accel_x},${accel_y},${accel_z}/${gyro_x},${gyro_y},${gyro_z}/${timestamp}"
     local topic="elfryd/gyro"
     
     echo "Sending gyro reading: $message"

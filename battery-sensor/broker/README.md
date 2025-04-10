@@ -151,20 +151,21 @@ The API provides access to the MQTT data with specialized endpoints for differen
 
 ### Core Endpoints
 
-| Endpoint | Method | Description | Security |
-|----------|--------|-------------|----------|
-| `/health` | GET | Check system health status | Public |
-| `/messages` | GET | Get stored messages with optional filters | API Key Required |
-| `/messages` | POST | Publish a message to MQTT | API Key Required |
-| `/topics` | GET | Get list of unique topics | API Key Required |
+| Endpoint | Method | Description | Parameters | Security |
+|----------|--------|-------------|------------|----------|
+| `/health` | GET | Check system health status | None | Public |
+| `/messages` | GET | Get stored messages by topic | `topic` (required), `limit`, `hours` | API Key Required |
+ | API Key Required |
+| `/messages` | POST | Publish a message to MQTT | None | API Key Required |
+| `/topics` | GET | Get list of unique topics | None | API Key Required |
 
 ### Sensor Data Endpoints
 
 | Endpoint | Method | Description | Parameters | Security |
 |----------|--------|-------------|------------|----------|
 | `/battery` | GET | Retrieve battery sensor data | `battery_id`, `limit`, `hours` | API Key Required |
-| `/temperature` | GET | Retrieve temperature sensor data | `sensor_id`, `limit`, `hours` | API Key Required |
-| `/gyro` | GET | Retrieve gyroscope sensor data | `sensor_id`, `limit`, `hours` | API Key Required |
+| `/temperature` | GET | Retrieve temperature sensor data | `limit`, `hours` | API Key Required |
+| `/gyro` | GET | Retrieve gyroscope sensor data | `limit`, `hours` | API Key Required |
 
 ### Configuration Endpoints
 
@@ -177,7 +178,7 @@ The API provides access to the MQTT data with specialized endpoints for differen
 
 - `limit`: Maximum number of records to return (default: 100, max: 1000)
 - `hours`: Get data from the last X hours (default: 24)
-- `battery_id`/`sensor_id`: Filter by specific device ID
+- `battery_id`: Filter by specific battery identifier
 - `topic`: Filter messages by topic (for `/messages` endpoint)
 
 ## Repository Structure
@@ -226,7 +227,8 @@ battery-sensor/broker/
 ├── install.sh                    # Main installation script
 ├── mqtt_monitor.sh               # Script to monitor MQTT messages
 ├── README.md                     # This file
-└── restart.sh                    # Restart script
+├── restart.sh                    # Restart script
+└── seed.sh                       # Seed script for test data
 ```
 
 The codebase follows a modular design with:
@@ -404,7 +406,14 @@ client.tls_set(
 
 # Connect and publish
 client.connect("your-vm-dns-name", 8885, 60)
-client.publish("test/topic", "Hello from IoT device")
+
+# Start the network loop
+client.loop_start()
+result = client.publish("test/topic", "Hello from IoT device", qos=2)
+# Wait for the message to be published
+result.wait_for_publish()
+# Stop the network loop and disconnect
+client.loop_stop()
 client.disconnect()
 ```
 
