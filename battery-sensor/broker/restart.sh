@@ -139,7 +139,9 @@ while [ $retry_count -lt $max_retries ]; do
 done
 
 if [ $retry_count -eq $max_retries ]; then
-  print_warning "Timed out waiting for API to become ready."
+  print_warning "Timed out waiting for API to become ready. Continuing anyway, but tests may fail."
+  echo "Checking API logs:"
+  docker logs elfryd-api | tail -n 20
 fi
 
 # After the API readiness check, add MQTT broker and bridge checks
