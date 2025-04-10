@@ -7,7 +7,7 @@ from core.mqtt import create_mqtt_client
 from bridge.handlers import battery_handler, temperature_handler, gyro_handler, config_handler, default_handler
 
 # Callback when a MQTT message is received
-def on_message(msg: mqtt.MQTTMessage):
+def on_message(client, userdata, msg: mqtt.MQTTMessage):
     """Handle incoming MQTT messages"""
     try:
         topic = msg.topic
