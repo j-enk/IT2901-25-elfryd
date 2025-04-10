@@ -49,7 +49,7 @@ def publish_mqtt_message(
     
     try:
         publish_message(message.topic, message.message)
-        return {"success": True, "message": "Message published"}
+        return {"success": True, "message": "Message published: " + message.message + " to topic: " + message.topic}
     except HTTPException:
         raise
     except Exception as e:
