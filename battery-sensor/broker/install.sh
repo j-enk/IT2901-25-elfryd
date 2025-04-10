@@ -150,7 +150,9 @@ tar -czf elfryd_client_certs.tar.gz client_certs
 # Start the Docker containers
 print_section "Starting Docker containers"
 cd $BASE_DIR/app
+docker compose down
 docker compose up -d --force-recreate
+echo ""
 echo "✅ Docker containers started successfully"
 echo "Waiting to ensure all services are up and running..."
 sleep 15
@@ -178,28 +180,28 @@ if [ $retry_count -eq $max_retries ]; then
   docker logs elfryd-api | tail -n 20
 fi
 
-# Test MQTT bridge functionality (using localhost for bridge to connect to broker)
-print_section "Testing MQTT bridge"
-echo "Publishing a test message and verifying it reaches the database..."
+# Test TLS MQTT connection
+print_section "Testing MQTT broker"
+echo "Testing TLS MQTT connection..."
 
 # Unique test topic and message to easily identify in database
 TEST_TOPIC="test/verification/install"
 TEST_MESSAGE="Bridge test message $(date +%s)"
 
 # Test TLS MQTT connection
-echo "Testing TLS MQTT connection..."
 if mosquitto_pub -h $CommonName -p 8885 --cafile $BASE_DIR/certs/ca.crt -t "$TEST_TOPIC" -m "$TEST_MESSAGE" 2>/dev/null; then
   echo "✅ TLS MQTT connection successful!"
 else
   print_warning "TLS MQTT connection test failed"
 fi
 
-# Give the bridge a moment to process
-sleep 5
+# Test internal bridge functionality
+print_section "Testing MQTT bridge"
+echo "Checking if message reaches the database..."
 
 # Check if message made it to the database through API
 BRIDGE_WORKING=false
-max_retries=30
+max_retries=10
 retry_count=0
 
 while [ $retry_count -lt $max_retries ]; do

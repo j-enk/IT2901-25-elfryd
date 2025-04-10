@@ -120,6 +120,7 @@ print_section "Starting Docker containers"
 cd $BASE_DIR/app
 docker compose down
 docker compose up -d --force-recreate
+echo ""
 echo "✅ Docker containers started successfully"
 echo "Waiting to ensure all services are up and running..."
 sleep 15
@@ -147,8 +148,8 @@ if [ $retry_count -eq $max_retries ]; then
   docker logs elfryd-api | tail -n 20
 fi
 
-# After the API readiness check, add MQTT broker and bridge checks
-print_section "Testing MQTT connection"
+# Test TLS MQTT connection
+print_section "Testing MQTT broker"
 echo "Testing TLS MQTT connection..."
 
 # Unique test topic and message to easily identify in database
@@ -162,10 +163,9 @@ else
   print_warning "TLS MQTT connection test failed"
 fi
 
-# Give the bridge a moment to process
+# Test internal bridge functionality
 print_section "Testing MQTT bridge"
 echo "Checking if message reaches the database..."
-sleep 5
 
 # Check if message made it to the database through API
 BRIDGE_WORKING=false
