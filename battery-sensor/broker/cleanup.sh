@@ -118,10 +118,24 @@ else
     echo "Preserved certificates in $BASE_DIR/certs/"
 fi
 
-# Remove API key
+# Handle API key while preserving hostname
+print_section "Managing environment configuration"
 if [ "$REMOVE_API_KEY" = true ]; then
-    echo "Removing API key..."
-    rm -f $BASE_DIR/app/.env
+    echo "Removing API key but preserving hostname..."
+    if [ -f "$BASE_DIR/app/.env" ]; then
+        # Extract hostname if present
+        HOSTNAME_ENTRY=$(grep "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" || echo "")
+        
+        # Remove the old .env file
+        rm -f "$BASE_DIR/app/.env"
+        
+        # If hostname was present, create a new .env with just the hostname
+        if [ -n "$HOSTNAME_ENTRY" ]; then
+            echo "$HOSTNAME_ENTRY" > "$BASE_DIR/app/.env"
+        fi
+    else
+        echo "No .env file found."
+    fi
 else
     echo "Preserving API key for reuse..."
 fi
@@ -132,6 +146,12 @@ rm -rf $BASE_DIR/app/mqtt-broker/
 # Remove any dangling Docker images
 print_section "Cleaning up Docker images"
 docker image prune -f
+
+# Remove the global environment file if it exists (legacy file)
+if [ -f "/etc/elfryd/elfryd.env" ]; then
+    echo "Removing old environment file format..."
+    rm -f /etc/elfryd/elfryd.env
+fi
 
 print_section "Cleanup Complete!"
 echo -n "All containers"
