@@ -1,8 +1,5 @@
 import os
 
-# Get the hostname from environment variables
-HOSTNAME = os.environ.get("ELFRYD_HOSTNAME", "mqtt-broker")
-
 # Database connection parameters - only accessible within Docker network
 DB_CONFIG = {
     "host": "timescaledb",
@@ -14,10 +11,10 @@ DB_CONFIG = {
 
 # MQTT broker parameters
 MQTT_CONFIG = {
-    "broker": HOSTNAME,  # Use the same hostname as in the certificate
+    "broker": "mqtt-broker",
     "port": 1883,
     "tls_port": 8885,
-    "use_tls": os.environ.get("USE_TLS", "true").lower() == "true",
+    "use_tls": os.environ.get("USE_TLS", "false").lower() == "true",
     "default_topic": "#"
 }
 

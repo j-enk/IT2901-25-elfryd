@@ -32,8 +32,6 @@ services:
       context: .
       dockerfile: Dockerfile.bridge
     container_name: mqtt-bridge
-    env_file:
-      - .env
     depends_on:
       - mqtt-broker
       - timescaledb
