@@ -96,41 +96,41 @@ for i in {1..12}; do
     send_temperature_reading "$temperature" "$ts"
 done
 
-
 echo "Generating gyroscope data..."
-# Generate readings with realistic accelerometer and gyroscope values
-ts=$((base_timestamp - RANDOM % 500))
-accel_x=$((RANDOM % 10000000 - 5000000))
-accel_y=$((RANDOM % 10000000 - 5000000))
-accel_z=$((RANDOM % 10000000 - 5000000))
-gyro_x=$((RANDOM % 500000 - 250000))
-gyro_y=$((RANDOM % 500000 - 250000))
-gyro_z=$((RANDOM % 500000 - 250000))
+# Generate multiple gyroscope readings (at least 10)
+for i in {1..12}; do
+    ts=$((base_timestamp - i*180))
+    accel_x=$((RANDOM % 10000000 - 5000000))
+    accel_y=$((RANDOM % 10000000 - 5000000))
+    accel_z=$((RANDOM % 10000000 - 5000000))
+    gyro_x=$((RANDOM % 500000 - 250000))
+    gyro_y=$((RANDOM % 500000 - 250000))
+    gyro_z=$((RANDOM % 500000 - 250000))
 
-# Format gyro values to include leading zeros
-formatted_gyro_x=$(printf "%07d" ${gyro_x#-})
-if [[ $gyro_x -lt 0 ]]; then
-    formatted_gyro_x="-$formatted_gyro_x"
-else
-    formatted_gyro_x="$formatted_gyro_x"
-fi
+    # Format gyro values to include leading zeros
+    formatted_gyro_x=$(printf "%07d" ${gyro_x#-})
+    if [[ $gyro_x -lt 0 ]]; then
+        formatted_gyro_x="-$formatted_gyro_x"
+    else
+        formatted_gyro_x="$formatted_gyro_x"
+    fi
 
-formatted_gyro_y=$(printf "%07d" ${gyro_y#-})
-if [[ $gyro_y -lt 0 ]]; then
-    formatted_gyro_y="-$formatted_gyro_y"
-else
-    formatted_gyro_y="$formatted_gyro_y"
-fi
+    formatted_gyro_y=$(printf "%07d" ${gyro_y#-})
+    if [[ $gyro_y -lt 0 ]]; then
+        formatted_gyro_y="-$formatted_gyro_y"
+    else
+        formatted_gyro_y="$formatted_gyro_y"
+    fi
 
-formatted_gyro_z=$(printf "%07d" ${gyro_z#-})
-if [[ $gyro_z -lt 0 ]]; then
-    formatted_gyro_z="-$formatted_gyro_z"
-else
-    formatted_gyro_z="$formatted_gyro_z"
-fi
+    formatted_gyro_z=$(printf "%07d" ${gyro_z#-})
+    if [[ $gyro_z -lt 0 ]]; then
+        formatted_gyro_z="-$formatted_gyro_z"
+    else
+        formatted_gyro_z="$formatted_gyro_z"
+    fi
 
-send_gyro_reading "$accel_x" "$accel_y" "$accel_z" "$formatted_gyro_x" "$formatted_gyro_y" "$formatted_gyro_z" "$ts"
-
+    send_gyro_reading "$accel_x" "$accel_y" "$accel_z" "$formatted_gyro_x" "$formatted_gyro_y" "$formatted_gyro_z" "$ts"
+done
 
 echo "Sending configuration commands..."
 # Send various configuration commands
