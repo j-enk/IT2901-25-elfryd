@@ -129,9 +129,6 @@ def main():
     # Set message callback
     client.on_message = on_message
     
-    # Create default table for unrecognized message formats
-    ensure_table_exists("mqtt_messages")
-    
     # Subscribe to all topics
     client.subscribe(MQTT_CONFIG["default_topic"], qos=2)
     print(f"Subscribed to topic: {MQTT_CONFIG['default_topic']}")
