@@ -1,5 +1,4 @@
-from fastapi import APIRouter, HTTPException
-import psycopg2
+from fastapi import APIRouter
 
 from core.database import get_connection
 from core.mqtt import create_mqtt_client

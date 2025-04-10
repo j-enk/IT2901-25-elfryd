@@ -4,7 +4,7 @@ from typing import List, Optional
 from core.database import get_connection, query_messages
 from core.models import StoredMessage, MQTTMessage
 from core.mqtt import publish_message
-from api.app import get_api_key
+from api.dependencies import get_api_key
 
 router = APIRouter(tags=["Messages"])
 

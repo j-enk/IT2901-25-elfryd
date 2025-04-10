@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from core.database import get_connection, query_specific_data
 from core.models import TemperatureData
-from api.app import get_api_key
+from api.dependencies import get_api_key
 
 router = APIRouter(tags=["Temperature"])
 

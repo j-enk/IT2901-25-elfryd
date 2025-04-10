@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.database import get_connection, get_topics
-from api.app import get_api_key
+from api.dependencies import get_api_key
 
 router = APIRouter(tags=["Topics"])
 

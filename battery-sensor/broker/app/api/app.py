@@ -1,9 +1,8 @@
-# Modified app.py that would use dependencies.py
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import API_CONFIG
-from api.dependencies import get_api_key  # Import the dependency instead of defining it
+from api.routes import routers
 
 # Create FastAPI app
 app = FastAPI(**API_CONFIG)
@@ -17,8 +16,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import all route modules to register endpoints
-from api.routes import battery, temperature, gyro, config, messages, topics, health
+# Include all routers from the routes package
+for router in routers:
+    app.include_router(router)
 
 # Root endpoint
 @app.get("/", summary="Root endpoint")

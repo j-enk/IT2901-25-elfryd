@@ -6,7 +6,7 @@ from core.database import get_connection, query_specific_data
 from core.models import ConfigData, MQTTMessage
 from core.mqtt import publish_message
 from core.config import CONFIG_FREQ_PATTERN, VALID_CONFIG_COMMANDS
-from api.app import get_api_key
+from api.dependencies import get_api_key
 
 router = APIRouter(tags=["Configuration"])
 
