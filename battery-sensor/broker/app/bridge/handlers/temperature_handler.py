@@ -1,4 +1,5 @@
 from pydantic import ValidationError
+from psycopg2 import sql
 from core.models import TemperatureData
 from core.database import get_connection
 
@@ -38,28 +39,11 @@ def store_temperature_data(data: TemperatureData):
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Create table if it doesn't exist
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS elfryd_temp (
-            id SERIAL PRIMARY KEY,
-            sensor_id INTEGER NOT NULL,
-            temperature INTEGER NOT NULL,
-            device_timestamp BIGINT NOT NULL,
-            topic TEXT NOT NULL,
-            raw_message TEXT NOT NULL,
-            timestamp TIMESTAMPTZ DEFAULT NOW()
-        );
-        CREATE INDEX IF NOT EXISTS idx_elfryd_temp_timestamp ON elfryd_temp (timestamp DESC);
-        CREATE INDEX IF NOT EXISTS idx_elfryd_temp_sensor_id ON elfryd_temp (sensor_id);
-        """
-        cursor.execute(create_table_query)
-        conn.commit()
+        insert_query = sql.SQL("""
+            INSERT INTO {} (sensor_id, temperature, device_timestamp, topic, raw_message)
+            VALUES (%s, %s, %s, %s, %s)
+        """).format(sql.Identifier(f"elfryd_temp"))
         
-        # Insert data
-        insert_query = """
-        INSERT INTO elfryd_temp (sensor_id, temperature, device_timestamp, topic, raw_message)
-        VALUES (%s, %s, %s, %s, %s)
-        """
         cursor.execute(insert_query, (
             data.sensor_id,
             data.temperature,

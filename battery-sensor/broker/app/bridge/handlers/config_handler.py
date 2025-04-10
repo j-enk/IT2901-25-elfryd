@@ -1,5 +1,6 @@
 import re
 from pydantic import ValidationError
+from psycopg2 import sql
 from core.models import ConfigData
 from core.database import get_connection
 from core.config import CONFIG_FREQ_PATTERN, VALID_CONFIG_COMMANDS
@@ -47,25 +48,11 @@ def store_config_data(data: ConfigData):
         conn = get_connection()
         cursor = conn.cursor()
         
-        # Create table if it doesn't exist
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS elfryd_config (
-            id SERIAL PRIMARY KEY,
-            command TEXT NOT NULL,
-            topic TEXT NOT NULL,
-            raw_message TEXT NOT NULL,
-            timestamp TIMESTAMPTZ DEFAULT NOW()
-        );
-        CREATE INDEX IF NOT EXISTS idx_elfryd_config_timestamp ON elfryd_config (timestamp DESC);
-        """
-        cursor.execute(create_table_query)
-        conn.commit()
+        insert_query = sql.SQL("""
+            INSERT INTO {} (command, topic, raw_message)
+            VALUES (%s, %s, %s)
+        """).format(sql.Identifier(f"elfryd_config"))
         
-        # Insert data
-        insert_query = """
-        INSERT INTO elfryd_config (command, topic, raw_message)
-        VALUES (%s, %s, %s)
-        """
         cursor.execute(insert_query, (
             data.command,
             data.topic,
