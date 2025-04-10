@@ -4,9 +4,13 @@ WORKDIR /app
 
 RUN mkdir -p /app/certs
 
-COPY ./bridge/mqtt_bridge.py /app/
+# Copy the entire modular structure
+COPY ./core/ /app/core/
+COPY ./bridge/ /app/bridge/
 COPY ./bridge/requirements.txt /app/
 
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "mqtt_bridge.py"]
+# Run the bridge script
+CMD ["python", "-m", "bridge.mqtt_bridge"]
