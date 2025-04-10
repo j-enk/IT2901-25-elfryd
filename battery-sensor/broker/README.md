@@ -147,6 +147,10 @@ curl -k -X POST https://your-vm-dns-name:443/messages \
 
 ## API Endpoints
 
+The API provides access to the MQTT data with specialized endpoints for different sensor types. All protected endpoints require the API key to be passed in the `X-API-Key` header.
+
+### Core Endpoints
+
 | Endpoint | Method | Description | Security |
 |----------|--------|-------------|----------|
 | `/health` | GET | Check system health status | Public |
@@ -154,21 +158,66 @@ curl -k -X POST https://your-vm-dns-name:443/messages \
 | `/messages` | POST | Publish a message to MQTT | API Key Required |
 | `/topics` | GET | Get list of unique topics | API Key Required |
 
+### Sensor Data Endpoints
+
+| Endpoint | Method | Description | Parameters | Security |
+|----------|--------|-------------|------------|----------|
+| `/battery` | GET | Retrieve battery sensor data | `battery_id`, `limit`, `hours` | API Key Required |
+| `/temperature` | GET | Retrieve temperature sensor data | `sensor_id`, `limit`, `hours` | API Key Required |
+| `/gyro` | GET | Retrieve gyroscope sensor data | `sensor_id`, `limit`, `hours` | API Key Required |
+
+### Configuration Endpoints
+
+| Endpoint | Method | Description | Parameters | Security |
+|----------|--------|-------------|------------|----------|
+| `/config` | GET | Get configuration messages | `limit`, `hours` | API Key Required |
+| `/config/send` | POST | Send configuration command | Message body with `topic` and `message` | API Key Required |
+
+### Query Parameters
+
+- `limit`: Maximum number of records to return (default: 100, max: 1000)
+- `hours`: Get data from the last X hours (default: 24)
+- `battery_id`/`sensor_id`: Filter by specific device ID
+- `topic`: Filter messages by topic (for `/messages` endpoint)
+
 ## Repository Structure
 
+The broker codebase follows a modular architecture with clear separation of concerns:
+
 ```
-azure_broker/
+battery-sensor/broker/
 ├── app/                          # Main application directory
 │   ├── .env                      # Environment file storing API key
-│   ├── mqtt-broker/              # MQTT broker configuration
-│   │   └── config/               # Broker config files
-│   ├── api/                      # FastAPI application
-│   │   └── app.py                # API code
 │   ├── docker-compose.yml        # Container orchestration
+│   ├── Dockerfile.api            # API container configuration
 │   ├── Dockerfile.bridge         # MQTT-DB bridge container
-│   ├── Dockerfile.api            # API container
-│   ├── mqtt_bridge.py            # MQTT-DB bridge code
-│   └── requirements.txt          # Python dependencies
+│   ├── mqtt-broker/              # MQTT broker configuration
+│   │   └── config/               # Mosquitto config files
+│   ├── api/                      # API application
+│   │   ├── __init__.py           # Package initialization
+│   │   ├── app.py                # FastAPI application entry point
+│   │   ├── dependencies.py       # API dependencies and configuration
+│   │   ├── requirements.txt      # API dependencies
+│   │   └── routes/               # Modular API endpoints
+│   │       ├── __init__.py       # Routes registration
+│   │       ├── battery.py        # Battery sensor endpoints
+│   │       ├── config.py         # Configuration endpoints
+│   │       ├── gyro.py           # Gyroscope sensor endpoints
+│   │       ├── health.py         # System health endpoints
+│   │       ├── messages.py       # General message endpoints
+│   │       ├── temperature.py    # Temperature sensor endpoints
+│   │       └── topics.py         # Topic listing endpoints
+│   ├── bridge/                   # MQTT-DB bridge
+│   │   ├── __init__.py           # Package initialization
+│   │   ├── mqtt_bridge.py        # Bridge implementation
+│   │   ├── requirements.txt      # Bridge dependencies
+│   │   └── handlers/             # Message handlers by topic
+│   └── core/                     # Shared core modules
+│       ├── __init__.py           # Package initialization
+│       ├── config.py             # Shared configuration
+│       ├── database.py           # Database connections
+│       ├── models.py             # Data models (Pydantic)
+│       └── mqtt.py               # MQTT client utilities
 ├── certs/                        # Generated TLS certificates
 ├── client_certs/                 # Certificates for clients
 ├── .gitignore                    # Git ignore file
@@ -179,6 +228,13 @@ azure_broker/
 ├── README.md                     # This file
 └── restart.sh                    # Restart script
 ```
+
+The codebase follows a modular design with:
+
+- **API Layer**: Organized into route modules by functionality
+- **Bridge Layer**: Connects MQTT messages to the database
+- **Core Layer**: Shared code used by both API and bridge
+- **Infrastructure**: Docker configuration and shell scripts
 
 ## Cleaning Up and Preserving Data
 
