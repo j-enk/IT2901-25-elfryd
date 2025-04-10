@@ -27,11 +27,9 @@ fi
 print_section "Elfryd MQTT/TLS Service Restart"
 echo "This script will restart the MQTT broker, database, and API services without recreating certificates."
 
-# Check for existing hostname in environment file
-STORED_HOSTNAME=""
-if [ -f "/etc/elfryd/elfryd.env" ]; then
-  source /etc/elfryd/elfryd.env
-  STORED_HOSTNAME=$ELFRYD_HOSTNAME
+# Get hostname from the app/.env file if it exists
+if [ -f "$BASE_DIR/app/.env" ]; then
+    STORED_HOSTNAME=$(grep ELFRYD_HOSTNAME "$BASE_DIR/app/.env" | cut -d'=' -f2)
 fi
 
 # Get hostname for TLS certificate
@@ -40,19 +38,22 @@ DEFAULT_HOSTNAME=${STORED_HOSTNAME:-$SYSTEM_HOSTNAME}
 
 read -p "Enter the VM's fully qualified domain name (press Enter to use $DEFAULT_HOSTNAME): " USER_HOSTNAME
 if [ -n "$USER_HOSTNAME" ]; then
-  CommonName=$USER_HOSTNAME
+    CommonName=$USER_HOSTNAME
 else
-  CommonName=$DEFAULT_HOSTNAME
+    CommonName=$DEFAULT_HOSTNAME
 fi
 
 echo "Using hostname: $CommonName for connections"
 
-# Save the hostname to environment file for other scripts
-print_section "Saving hostname to environment file"
-mkdir -p /etc/elfryd
-echo "ELFRYD_HOSTNAME=$CommonName" > /etc/elfryd/elfryd.env
-chmod 644 /etc/elfryd/elfryd.env
-echo "✅ Hostname saved to /etc/elfryd/elfryd.env"
+# Update hostname in the app/.env file
+if [ -f "$BASE_DIR/app/.env" ]; then
+    grep -q "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" && \
+        sed -i "s/ELFRYD_HOSTNAME=.*/ELFRYD_HOSTNAME=$CommonName/" "$BASE_DIR/app/.env" || \
+        echo "ELFRYD_HOSTNAME=$CommonName" >> "$BASE_DIR/app/.env"
+else
+    echo "ELFRYD_HOSTNAME=$CommonName" > "$BASE_DIR/app/.env"
+fi
+echo "✅ Hostname saved to app/.env file"
 
 # Check if certificate exists
 BASE_DIR=$(pwd)
@@ -66,24 +67,26 @@ print_section "Generating API security"
 
 # Check if API key exists
 if [ -f "$BASE_DIR/app/.env" ]; then
-  read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
-  echo
-  
-  if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
-    API_KEY=$(openssl rand -hex 32)
-    echo "API_KEY=$API_KEY" > $BASE_DIR/app/.env
-    echo "✅ Generated new API key: $API_KEY"
-    echo "⚠️  Warning: Previous API key is no longer valid"
-  else
-    source $BASE_DIR/app/.env
-    echo "✅ Using existing API key"
-  fi
+    read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
+    echo
+    
+    if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
+        API_KEY=$(openssl rand -hex 32)
+        grep -q "API_KEY=" "$BASE_DIR/app/.env" && \
+            sed -i "s/API_KEY=.*/API_KEY=$API_KEY/" "$BASE_DIR/app/.env" || \
+            echo "API_KEY=$API_KEY" >> "$BASE_DIR/app/.env"
+        echo "✅ Generated new API key: $API_KEY"
+        echo "⚠️  Warning: Previous API key is no longer valid"
+    else
+        API_KEY=$(grep API_KEY "$BASE_DIR/app/.env" | cut -d'=' -f2)
+        echo "✅ Using existing API key"
+    fi
 else
-  API_KEY=$(openssl rand -hex 32)
-  echo "API_KEY=$API_KEY" > $BASE_DIR/app/.env
-  echo "✅ Generated secure API key: $API_KEY"
+    API_KEY=$(openssl rand -hex 32)
+    echo "API_KEY=$API_KEY" > "$BASE_DIR/app/.env"
+    echo "ELFRYD_HOSTNAME=$CommonName" >> "$BASE_DIR/app/.env"
+    echo "✅ Generated secure API key: $API_KEY"
 fi
-
 # Check if Mosquitto configuration exists
 if [ ! -f "$BASE_DIR/app/mqtt-broker/config/mosquitto.conf" ]; then
   print_section "Creating Mosquitto configuration"

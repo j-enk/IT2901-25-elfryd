@@ -29,8 +29,8 @@ echo "This script will set up a secure MQTT broker with TLS, database, and API o
 
 # Check for existing hostname in environment file
 STORED_HOSTNAME=""
-if [ -f "/etc/elfryd/elfryd.env" ]; then
-  source /etc/elfryd/elfryd.env
+if [ -f "$BASE_DIR/app/.env" ]; then
+  source $BASE_DIR/app/.env
   STORED_HOSTNAME=$ELFRYD_HOSTNAME
 fi
 
@@ -48,11 +48,16 @@ fi
 echo "Using hostname: $CommonName for TLS certificates"
 
 # Save the hostname to environment file for other scripts
-print_section "Saving hostname to environment file"
-mkdir -p /etc/elfryd
-echo "ELFRYD_HOSTNAME=$CommonName" > /etc/elfryd/elfryd.env
-chmod 644 /etc/elfryd/elfryd.env
-echo "✅ Hostname saved to /etc/elfryd/elfryd.env"
+if [ -f "$BASE_DIR/app/.env" ]; then
+    # Append hostname to existing .env file if it exists
+    grep -q "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" && \
+        sed -i "s/ELFRYD_HOSTNAME=.*/ELFRYD_HOSTNAME=$CommonName/" "$BASE_DIR/app/.env" || \
+        echo "ELFRYD_HOSTNAME=$CommonName" >> "$BASE_DIR/app/.env"
+else
+    # Create new .env file with hostname
+    echo "ELFRYD_HOSTNAME=$CommonName" > "$BASE_DIR/app/.env"
+fi
+echo "✅ Hostname saved to app/.env file"
 
 # Install required packages
 print_section "Installing required packages"
@@ -103,22 +108,27 @@ print_section "Generating API security"
 
 # Generate a random API key if it doesn't exist
 if [ -f "$BASE_DIR/app/.env" ]; then
-  read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
-  echo
-  
-  if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
-    API_KEY=$(openssl rand -hex 32)
-    echo "API_KEY=$API_KEY" > $BASE_DIR/app/.env
-    echo "✅ Generated new API key: $API_KEY"
-    echo "⚠️  Warning: Previous API key is no longer valid"
-  else
-    source $BASE_DIR/app/.env
-    echo "✅ Using existing API key"
-  fi
+    read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
+    echo
+    
+    if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
+        API_KEY=$(openssl rand -hex 32)
+        # Update API key in existing .env file
+        grep -q "API_KEY=" "$BASE_DIR/app/.env" && \
+            sed -i "s/API_KEY=.*/API_KEY=$API_KEY/" "$BASE_DIR/app/.env" || \
+            echo "API_KEY=$API_KEY" >> "$BASE_DIR/app/.env"
+        echo "✅ Generated new API key: $API_KEY"
+        echo "⚠️  Warning: Previous API key is no longer valid"
+    else
+        # Load existing API key
+        API_KEY=$(grep API_KEY "$BASE_DIR/app/.env" | cut -d'=' -f2)
+        echo "✅ Using existing API key"
+    fi
 else
-  API_KEY=$(openssl rand -hex 32)
-  echo "API_KEY=$API_KEY" > $BASE_DIR/app/.env
-  echo "✅ Generated secure API key: $API_KEY"
+    # This condition should never be reached since we created the file earlier
+    API_KEY=$(openssl rand -hex 32)
+    echo "API_KEY=$API_KEY" >> "$BASE_DIR/app/.env"
+    echo "✅ Generated secure API key: $API_KEY"
 fi
 
 # Create Mosquitto configuration

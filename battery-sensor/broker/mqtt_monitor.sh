@@ -8,14 +8,6 @@ else
   exit 1
 fi
 
-# Get hostname from environment file
-if [ -f /etc/elfryd/elfryd.env ]; then
-  source /etc/elfryd/elfryd.env
-else
-  echo "Warning: Environment file not found, using default hostname"
-  ELFRYD_HOSTNAME="localhost"  # Fallback
-fi
-
 # Function to print help
 print_help() {
   echo "MQTT Monitor Usage:"

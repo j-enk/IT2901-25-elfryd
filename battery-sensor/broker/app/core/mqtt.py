@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 from .config import MQTT_CONFIG
 
-def create_mqtt_client(client_id: str, use_tls: bool = False) -> mqtt.Client:
+def create_mqtt_client(client_id: str, host: str = None, use_tls: bool = False) -> mqtt.Client:
     """
     Create and configure an MQTT client
     """
@@ -22,12 +22,14 @@ def create_mqtt_client(client_id: str, use_tls: bool = False) -> mqtt.Client:
             tls_version=ssl.PROTOCOL_TLSv1_2,
         )
         client.tls_insecure_set(False)
+        host = MQTT_CONFIG["tls_broker"]
         port = MQTT_CONFIG["tls_port"]
     else:
+        host = MQTT_CONFIG["broker"]
         port = MQTT_CONFIG["port"]
 
     try:
-        client.connect(MQTT_CONFIG["broker"], port, 60)
+        client.connect(host, port, 60)
         return client
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MQTT connection failed: {str(e)}")

@@ -12,6 +12,7 @@ DB_CONFIG = {
 # MQTT broker parameters
 MQTT_CONFIG = {
     "broker": "mqtt-broker",
+    "tls_broker": os.environ.get("ELFRYD_HOSTNAME", "mqtt-broker"),
     "port": 1883,
     "tls_port": 8885,
     "default_topic": "#"
