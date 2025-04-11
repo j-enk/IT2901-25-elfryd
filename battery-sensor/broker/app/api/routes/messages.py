@@ -100,7 +100,7 @@ def publish_mqtt_message(
     - **message**: The message content to publish (required)
 
     ## Restrictions
-    Publishing to specialized data topics (battery, temperature, gyro, config)
+    Publishing to specialized data topics (elfryd/battery, elfryd/temp, elfryd/gyro, elfryd/config)
     is not allowed via the API for security reasons. Use MQTT with TLS for these topics.
 
     ## Response

@@ -48,7 +48,7 @@ class MQTTMessage(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {"topic": "random/topic", "message": "Hello, world!"}
         }
 
@@ -71,7 +71,7 @@ class StoredMessage(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 42,
                 "topic": "test/topic",
@@ -95,7 +95,7 @@ class BatteryDataResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 123,
                 "battery_id": 1,
@@ -117,7 +117,7 @@ class TemperatureDataResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {"id": 456, "temperature": 25, "device_timestamp": 1712841730}
         }
 
@@ -143,7 +143,7 @@ class GyroDataResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 789,
                 "accel_x": -4991017,
@@ -174,7 +174,7 @@ class ConfigDataResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": 1,
                 "command": "battery 10",
@@ -205,7 +205,7 @@ class ConfigCommandResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Configuration commands sent",
@@ -227,7 +227,7 @@ class HealthCheckResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "status": "healthy",
                 "database": "connected",
@@ -250,7 +250,7 @@ class TopicListResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "topics": [
                     "elfryd/battery",
@@ -276,7 +276,7 @@ class MessagePublishResponse(BaseModel):
     )
 
     class Config:
-        schema_extra = {"example": {"success": True, "topic": "test/message"}}
+        json_schema_extra = {"example": {"success": True, "topic": "test/message"}}
 
 
 class RootResponse(BaseModel):
@@ -292,7 +292,7 @@ class RootResponse(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "message": "Elfryd MQTT API is running",
                 "version": "1.0"

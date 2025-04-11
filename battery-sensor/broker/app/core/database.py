@@ -70,23 +70,27 @@ def get_all_message_tables(conn: Connection) -> List[str]:
     return tables
 
 
-def row_to_model(
-    table: str, row: tuple
-) -> Union[BatteryData, TemperatureData, GyroData, ConfigData, StoredMessage]:
+def row_to_model(table: str, row: tuple) -> Union[
+    BatteryDataResponse,
+    TemperatureDataResponse,
+    GyroDataResponse,
+    ConfigDataResponse,
+    StoredMessage,
+]:
     """
     Convert a database row to the appropriate model instance based on table name.
     """
     match table:
         case "elfryd_battery":
-            return BatteryData(
+            return BatteryDataResponse(
                 id=row[0], battery_id=row[1], voltage=row[2], device_timestamp=row[3]
             )
         case "elfryd_temp":
-            return TemperatureData(
+            return TemperatureDataResponse(
                 id=row[0], temperature=row[1], device_timestamp=row[2]
             )
         case "elfryd_gyro":
-            return GyroData(
+            return GyroDataResponse(
                 id=row[0],
                 accel_x=row[1],
                 accel_y=row[2],
@@ -97,7 +101,9 @@ def row_to_model(
                 device_timestamp=row[7],
             )
         case "elfryd_config":
-            return ConfigData(id=row[0], command=row[1], topic=row[2], timestamp=row[3])
+            return ConfigDataResponse(
+                id=row[0], command=row[1], topic=row[2], timestamp=row[3]
+            )
         case _:
             # Default message format
             return StoredMessage(
@@ -111,9 +117,18 @@ def query_messages(
     limit: int = 20,
     offset: int = 0,
     hours: Optional[float] = None,
+    time_offset: Optional[float] = None,
 ) -> List[StoredMessage]:
     """
     Query messages from the database with optional filtering.
+    
+    Parameters:
+    - conn: Database connection
+    - topic: Topic filter (partial match)
+    - limit: Maximum number of records to return
+    - offset: Number of records to skip
+    - hours: Optional time window in hours to filter data
+    - time_offset: Optional offset in hours from current time (e.g., 24 = start from yesterday)
     """
     all_results = []
 
@@ -137,9 +152,21 @@ def query_messages(
             query = sql.SQL("{} AND topic LIKE %s").format(query)
             params.append(f"%{topic}%")
 
+        # Apply time-based filtering using server timestamp
         if hours is not None:
-            query = sql.SQL("{} AND timestamp > %s").format(query)
-            params.append(datetime.now() - timedelta(hours=hours))
+            if time_offset is not None:
+                # Calculate the time range with offset
+                end_time = datetime.now() - timedelta(hours=time_offset)
+                start_time = end_time - timedelta(hours=hours)
+
+                query = sql.SQL("{} AND timestamp >= %s AND timestamp <= %s").format(
+                    query
+                )
+                params.extend([start_time, end_time])
+            else:
+                # Standard time window from current time
+                query = sql.SQL("{} AND timestamp > %s").format(query)
+                params.append(datetime.now() - timedelta(hours=hours))
 
         query = sql.SQL("{} ORDER BY timestamp DESC").format(query)
 
@@ -176,7 +203,7 @@ def query_sensor_data(
     limit: int = 20,
     hours: Optional[float] = None,
     time_offset: Optional[float] = None,
-) -> List[BatteryDataResponse | TemperatureDataResponse | GyroDataResponse]:
+) -> List[Union[BatteryDataResponse, TemperatureDataResponse, GyroDataResponse]]:
     """
     Query sensor-specific data (battery, temperature, gyro) with optional filtering.
     Uses device_timestamp for time-based filtering and excludes server timestamp from results.
