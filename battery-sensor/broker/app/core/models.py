@@ -277,3 +277,24 @@ class MessagePublishResponse(BaseModel):
 
     class Config:
         schema_extra = {"example": {"success": True, "topic": "test/message"}}
+
+
+class RootResponse(BaseModel):
+    message: str = Field(
+        ..., 
+        description="Confirmation message that the API is running",
+        example="Elfryd MQTT API is running"
+    )
+    version: str = Field(
+        ..., 
+        description="Current API version",
+        example="1.0"
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "message": "Elfryd MQTT API is running",
+                "version": "1.0"
+            }
+        }
