@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from typing import List, Optional
+import re
 
 from core.database import get_connection, query_specific_data
-from core.models import ConfigData, MQTTMessage
+from core.models import ConfigData
 from core.mqtt import publish_message
-from core.config import VALID_CONFIG_COMMANDS
+from core.config import BASE_CONFIG_COMMANDS, COMMAND_PATTERNS
 from api.dependencies import get_api_key
 
 router = APIRouter(tags=["Configuration"])
@@ -43,7 +44,19 @@ def send_config_command(
     _: str = Depends(get_api_key),
 ):
     """
-    Send a configuration command via MQTT to the predefined config topic
+    Send a configuration command via MQTT to the predefined config topic.
+    
+    Supported formats:
+    - "battery" - Enable battery reading with default interval
+    - "battery X" - Enable battery reading with X interval (X=0 disables)
+    - "temp" - Enable temperature reading with default interval
+    - "temp X" - Enable temperature reading with X interval (X=0 disables)
+    - "gyro" - Enable gyroscope reading with default interval
+    - "gyro X" - Enable gyroscope reading with X interval (X=0 disables)
+    - "freq X" - Legacy format for setting general frequency
+    
+    Multiple commands can be sent at once by separating them with the "|" character.
+    Example: "battery 10|temp 30|gyro 0"
     """
     # Validate config command format
     if not command.strip():
@@ -51,22 +64,38 @@ def send_config_command(
     
     command = command.strip()
     
-    # Validate command format
-    if command.startswith("freq "):
-        # Handle frequency command
-        parts = command.split()
-        if len(parts) != 2 or not parts[1].isdigit():
-            raise HTTPException(
-                status_code=400, 
-                detail="Frequency command must be in format: freq [number]"
-            )
-    else:
-        # Handle sensor type commands
-        if command not in VALID_CONFIG_COMMANDS:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Invalid command. Must be one of: {', '.join(VALID_CONFIG_COMMANDS)} or 'freq [number]'"
-            )
+    # Split into multiple commands if needed
+    commands = command.split("|")
+    invalid_commands = []
+    
+    # Validate each command
+    for cmd in commands:
+        cmd = cmd.strip()
+        if not cmd:
+            continue
+        
+        # Check if command matches any valid pattern
+        is_valid = False
+        for pattern in COMMAND_PATTERNS.values():
+            if re.match(pattern, cmd):
+                is_valid = True
+                break
+        
+        if not is_valid:
+            invalid_commands.append(cmd)
+    
+    # If any commands are invalid, return error
+    if invalid_commands:
+        valid_formats = [
+            f"{base}" for base in BASE_CONFIG_COMMANDS
+        ] + [
+            f"{base} [number]" for base in BASE_CONFIG_COMMANDS
+        ] + ["freq [number]"]
+        
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid commands: {', '.join(invalid_commands)}. Valid formats: {', '.join(valid_formats)}"
+        )
     
     # Set fixed topic for all configuration commands
     topic = "elfryd/config/send"
@@ -74,7 +103,12 @@ def send_config_command(
     # Publish to MQTT broker
     try:
         publish_message(topic, command)
-        return {"success": True, "message": "Configuration command sent", "topic": topic}
+        return {
+            "success": True, 
+            "message": "Configuration commands sent", 
+            "topic": topic,
+            "commands": [cmd.strip() for cmd in commands if cmd.strip()]
+        }
     except HTTPException:
         raise
     except Exception as e:

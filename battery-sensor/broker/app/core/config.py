@@ -18,5 +18,11 @@ MQTT_CONFIG = {
     "default_topic": "#"
 }
 
-# List of valid configuration commands
-VALID_CONFIG_COMMANDS = ["battery", "temp", "gyro"]
+# Base configuration commands
+BASE_CONFIG_COMMANDS = ["battery", "temp", "gyro"]
+
+# Regex patterns for valid command formats
+COMMAND_PATTERNS = {
+    "basic": r"^(battery|temp|gyro)$",                 # basic commands: battery, temp, gyro
+    "interval": r"^(battery|temp|gyro) \d+$",          # interval commands: battery 10, temp 5, gyro 20
+}
