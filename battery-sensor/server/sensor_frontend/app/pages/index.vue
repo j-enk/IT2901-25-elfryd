@@ -152,6 +152,5 @@ onMounted(() => {
         </section>
       </aside>
     </div>
-
   </main>
 </template>
