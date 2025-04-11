@@ -95,10 +95,13 @@ public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRe
         }
 
         [HttpGet("battery")]
-        public async Task<IActionResult> GetBatteryData(){
+        public async Task<IActionResult> GetBatteryData(
+            [FromQuery] string battery_id = null,
+            [FromQuery] int limit = 20
+        ){
             try{
 
-            var result = await _elfrydClient.GetBatteryDataAsync();
+            var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit);
             return Content(result, "application/json");
         }
         catch (Exception ex)

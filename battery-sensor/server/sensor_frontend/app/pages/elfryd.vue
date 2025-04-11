@@ -10,7 +10,7 @@ const sendFromSensorVal = ref<RadioGroupValue>()
 const data = ref<any>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
-const topic = ref<string>('');
+const battery_id = ref<number>(0);
 const limit = ref<number>(10);
 const configData = ref<any>(null);
 const configLoading = ref(false);
@@ -80,18 +80,21 @@ const fetchConfig = async () => {
 };
 
 
-const fetchMessages = async () => {
+const fetchBatteryData = async () => {
   isLoading.value = true;
   error.value = null;
   
   try {
-    console.log(`Fetching ElfrydAPI data with topic: ${topic.value || 'all'}, limit: ${limit.value}`);
+    console.log(`Fetching ElfrydAPI battery data with battery_id: ${battery_id.value}, limit: ${limit.value}`);
     
-    const url = new URL('http://localhost:5196/api/Elfryd/messages');
-    if (topic.value) {
-      url.searchParams.append('topic', topic.value);
+    const url = new URL('http://localhost:5196/api/Elfryd/battery');
+    if (battery_id.value) {
+      url.searchParams.append('battery_id', battery_id.value.toString());
     }
-    url.searchParams.append('limit', limit.value.toString());
+    if (limit.value) {
+      url.searchParams.append('limit', limit.value.toString());
+    }
+    console.log('URL:', url.toString());
     
     const response = await fetch(url.toString());
     
@@ -111,23 +114,23 @@ const fetchMessages = async () => {
 };
 
 onMounted(() => {
-  fetchMessages();
+  fetchBatteryData();
   // fetchConfig();
 });
 </script>
 
 <template>
-  <div class="flex flex-row gap-6 p-4 max-w-[1600px] mx-auto">
+  <div class="flex flex-row gap-6 p-4 max-w-[1600px] mx-auto bg-pink-100">
     <!-- Left side - Data Display -->
-    <div class="w-2/3 bg-pink rounded-lg shadow-md p-6">
+    <div class="w-2/3 rounded-lg shadow-md p-6">
       <h1 class="text-2xl font-bold mb-4">Elfryd Data</h1>
       
       <div class="bg-green-100 rounded-lg p-4 mb-6 flex gap-4 items-end">
         <div class="flex-1">
-          <label for="topic" class="font-semibold block mb-1">Topic (optional):</label>
+          <label for="battery_id" class="font-semibold block mb-1">Battery ID (optional):</label>
           <input 
-            id="topic" 
-            v-model="topic" 
+            id="battery_id" 
+            v-model="battery_id" 
             type="text" 
             placeholder="Enter topic name or leave blank for all topics"
             class="w-full p-2 border rounded"
@@ -147,7 +150,7 @@ onMounted(() => {
         </div>
         
         <button 
-          @click="fetchMessages" 
+          @click="fetchBatteryData" 
           :disabled="isLoading"
           class="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded"
         >

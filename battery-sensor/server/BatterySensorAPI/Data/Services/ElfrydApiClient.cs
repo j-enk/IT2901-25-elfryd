@@ -95,8 +95,16 @@ public class ElfrydApiClient
         return await response.Content.ReadAsStringAsync();
     }
 
-    public async Task<string> GetBatteryDataAsync(){
-        var request = new HttpRequestMessage(HttpMethod.Get, "battery");
+    public async Task<string> GetBatteryDataAsync(string battery_id = null, int limit = 20){
+        var requestUri = $"battery?limit={limit}";
+
+        if (!string.IsNullOrEmpty(battery_id))
+        {
+            requestUri += $"&battery_id={Uri.EscapeDataString(battery_id)}";
+        }
+        
+        
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         request.Headers.Add("X-API-Key", _apiKey);
 
         var response = await _client.SendAsync(request);
