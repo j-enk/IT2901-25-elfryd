@@ -21,7 +21,24 @@ def get_config_data(
     _: str = Depends(get_api_key),
 ):
     """
-    Get configuration messages
+    Retrieve configuration messages sent to the system.
+    
+    This endpoint returns a list of configuration commands that have been sent to 
+    the connected devices. The data includes the command, topic, and timestamp.
+    
+    ## Parameters
+    - **limit**: Maximum number of records to return (default: 100, max: 1000)
+    - **hours**: Get data from the last X hours (default: 24)
+    
+    ## Response
+    Returns an array of configuration records, each containing:
+    - **id**: Unique record identifier
+    - **command**: The configuration command that was sent
+    - **topic**: The MQTT topic the command was sent to
+    - **timestamp**: When the command was sent
+    
+    ## Authentication
+    Requires API key in the X-API-Key header
     """
     try:
         conn = get_connection()
@@ -44,19 +61,36 @@ def send_config_command(
     _: str = Depends(get_api_key),
 ):
     """
-    Send a configuration command via MQTT to the predefined config topic.
+    Send a configuration command to connected devices via MQTT.
     
-    Supported formats:
-    - "battery" - Enable battery reading with default interval
-    - "battery X" - Enable battery reading with X interval (X=0 disables)
-    - "temp" - Enable temperature reading with default interval
-    - "temp X" - Enable temperature reading with X interval (X=0 disables)
-    - "gyro" - Enable gyroscope reading with default interval
-    - "gyro X" - Enable gyroscope reading with X interval (X=0 disables)
-    - "freq X" - Legacy format for setting general frequency
+    ## Command Formats
+    The following command formats are supported:
     
+    ### Sensor Configuration
+    - **battery**: Enable battery reading with default interval
+    - **battery X**: Enable battery reading with X interval (X=0 disables)
+    - **temp**: Enable temperature reading with default interval
+    - **temp X**: Enable temperature reading with X interval (X=0 disables)
+    - **gyro**: Enable gyroscope reading with default interval
+    - **gyro X**: Enable gyroscope reading with X interval (X=0 disables)
+    
+    ### Multiple Commands
     Multiple commands can be sent at once by separating them with the "|" character.
-    Example: "battery 10|temp 30|gyro 0"
+    
+    ## Examples
+    - `battery` - Enable battery readings with default interval
+    - `temp 30` - Enable temperature readings every 30 seconds
+    - `gyro 0` - Disable gyroscope readings
+    - `battery 10|temp 30|gyro 0` - Configure multiple sensors in one request
+    
+    ## Request Body
+    - **command**: The configuration command string
+    
+    ## Response
+    - JSON object with success status and details
+    
+    ## Authentication
+    Requires API key in the X-API-Key header
     """
     # Validate config command format
     if not command.strip():

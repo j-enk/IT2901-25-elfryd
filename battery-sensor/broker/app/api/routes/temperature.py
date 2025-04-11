@@ -18,7 +18,24 @@ def get_temperature_data(
     _: str = Depends(get_api_key),
 ):
     """
-    Get temperature data with optional filtering
+    Retrieve temperature sensor readings from connected devices.
+    
+    This endpoint returns temperature sensor data collected from the IoT devices
+    in the Elfryd system. The temperature values are in degrees Celsius.
+    
+    ## Parameters
+    - **limit**: Maximum number of records to return (default: 100, max: 1000)
+    - **hours**: Get data from the last X hours (default: 24)
+    
+    ## Response
+    Returns an array of temperature records, each containing:
+    - **id**: Unique record identifier
+    - **temperature**: Temperature reading in degrees Celsius
+    - **device_timestamp**: Timestamp from the device (Unix timestamp)
+    - **timestamp**: Server timestamp when the reading was received
+    
+    ## Authentication
+    Requires API key in the X-API-Key header
     """
     try:
         conn = get_connection()

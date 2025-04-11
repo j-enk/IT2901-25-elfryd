@@ -31,7 +31,33 @@ def get_messages(
     _: str = Depends(get_api_key),
 ):
     """
-    Get stored MQTT messages with filtering by topic (required)
+    Retrieve general MQTT messages filtered by topic.
+    
+    This endpoint returns MQTT messages that don't fit into specialized categories
+    (like battery, temperature, etc). A topic filter is required.
+    
+    ## Parameters
+    - **topic**: Filter by topic name (required, partial matching supported)
+    - **limit**: Maximum number of records to return (default: 100, max: 1000)
+    - **offset**: Number of records to skip, useful for pagination (default: 0)
+    - **hours**: Get data from the last X hours (default: 24)
+    
+    ## Special Topics
+    For specialized data topics, please use their dedicated endpoints:
+    - For battery data: `/battery`
+    - For temperature data: `/temperature`
+    - For gyroscope data: `/gyro`
+    - For configuration data: `/config`
+    
+    ## Response
+    Returns an array of message records, each containing:
+    - **id**: Unique record identifier
+    - **topic**: The MQTT topic the message was sent to
+    - **message**: The content of the message
+    - **timestamp**: When the message was received
+    
+    ## Authentication
+    Requires API key in the X-API-Key header
     """
     # Check if topic matches any special topics that have dedicated endpoints
     for special_topic, endpoint in SPECIAL_TOPICS.items():
@@ -49,13 +75,30 @@ def get_messages(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
+
 @router.post("/messages", response_model=dict, summary="Publish MQTT message")
 def publish_mqtt_message(
     message: MQTTMessage = Body(...),
     _: str = Depends(get_api_key),
 ):
     """
-    Publish a message to the MQTT broker
+    Publish a message to the MQTT broker.
+    
+    This endpoint allows you to send a message to any non-specialized MQTT topic.
+    
+    ## Request Body
+    - **topic**: The MQTT topic to publish to (required)
+    - **message**: The message content to publish (required)
+    
+    ## Restrictions
+    Publishing to specialized data topics (battery, temperature, gyro, config) 
+    is not allowed via the API for security reasons. Use MQTT with TLS for these topics.
+    
+    ## Response
+    - JSON object with success status and message details
+    
+    ## Authentication
+    Requires API key in the X-API-Key header
     """
     if not message.topic.strip():
         raise HTTPException(status_code=400, detail="Topic cannot be empty")

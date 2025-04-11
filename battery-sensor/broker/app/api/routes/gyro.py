@@ -18,7 +18,29 @@ def get_gyro_data(
     _: str = Depends(get_api_key),
 ):
     """
-    Get gyroscope and accelerometer data with optional filtering
+    Retrieve gyroscope and accelerometer data from connected devices.
+    
+    This endpoint returns motion sensor data collected from the IoT devices
+    in the Elfryd system, including both accelerometer and gyroscope values.
+    
+    ## Parameters
+    - **limit**: Maximum number of records to return (default: 100, max: 1000)
+    - **hours**: Get data from the last X hours (default: 24)
+    
+    ## Response
+    Returns an array of motion sensor records, each containing:
+    - **id**: Unique record identifier
+    - **accel_x**: Accelerometer X-axis reading
+    - **accel_y**: Accelerometer Y-axis reading
+    - **accel_z**: Accelerometer Z-axis reading
+    - **gyro_x**: Gyroscope X-axis reading (angular velocity)
+    - **gyro_y**: Gyroscope Y-axis reading (angular velocity)
+    - **gyro_z**: Gyroscope Z-axis reading (angular velocity)
+    - **device_timestamp**: Timestamp from the device (Unix timestamp)
+    - **timestamp**: Server timestamp when the reading was received
+    
+    ## Authentication
+    Requires API key in the X-API-Key header
     """
     try:
         conn = get_connection()
