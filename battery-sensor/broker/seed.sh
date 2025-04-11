@@ -1,18 +1,51 @@
 #!/bin/bash
 
-# Configuration
-HOST="elfryd.northeurope.cloudapp.azure.com"
-PORT="8885"
-CA_FILE="/home/elfryd-adm/elfryd-branch-19/battery-sensor/broker/certs/ca.crt"
+BASE_DIR=$(pwd)
 
-# Check if CA file exists
-if [ ! -f "$CA_FILE" ]; then
-    echo "Error: CA certificate file not found at $CA_FILE"
-    echo "Please update the CA_FILE path in the script."
+# Colors for terminal output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+print_section() {
+  echo -e "${GREEN}\n==== $1 ====${NC}\n"
+}
+
+print_warning() {
+  echo -e "${YELLOW}WARNING: $1${NC}"
+}
+
+print_error() {
+  echo -e "${RED}ERROR: $1${NC}"
+}
+
+# Get hostname from environment file or system
+if [ -f "$BASE_DIR/app/.env" ]; then
+    source "$BASE_DIR/app/.env"
+    HOST=${ELFRYD_HOSTNAME}
+else
+    # Default to system hostname if .env file not found
+    HOST=$(hostname -f)
+    print_warning "No .env file found. Using system hostname: $HOST"
+fi
+
+# Configure TLS port
+PORT="8885"
+
+# Set CA certificate location - check both possible locations
+if [ -f "$BASE_DIR/certs/ca.crt" ]; then
+    CA_FILE="$BASE_DIR/certs/ca.crt"
+elif [ -f "$BASE_DIR/client_certs/ca.crt" ]; then
+    CA_FILE="$BASE_DIR/client_certs/ca.crt"
+else
+    print_error "CA certificate file not found."
+    echo "Please run this script from the broker directory where certificates were created."
+    echo "Or update the CA_FILE path in the script manually."
     exit 1
 fi
 
-echo "=== Elfryd MQTT Test Data Generator ==="
+print_section "Elfryd MQTT Test Data Generator"
 echo "This script will send test data to your MQTT broker"
 echo "Host: $HOST"
 echo "CA file: $CA_FILE"
@@ -98,7 +131,7 @@ done
 
 echo "Generating gyroscope data..."
 # Generate multiple gyroscope readings (at least 10)
-for i in {1..12}; do
+for i in {1..20}; do  # Increased to 20 readings
     ts=$((base_timestamp - i*180))
     accel_x=$((RANDOM % 10000000 - 5000000))
     accel_y=$((RANDOM % 10000000 - 5000000))
@@ -132,19 +165,33 @@ for i in {1..12}; do
     send_gyro_reading "$accel_x" "$accel_y" "$accel_z" "$formatted_gyro_x" "$formatted_gyro_y" "$formatted_gyro_z" "$ts"
 done
 
-echo "Sending configuration commands..."
-# Send various configuration commands
-for freq in 10 30 60 100 120; do
-    send_config_command "freq $freq"
-done
+print_section "Sending configuration commands"
 
-# Send some other types of configuration commands
+# Send basic commands (no parameters)
+echo "Sending basic commands..."
 send_config_command "battery"
 send_config_command "temp"
-send_config_command "battery"
 send_config_command "gyro"
 
-echo ""
+# Send commands with intervals
+echo "Sending interval commands..."
+send_config_command "battery 15"
+send_config_command "temp 30"
+send_config_command "gyro 45"
+
+# Send disable commands (interval = 0)
+echo "Sending disable commands..."
+send_config_command "battery 0"
+send_config_command "temp 0"
+send_config_command "gyro 0"
+
+# Send multiple commands with the delimiter
+echo "Sending multiple commands with delimiter..."
+send_config_command "battery 10|temp 20|gyro 30"
+send_config_command "battery|temp|gyro"
+send_config_command "battery 0|temp 0|gyro 0"
+
+print_section "Test data generation complete!"
 echo "All test data has been sent successfully!"
 echo "You can verify the data using these commands:"
 echo "docker exec -it timescaledb psql -U myuser -d mqtt_data -c \"SELECT * FROM elfryd_battery LIMIT 10;\""
