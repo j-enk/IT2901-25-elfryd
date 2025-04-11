@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from typing import List, Optional
 import re
 
-from core.database import get_connection, query_config_data, query_specific_data
+from core.database import get_connection, query_config_data
 from core.models import ConfigData
 from core.mqtt import publish_message
 from core.config import BASE_CONFIG_COMMANDS, COMMAND_PATTERNS
