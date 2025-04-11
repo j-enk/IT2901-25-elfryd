@@ -51,43 +51,51 @@ ssh yourusername@your-vm-dns-name
 ### 5. Setup Git and Clone Relevant Code
 
 1. Install Git:
+
 ```bash
 sudo apt update && sudo apt install -y git
 ```
 
 2. Generate SSH key for GitHub:
+
 ```bash
 ssh-keygen -t ed25519 -C "your_email@example.com"
 ```
 
 3. Copy the SSH public key:
+
 ```bash
 cat ~/.ssh/id_ed25519.pub
 ```
 
 4. Add the key to your GitHub account:
+
    - Go to GitHub > Settings > SSH and GPG keys
    - Click "New SSH key"
    - Paste your public key and save
 
 5. Initialize empty repo:
+
 ```bash
 git init elfryd
 cd elfryd
 ```
 
 6. Add the remote repository:
+
 ```bash
 git remote add origin git@github.com:j-enk/IT2901-25-elfryd.git
 ```
 
 7. Configure sparse checkout:
+
 ```bash
 git config core.sparseCheckout true
 echo "battery-sensor/broker" >> .git/info/sparse-checkout
 ```
 
 8. Pull the `broker` directory:
+
 ```bash
 git pull origin main
 cd battery-sensor/broker
@@ -125,19 +133,22 @@ tar -xzf elfryd_client_certs.tar.gz
 mosquitto_pub -h your-vm-dns-name -p 8885 --cafile ./client_certs/ca.crt -t test/topic -m "Secure Hello World"
 ```
 
-### Test API Access 
+### Test API Access
 
 Check system health:
+
 ```bash
 curl -k -X GET https://your-vm-dns-name:443/health -w '\n'
 ```
 
 Get recent messages (protected endpoint):
+
 ```bash
 curl -k -X GET https://your-vm-dns-name:443/messages -H "X-API-Key: $API_KEY" -w '\n'
 ```
 
 Publish a message via API (protected endpoint):
+
 ```bash
 curl -k -X POST https://your-vm-dns-name:443/messages \
   -H "Content-Type: application/json" \
@@ -147,39 +158,42 @@ curl -k -X POST https://your-vm-dns-name:443/messages \
 
 ## API Endpoints
 
-The API provides access to the MQTT data with specialized endpoints for different sensor types. All protected endpoints require the API key to be passed in the `X-API-Key` header.
+The API provides access to the MQTT data with specialized endpoints for different sensor types. All protected endpoints require the API key to be passed in the `X-API-Key` header. Full interactive documentation is available at `/docs` (Swagger UI) or `/redoc` (ReDoc) once the API is running.
 
 ### Core Endpoints
 
-| Endpoint | Method | Description | Parameters | Security |
-|----------|--------|-------------|------------|----------|
-| `/health` | GET | Check system health status | None | Public |
-| `/messages` | GET | Get stored messages by topic | `topic` (required), `limit`, `hours` | API Key Required |
- | API Key Required |
-| `/messages` | POST | Publish a message to MQTT | None | API Key Required |
-| `/topics` | GET | Get list of unique topics | None | API Key Required |
+| Endpoint    | Method | Description                  | Parameters                                             | Security         |
+|-------------|--------|------------------------------|--------------------------------------------------------|------------------|
+| `/health`   | GET    | Check system health status   | None                                                   | Public           |
+| `/messages` | GET    | Get stored messages by topic | `topic` (required), `limit`, `offset`, `hours`, `time_offset` | API Key Required |
+| `/messages` | POST   | Publish a message to MQTT    | Message body with `topic` and `message`                | API Key Required |
+| `/topics`   | GET    | Get list of unique topics    | None                                                   | API Key Required |
 
 ### Sensor Data Endpoints
 
-| Endpoint | Method | Description | Parameters | Security |
-|----------|--------|-------------|------------|----------|
-| `/battery` | GET | Retrieve battery sensor data | `battery_id`, `limit`, `hours` | API Key Required |
-| `/temperature` | GET | Retrieve temperature sensor data | `limit`, `hours` | API Key Required |
-| `/gyro` | GET | Retrieve gyroscope sensor data | `limit`, `hours` | API Key Required |
+| Endpoint       | Method | Description                      | Parameters                                        | Security         |
+|----------------|--------|----------------------------------|-------------------------------------------------|------------------|
+| `/battery`     | GET    | Retrieve battery sensor data     | `battery_id`, `limit`, `hours`, `time_offset`    | API Key Required |
+| `/temperature` | GET    | Retrieve temperature sensor data | `limit`, `hours`, `time_offset`                  | API Key Required |
+| `/gyro`        | GET    | Retrieve gyroscope sensor data   | `limit`, `hours`, `time_offset`                  | API Key Required |
 
 ### Configuration Endpoints
 
-| Endpoint | Method | Description | Parameters | Security |
-|----------|--------|-------------|------------|----------|
-| `/config` | GET | Get configuration messages | `limit`, `hours` | API Key Required |
-| `/config/send` | POST | Send configuration command | Message body with `topic` and `message` | API Key Required |
+| Endpoint       | Method | Description                | Parameters                           | Security         |
+|----------------|--------|----------------------------|--------------------------------------|------------------|
+| `/config`      | GET    | Get configuration messages | `limit`, `hours`, `time_offset`      | API Key Required |
+| `/config/send` | POST   | Send configuration command | Message body with command string     | API Key Required |
 
 ### Query Parameters
 
-- `limit`: Maximum number of records to return (default: 100, max: 1000)
-- `hours`: Get data from the last X hours (default: 24)
-- `battery_id`: Filter by specific battery identifier
 - `topic`: Filter messages by topic (for `/messages` endpoint)
+- `limit`: Maximum number of records to return (default varies by endpoint, max: 1000-10000)
+- `offset`: Number of records to skip, for pagination (for `/messages` endpoint, default: 0)
+- `hours`: Get data from the last X hours (default: 24 for messages, 168 for sensor data)
+- `time_offset`: Offset in hours from current time (e.g., 336 = start from 2 weeks ago)
+- `battery_id`: Filter by specific battery identifier (for `/battery` endpoint)
+
+The `hours` and `time_offset` parameters can be combined to create a specific time window. For example, setting `hours=24` and `time_offset=336` would retrieve data from exactly 2 weeks ago for a 24-hour period.
 
 ## Repository Structure
 
@@ -255,21 +269,27 @@ The cleanup script offers three preservation options:
 This gives you several different cleanup/restart workflows:
 
 ### Complete Reinstallation
+
 If you choose not to preserve anything during cleanup, you'll need to run the full installation script to restart:
+
 ```bash
 sudo bash cleanup.sh    # Answer 'n' to all preservation questions
 sudo bash install.sh    # Full reinstallation with new certificates and API key
 ```
 
 ### Quick Restart with Preserved Certificates and API Key
+
 If you preserve certificates and API key during cleanup, you can use the restart script:
+
 ```bash
 sudo bash cleanup.sh    # Answer 'y' to certificate and API key preservation questions
 sudo bash restart.sh    # Quick restart using existing certificates and API key
 ```
 
 ### Fresh Start with Preserved Data but New Security
+
 If you preserve only the database, you'll get new certificates and API key but keep all message history:
+
 ```bash
 sudo bash cleanup.sh    # Answer 'y' to database preservation, 'n' to others
 sudo bash install.sh    # Fresh installation with new certificates and API key but preserved database
@@ -286,6 +306,7 @@ sudo bash restart.sh
 ```
 
 This script will:
+
 - Check for existing certificates
 - Recreate any missing configuration files
 - Optionally generate a new API key or use the existing one
@@ -300,12 +321,14 @@ At the end of both scripts, the currently active API key will be displayed for y
 ## API Key Management
 
 The system uses API keys to secure sensitive endpoints. The API key is:
+
 - Generated automatically during first installation
 - Stored securely in the `.env` file within the app directory
 - Passed to the API container as an environment variable
 - Required in the `X-API-Key` header for protected API calls
 
 You can generate a new API key in two ways:
+
 1. During installation or restart by answering 'y' when prompted to generate a new key
 2. By manually updating the `.env` file and restarting services
 
@@ -324,6 +347,7 @@ The default display shows the last 10 messages with a 1-second refresh interval,
 ```bash
 bash mqtt_monitor.sh [lines] [interval]
 ```
+
 - `lines` - Number of lines to display (default: 10)
 - `interval` - Refresh interval in seconds (default: 1)
 
@@ -338,16 +362,19 @@ The script requires jq for JSON processing, and you will be prompted to install 
 ## Troubleshooting
 
 ### Check container status
+
 ```bash
 docker ps -a
 ```
 
 ### Check volumes
+
 ```bash
 docker volume ls
 ```
 
 ### View container logs
+
 ```bash
 docker logs mqtt-broker
 docker logs mqtt-bridge
@@ -356,17 +383,22 @@ docker logs timescaledb
 ```
 
 ### Check TLS connections
+
 ```bash
 openssl s_client -connect localhost:8885
 ```
 
 ### Lingering processes on ports
+
 If you get problems with the MQTT connection during the install script after cleaning up, you can try looking for processes on the TLS port and killing them:
+
 ```bash
 sudo lsof -i :8885
 sudo kill <PID>
 ```
+
 Similarly, for the API, bridge and database ports:
+
 ```bash
 sudo lsof -i :443
 sudo lsof -i :5432
@@ -386,7 +418,7 @@ To run Docker commands without `sudo`, you may also need to run the following:
 
 ```bash
 sudo chmod 666 /var/run/docker.sock
-``` 
+```
 
 ## Connecting to the MQTT Broker from Clients
 
