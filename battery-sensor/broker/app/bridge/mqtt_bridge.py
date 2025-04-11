@@ -98,16 +98,26 @@ def on_message(_, __, msg: mqtt.MQTTMessage):
         
         # Process message based on topic with match-case (Python 3.10+)
         match table_name:
-            case "elfryd_battery":
-                battery_handler.process_message(payload)
-            case "elfryd_temp":
-                temperature_handler.process_message(payload)
-            case "elfryd_gyro":
-                gyro_handler.process_message(payload)
-            case "elfryd_config":
-                config_handler.process_message(topic, payload)
+            case "elfryd_battery" | "elfryd_temp" | "elfryd_gyro" | "elfryd_config":
+                # For specialized handlers, check if payload contains multiple datapoints
+                datapoints = payload.split("|")
+                for datapoint in datapoints:
+                    if not datapoint.strip():
+                        continue  # Skip empty datapoints
+                    
+                    print(f"Processing datapoint: {datapoint.strip()}")
+                    
+                    # Process with appropriate handler
+                    if table_name == "elfryd_battery":
+                        battery_handler.process_message(datapoint.strip())
+                    elif table_name == "elfryd_temp":
+                        temperature_handler.process_message(datapoint.strip())
+                    elif table_name == "elfryd_gyro":
+                        gyro_handler.process_message(datapoint.strip())
+                    elif table_name == "elfryd_config":
+                        config_handler.process_message(topic, datapoint.strip())
             case _:
-                # Default case: use default handler
+                # Default case: use default handler (no splitting)
                 default_handler.process_message(topic, payload)
     
     except Exception as e:
