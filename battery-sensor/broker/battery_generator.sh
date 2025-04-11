@@ -87,7 +87,7 @@ echo "Frequency: Every $FREQUENCY seconds"
 echo "Number of battery cells: $NUM_BATTERIES"
 echo "Average data rate: $NUM_BATTERIES readings per second"
 echo ""
-echo "Press Ctrl+C to stop the data generation"
+echo "Press 'q' to quit"
 echo ""
 
 # Function to get current timestamp in seconds since epoch
@@ -126,8 +126,10 @@ for ((i=1; i<=$NUM_BATTERIES; i++)); do
     baseline[$i]=$(( (RANDOM % 2000 + 8000) ))
 done
 
-# Setup trap to handle Ctrl+C gracefully
-trap 'echo -e "\nStopping data generation. Goodbye!"; exit 0' SIGINT SIGTERM
+# Save terminal settings to restore them later
+old_settings=$(stty -g)
+# Set terminal to raw mode and disable echo to capture keystrokes
+stty raw -echo
 
 # Calculate how many data points to send per batch
 DATA_POINTS_PER_BATCH=$((FREQUENCY * NUM_BATTERIES))
@@ -138,7 +140,10 @@ time_offset=0
 
 print_section "Starting continuous data generation..."
 
-while true; do
+# Flag to control the loop
+running=true
+
+while $running; do
     messages=()
     
     # Generate data points for the current time window
@@ -176,6 +181,15 @@ while true; do
     # Update time offset for next batch
     time_offset=$((time_offset + FREQUENCY))
     
-    # Sleep until next batch
-    sleep $FREQUENCY
+    # Check for 'q' key press with timeout
+    read -t $FREQUENCY -n 1 key 2>/dev/null || true
+    if [[ $key == "q" || $key == "Q" ]]; then
+        running=false
+    fi
 done
+
+# Restore terminal settings
+stty "$old_settings"
+
+echo -e "\nExiting battery data generator. Goodbye!"
+exit 0
