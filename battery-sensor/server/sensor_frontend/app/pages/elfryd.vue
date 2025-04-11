@@ -22,7 +22,7 @@ const updateFrequency = () => {
   
   console.log('Updating frequency with:', formattedFrequency);
   
-  const url = new URL('http://localhost:5196/api/Elfryd/config/frequency');
+  const url = new URL('http://localhost:5196/api/Elfryd/config');
   
   fetch(url.toString(), {
     method: 'POST',
@@ -53,7 +53,7 @@ const retrieveFromSensor = () => {
   // Add logic to retrieve data from the selected sensor
 };
 
-const fetchConfig = async () => {
+const fetchConfig = async (sendAll: boolean = false) => {
   configLoading.value = true;
   error.value = null;
   
@@ -61,7 +61,13 @@ const fetchConfig = async () => {
     console.log('Fetching ElfrydAPI config data...');
     
     const url = new URL('http://localhost:5196/api/Elfryd/config');
-    
+
+    if (sendAll){
+      url.searchParams.append("sendAll", "true");
+    }else{
+      url.searchParams.append("limit", "10");
+    }
+    console.log(url.toString());
     const response = await fetch(url.toString());
     
     if (!response.ok) {
@@ -189,14 +195,28 @@ onMounted(() => {
     </div>
     
     <div class="mb-6">
-      <h5 class="text-lg font-medium mb-2">Configuration Data</h5>
-      <button 
-        @click="fetchConfig" 
+    <h5 class="text-lg font-medium mb-2">Configuration Data</h5>
+    <div class="flex space-x-2 mb-4">
+      <UButton
+        @click="fetchConfig(false)"
+        :loading="configLoading"
         :disabled="configLoading"
-        class="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded w-full mb-4"
+        class="flex-1"
+        color="primary"
       >
-        {{ configLoading ? 'Loading...' : 'Fetch Config Data' }}
-      </button>
+        {{ configLoading ? 'Loading...' : 'Fetch Config' }}
+      </UButton>
+      
+      <UButton
+        @click="fetchConfig(true)"
+        :loading="configLoading"
+        :disabled="configLoading"
+        class="flex-1"
+        color="primary"
+      >
+        Send All Config
+      </UButton>
+    </div>
       
       <!-- Config Data Display Section -->
       <div v-if="configData" class="mt-4">

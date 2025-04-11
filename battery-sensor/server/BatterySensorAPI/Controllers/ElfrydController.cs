@@ -59,8 +59,8 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
-        [HttpPost("config/frequency")]
-public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRequest request)
+        [HttpPost("config/update")]
+public async Task<IActionResult> UpdateConfig([FromBody] ElfrydUpdateConfigRequest request)
 {
     if (request.Command == null) 
     {
@@ -69,7 +69,7 @@ public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRe
     
     try 
     {
-        var result = await _elfrydClient.UpdateFrequencyAsync(request.Command);
+        var result = await _elfrydClient.UpdateConfigAsync(request.Command);
         return Ok(new { success = true, result = result });
     }
     catch (Exception ex) 
@@ -80,11 +80,14 @@ public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRe
 }
 
         [HttpGet("config")]
-        public async Task<IActionResult> GetConfig()
+        public async Task<IActionResult> GetConfig(
+        [FromQuery] bool sendAll = false,
+        [FromQuery] int limit = 10
+        )
         {
             try
             {
-                var config = await _elfrydClient.GetConfigAsync();
+                var config = await _elfrydClient.GetConfigAsync(sendAll, limit);
                 return Content(config, "application/json");
             }
             catch (Exception ex)
@@ -97,11 +100,12 @@ public async Task<IActionResult> UpdateConfigFrequency([FromBody] ElfrydConfigRe
         [HttpGet("battery")]
         public async Task<IActionResult> GetBatteryData(
             [FromQuery] string battery_id = null,
-            [FromQuery] int limit = 20
+            [FromQuery] int limit = 20,
+            [FromQuery] int hours = 24
         ){
             try{
 
-            var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit);
+            var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours);
             return Content(result, "application/json");
         }
         catch (Exception ex)

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace BatterySensorAPI.Models
 {
-    public class ElfrydConfigRequest{
+    public class ElfrydUpdateConfigRequest{
         public string Command { get; set; }
     }
-}
+    }
