@@ -51,13 +51,13 @@ echo "Using hostname: $CommonName for TLS certificates"
 
 # Save the hostname to environment file for other scripts
 if [ -f "$BASE_DIR/app/.env" ]; then
-    # Append hostname to existing .env file if it exists
-    grep -q "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" && \
-        sed -i "s/ELFRYD_HOSTNAME=.*/ELFRYD_HOSTNAME=$CommonName/" "$BASE_DIR/app/.env" || \
-        echo "ELFRYD_HOSTNAME=$CommonName" >> "$BASE_DIR/app/.env"
+  # Append hostname to existing .env file if it exists
+  grep -q "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" &&
+    sed -i "s/ELFRYD_HOSTNAME=.*/ELFRYD_HOSTNAME=$CommonName/" "$BASE_DIR/app/.env" ||
+    echo "ELFRYD_HOSTNAME=$CommonName" >>"$BASE_DIR/app/.env"
 else
-    # Create new .env file with hostname
-    echo "ELFRYD_HOSTNAME=$CommonName" > "$BASE_DIR/app/.env"
+  # Create new .env file with hostname
+  echo "ELFRYD_HOSTNAME=$CommonName" >"$BASE_DIR/app/.env"
 fi
 echo "✅ Hostname saved to app/.env file"
 
@@ -71,7 +71,7 @@ print_section "Installing Docker"
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
-echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | tee /etc/apt/sources.list.d/docker.list >/dev/null
 
 apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -85,7 +85,7 @@ echo "Docker permissions have been configured for non-root usage"
 # Install Mosquitto clients for testing
 apt-get install -y mosquitto-clients
 
-# Setup directory structure 
+# Setup directory structure
 print_section "Setting up directories"
 
 # Generate TLS certificates
@@ -109,27 +109,27 @@ print_section "Generating API security"
 
 # Generate a random API key if it doesn't exist
 if [ -f "$BASE_DIR/app/.env" ]; then
-    read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
-    echo
-    
-    if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
-        API_KEY=$(openssl rand -hex 32)
-        # Update API key in existing .env file
-        grep -q "API_KEY=" "$BASE_DIR/app/.env" && \
-            sed -i "s/API_KEY=.*/API_KEY=$API_KEY/" "$BASE_DIR/app/.env" || \
-            echo "API_KEY=$API_KEY" >> "$BASE_DIR/app/.env"
-        echo "✅ Generated new API key: $API_KEY"
-        echo "⚠️  Warning: Previous API key is no longer valid"
-    else
-        # Load existing API key
-        API_KEY=$(grep API_KEY "$BASE_DIR/app/.env" | cut -d'=' -f2)
-        echo "✅ Using existing API key"
-    fi
-else
-    # This condition should never be reached since we created the file earlier
+  read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
+  echo
+
+  if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
     API_KEY=$(openssl rand -hex 32)
-    echo "API_KEY=$API_KEY" >> "$BASE_DIR/app/.env"
-    echo "✅ Generated secure API key: $API_KEY"
+    # Update API key in existing .env file
+    grep -q "API_KEY=" "$BASE_DIR/app/.env" &&
+      sed -i "s/API_KEY=.*/API_KEY=$API_KEY/" "$BASE_DIR/app/.env" ||
+      echo "API_KEY=$API_KEY" >>"$BASE_DIR/app/.env"
+    echo "✅ Generated new API key: $API_KEY"
+    echo "⚠️  Warning: Previous API key is no longer valid"
+  else
+    # Load existing API key
+    API_KEY=$(grep API_KEY "$BASE_DIR/app/.env" | cut -d'=' -f2)
+    echo "✅ Using existing API key"
+  fi
+else
+  # This condition should never be reached since we created the file earlier
+  API_KEY=$(openssl rand -hex 32)
+  echo "API_KEY=$API_KEY" >>"$BASE_DIR/app/.env"
+  echo "✅ Generated secure API key: $API_KEY"
 fi
 
 # Create Mosquitto configuration
@@ -139,7 +139,7 @@ print_section "Configuring MQTT broker"
 mkdir -p $BASE_DIR/app/mqtt-broker/config
 
 # Create Mosquitto configuration file
-cat > $BASE_DIR/app/mqtt-broker/config/mosquitto.conf << EOL
+cat >$BASE_DIR/app/mqtt-broker/config/mosquitto.conf <<EOL
 # TLS-secured listener for IoT devices
 listener 8885 0.0.0.0
 allow_anonymous true

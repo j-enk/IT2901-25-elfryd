@@ -6,7 +6,7 @@ DB_CONFIG = {
     "port": 5432,
     "dbname": "mqtt_data",
     "user": "myuser",
-    "password": "mypassword"
+    "password": "mypassword",
 }
 
 # MQTT broker parameters
@@ -15,7 +15,7 @@ MQTT_CONFIG = {
     "tls_broker": os.environ.get("ELFRYD_HOSTNAME", "mqtt-broker"),
     "port": 1883,
     "tls_port": 8885,
-    "default_topic": "#"
+    "default_topic": "#",
 }
 
 # Base configuration commands
@@ -23,6 +23,6 @@ BASE_CONFIG_COMMANDS = ["battery", "temp", "gyro"]
 
 # Regex patterns for valid command formats
 COMMAND_PATTERNS = {
-    "basic": r"^(battery|temp|gyro)$",                 # basic commands: battery, temp, gyro
-    "interval": r"^(battery|temp|gyro) \d+$",          # interval commands: battery 10, temp 5, gyro 20
+    "basic": r"^(battery|temp|gyro)$",  # basic commands: battery, temp, gyro
+    "interval": r"^(battery|temp|gyro) \d+$",  # interval commands: battery 10, temp 5, gyro 20
 }

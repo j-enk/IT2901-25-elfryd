@@ -9,21 +9,21 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 print_section() {
-  echo -e "${GREEN}\n==== $1 ====${NC}\n"
+    echo -e "${GREEN}\n==== $1 ====${NC}\n"
 }
 
 print_warning() {
-  echo -e "${YELLOW}WARNING: $1${NC}"
+    echo -e "${YELLOW}WARNING: $1${NC}"
 }
 
 print_error() {
-  echo -e "${RED}ERROR: $1${NC}"
+    echo -e "${RED}ERROR: $1${NC}"
 }
 
 # Check if script is run as root
 if [ "$EUID" -ne 0 ]; then
-  print_error "Please run as root or with sudo"
-  exit 1
+    print_error "Please run as root or with sudo"
+    exit 1
 fi
 
 print_section "Elfryd MQTT/TLS Cleanup"
@@ -125,13 +125,13 @@ if [ "$REMOVE_API_KEY" = true ]; then
     if [ -f "$BASE_DIR/app/.env" ]; then
         # Extract hostname if present
         HOSTNAME_ENTRY=$(grep "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" || echo "")
-        
+
         # Remove the old .env file
         rm -f "$BASE_DIR/app/.env"
-        
+
         # If hostname was present, create a new .env with just the hostname
         if [ -n "$HOSTNAME_ENTRY" ]; then
-            echo "$HOSTNAME_ENTRY" > "$BASE_DIR/app/.env"
+            echo "$HOSTNAME_ENTRY" >"$BASE_DIR/app/.env"
         fi
     else
         echo "No .env file found."

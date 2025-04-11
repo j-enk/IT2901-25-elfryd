@@ -9,8 +9,17 @@ routers = [
     config.router,
     messages.router,
     topics.router,
-    health.router
+    health.router,
 ]
 
 # This allows 'from api.routes import routers' pattern
-__all__ = ['routers', 'battery', 'temperature', 'gyro', 'config', 'messages', 'topics', 'health']
+__all__ = [
+    "routers",
+    "battery",
+    "temperature",
+    "gyro",
+    "config",
+    "messages",
+    "topics",
+    "health",
+]

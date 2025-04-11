@@ -281,20 +281,13 @@ class MessagePublishResponse(BaseModel):
 
 class RootResponse(BaseModel):
     message: str = Field(
-        ..., 
+        ...,
         description="Confirmation message that the API is running",
-        example="Elfryd MQTT API is running"
+        example="Elfryd MQTT API is running",
     )
-    version: str = Field(
-        ..., 
-        description="Current API version",
-        example="1.0"
-    )
-    
+    version: str = Field(..., description="Current API version", example="1.0")
+
     class Config:
         json_schema_extra = {
-            "example": {
-                "message": "Elfryd MQTT API is running",
-                "version": "1.0"
-            }
+            "example": {"message": "Elfryd MQTT API is running", "version": "1.0"}
         }

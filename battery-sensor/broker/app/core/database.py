@@ -8,13 +8,9 @@ from fastapi import HTTPException
 
 from .config import DB_CONFIG
 from .models import (
-    BatteryData,
     BatteryDataResponse,
     ConfigDataResponse,
     GyroDataResponse,
-    TemperatureData,
-    GyroData,
-    ConfigData,
     StoredMessage,
     TemperatureDataResponse,
 )
@@ -121,7 +117,7 @@ def query_messages(
 ) -> List[StoredMessage]:
     """
     Query messages from the database with optional filtering.
-    
+
     Parameters:
     - conn: Database connection
     - topic: Topic filter (partial match)

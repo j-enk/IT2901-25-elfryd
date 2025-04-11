@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from .config import MQTT_CONFIG
 
+
 def create_mqtt_client(client_id: str, use_tls: bool = False) -> mqtt.Client:
     """
     Create and configure an MQTT client
@@ -34,6 +35,7 @@ def create_mqtt_client(client_id: str, use_tls: bool = False) -> mqtt.Client:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"MQTT connection failed: {str(e)}")
 
+
 def publish_message(topic, message, qos=2):
     """
     Publish a message to the MQTT broker
@@ -48,13 +50,13 @@ def publish_message(topic, message, qos=2):
         # Stop the network loop and disconnect
         client.loop_stop()
         client.disconnect()
-        
+
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to publish message: {mqtt.error_string(result.rc)}",
             )
-        
+
         return True
     except HTTPException:
         raise

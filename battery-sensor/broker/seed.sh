@@ -9,15 +9,15 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 print_section() {
-  echo -e "${GREEN}\n==== $1 ====${NC}\n"
+    echo -e "${GREEN}\n==== $1 ====${NC}\n"
 }
 
 print_warning() {
-  echo -e "${YELLOW}WARNING: $1${NC}"
+    echo -e "${YELLOW}WARNING: $1${NC}"
 }
 
 print_error() {
-  echo -e "${RED}ERROR: $1${NC}"
+    echo -e "${RED}ERROR: $1${NC}"
 }
 
 # Get hostname from environment file or system
@@ -63,7 +63,7 @@ send_battery_reading() {
     local timestamp="$3"
     local message="${battery_id}/${voltage}/${timestamp}"
     local topic="elfryd/battery"
-    
+
     echo "Sending battery reading: $message"
     mosquitto_pub -h "$HOST" -p "$PORT" --cafile "$CA_FILE" -t "$topic" -m "$message"
     sleep 0.5
@@ -75,7 +75,7 @@ send_temperature_reading() {
     local timestamp="$2"
     local message="${temperature}/${timestamp}"
     local topic="elfryd/temp"
-    
+
     echo "Sending temperature reading: $message"
     mosquitto_pub -h "$HOST" -p "$PORT" --cafile "$CA_FILE" -t "$topic" -m "$message"
     sleep 0.5
@@ -92,7 +92,7 @@ send_gyro_reading() {
     local timestamp="$7"
     local message="${accel_x},${accel_y},${accel_z}/${gyro_x},${gyro_y},${gyro_z}/${timestamp}"
     local topic="elfryd/gyro"
-    
+
     echo "Sending gyro reading: $message"
     mosquitto_pub -h "$HOST" -p "$PORT" --cafile "$CA_FILE" -t "$topic" -m "$message"
     sleep 0.5
@@ -102,7 +102,7 @@ send_gyro_reading() {
 send_config_command() {
     local command="$1"
     local topic="elfryd/config/send"
-    
+
     echo "Sending config command: $command"
     mosquitto_pub -h "$HOST" -p "$PORT" --cafile "$CA_FILE" -t "$topic" -m "$command"
     sleep 0.5
@@ -115,7 +115,7 @@ base_timestamp=$(get_timestamp)
 for battery_id in 1 2 3 4; do
     # Generate multiple readings per battery with slightly different timestamps and voltages
     for i in {1..4}; do
-        ts=$((base_timestamp - i*300))
+        ts=$((base_timestamp - i * 300))
         voltage=$((7000 + RANDOM % 6000))
         send_battery_reading "$battery_id" "$voltage" "$ts"
     done
@@ -124,15 +124,15 @@ done
 echo "Generating temperature data..."
 # Generate temperature data for one sensor
 for i in {1..12}; do
-    ts=$((base_timestamp - i*600))
+    ts=$((base_timestamp - i * 600))
     temperature=$((20 + RANDOM % 15))
     send_temperature_reading "$temperature" "$ts"
 done
 
 echo "Generating gyroscope data..."
 # Generate multiple gyroscope readings (at least 10)
-for i in {1..20}; do  # Increased to 20 readings
-    ts=$((base_timestamp - i*180))
+for i in {1..20}; do # Increased to 20 readings
+    ts=$((base_timestamp - i * 180))
     accel_x=$((RANDOM % 10000000 - 5000000))
     accel_y=$((RANDOM % 10000000 - 5000000))
     accel_z=$((RANDOM % 10000000 - 5000000))

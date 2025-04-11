@@ -37,19 +37,20 @@ API_CONFIG = {
 API_KEY = os.getenv("API_KEY", "NO_KEY_SET")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
+
 def get_api_key(api_key: str = Security(api_key_header)):
     """
     Validate the API key from the request header.
-    
+
     This dependency is used to protect sensitive endpoints from unauthorized access.
     The API key is compared against the one set during system installation.
-    
+
     ## Parameters
     - **api_key**: The API key from the X-API-Key header
-    
+
     ## Returns
     The API key if valid
-    
+
     ## Raises
     - **401 Unauthorized**: If no API key is provided
     - **403 Forbidden**: If the provided API key is invalid
