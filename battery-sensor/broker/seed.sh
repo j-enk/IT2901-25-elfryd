@@ -101,7 +101,7 @@ send_gyro_reading() {
 # Function to send a configuration command
 send_config_command() {
     local command="$1"
-    local topic="elfryd/config"
+    local topic="elfryd/config/send"
     
     echo "Sending config command: $command"
     mosquitto_pub -h "$HOST" -p "$PORT" --cafile "$CA_FILE" -t "$topic" -m "$command"
