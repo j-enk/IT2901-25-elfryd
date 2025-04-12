@@ -75,15 +75,15 @@ format_data() {
     case "$topic" in
     *"elfryd/battery"*)
         # Format battery data
-        echo "$data" | jq -r '.[] | " \(.timestamp) | Battery ID: \(.battery_id) | Voltage: \(.voltage)mV | Device TS: \(.device_timestamp)"'
+        echo "$data" | jq -r '.[] | " Battery ID: \(.battery_id) | Voltage: \(.voltage)mV | Device TS: \(.device_timestamp)"'
         ;;
     *"elfryd/temp"*)
         # Format temperature data
-        echo "$data" | jq -r '.[] | " \(.timestamp) | Sensor ID: \(.sensor_id) | Temp: \(.temperature)°C | Device TS: \(.device_timestamp)"'
+        echo "$data" | jq -r '.[] | " Temperature: \(.temperature)°C | Device TS: \(.device_timestamp)"'
         ;;
     *"elfryd/gyro"*)
         # Format gyroscope data
-        echo "$data" | jq -r '.[] | " \(.timestamp) | Sensor ID: \(.sensor_id) | Accel: [\(.accel_x),\(.accel_y),\(.accel_z)] | Gyro: [\(.gyro_x),\(.gyro_y),\(.gyro_z)] | Device TS: \(.device_timestamp)"'
+        echo "$data" | jq -r '.[] | " Accel: [\(.accel_x),\(.accel_y),\(.accel_z)] | Gyro: [\(.gyro_x),\(.gyro_y),\(.gyro_z)] | Device TS: \(.device_timestamp)"'
         ;;
     *"elfryd/config"*)
         # Format configuration data
@@ -102,16 +102,16 @@ get_header() {
 
     case "$topic" in
     *"elfryd/battery"*)
-        echo " Timestamp | Battery ID | Voltage | Device Timestamp"
-        echo " -------------------------------------------------"
+        echo " Battery ID | Voltage | Device Timestamp"
+        echo " -----------------------------------------"
         ;;
     *"elfryd/temp"*)
-        echo " Timestamp | Sensor ID | Temperature | Device Timestamp"
-        echo " ----------------------------------------------------"
+        echo " Temperature | Device Timestamp"
+        echo " -----------------------------"
         ;;
     *"elfryd/gyro"*)
-        echo " Timestamp | Sensor ID | Accelerometer | Gyroscope | Device Timestamp"
-        echo " ----------------------------------------------------------------"
+        echo " Accelerometer [X,Y,Z] | Gyroscope [X,Y,Z] | Device Timestamp"
+        echo " ----------------------------------------------------------"
         ;;
     *"elfryd/config"*)
         echo " Timestamp | Command | Topic"
