@@ -22,17 +22,20 @@ print_error() {
 print_help() {
     echo "Database Monitor Usage:"
     echo "  bash db_monitor.sh <table> [lines] [interval]"
+    echo "  bash db_monitor.sh messages <table_name> [lines] [interval]"
     echo ""
     echo "Parameters:"
-    echo "  table     - Table to query (REQUIRED): battery, temp, gyro, config, or messages"
+    echo "  table     - Table type to query (REQUIRED): battery, temp, gyro, config, or messages"
+    echo "              For 'messages' type, you must specify the table name as the second argument"
     echo "  lines     - Number of rows to display (default: 10)"
     echo "  interval  - Refresh interval in seconds (default: 1)"
     echo ""
     echo "Examples:"
-    echo "  bash db_monitor.sh battery      - Show battery data, 10 lines, refresh every 1s"
-    echo "  bash db_monitor.sh temp 20 2    - Show temperature data, 20 lines, refresh every 2s"
-    echo "  bash db_monitor.sh gyro 15 5    - Show gyroscope data, 15 lines, refresh every 5s"
-    echo "  bash db_monitor.sh config 10 1  - Show configuration data, 10 lines, refresh every 1s"
+    echo "  bash db_monitor.sh battery              - Show battery data, 10 lines, refresh every 1s"
+    echo "  bash db_monitor.sh temp 20 2            - Show temperature data, 20 lines, refresh every 2s"
+    echo "  bash db_monitor.sh gyro 15 5            - Show gyroscope data, 15 lines, refresh every 5s"
+    echo "  bash db_monitor.sh config 10 1          - Show configuration data, 10 lines, refresh every 1s"
+    echo "  bash db_monitor.sh messages test_verification 15 2  - Show messages from test_verification table"
     echo ""
     exit 0
 }
@@ -44,36 +47,70 @@ fi
 
 # Parse arguments
 table_type=$1
-lines=${2:-10}
-interval=${3:-1}
-topic_filter=${4:-""}
+shift # Remove first argument
 
-# Map table_type to actual table name
-case "$table_type" in
-    "battery")
-        table="elfryd_battery"
-        ;;
-    "temp")
-        table="elfryd_temp"
-        ;;
-    "gyro")
-        table="elfryd_gyro"
-        ;;
-    "config")
-        table="elfryd_config"
-        ;;
-    "messages")
-        table="mqtt_messages"
-        ;;
-    *)
-        print_error "Unknown table type: $table_type"
+# Handle the 'messages' special case
+if [[ "$table_type" == "messages" ]]; then
+    if [[ -z "$1" ]]; then
+        print_error "When using 'messages' type, you must specify the table name as the second argument."
         print_help
-        ;;
-esac
+    fi
+    
+    table="$1"
+    shift # Remove the table name from arguments
+else
+    # Map table_type to actual table name for predefined types
+    case "$table_type" in
+        "battery")
+            table="elfryd_battery"
+            ;;
+        "temp")
+            table="elfryd_temp"
+            ;;
+        "gyro")
+            table="elfryd_gyro"
+            ;;
+        "config")
+            table="elfryd_config"
+            ;;
+        *)
+            print_error "Unknown table type: $table_type"
+            echo "Valid options are: battery, temp, gyro, config, or messages <table_name>"
+            print_help
+            ;;
+    esac
+fi
+
+# Parse remaining arguments
+lines=${1:-10}
+interval=${2:-1}
+topic_filter=${3:-""}
 
 # Check if Docker is running and timescaledb container exists
 if ! docker ps | grep -q timescaledb; then
     print_error "TimescaleDB container is not running. Please start the system first."
+    exit 1
+fi
+
+# Function to check if a table exists in the database
+check_table_exists() {
+    local table_name=$1
+    
+    # Run SQL query to check if table exists
+    result=$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '$table_name');" -t | tr -d '[:space:]')
+    
+    if [[ "$result" == "t" ]]; then
+        return 0  # Table exists
+    else
+        return 1  # Table doesn't exist
+    fi
+}
+
+# Check if specified table exists
+if ! check_table_exists "$table"; then
+    print_error "Table '$table' does not exist in the database."
+    echo "Available tables in the database:"
+    docker exec -it timescaledb psql -U myuser -d mqtt_data -c "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;"
     exit 1
 fi
 
@@ -83,6 +120,10 @@ get_query() {
     local limit=$2
     local topic_filter=$3
 
+    # Detect table schema to determine appropriate query
+    local columns=$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "\d $table" | grep -E "[a-z_]+ +\|" | awk '{print $1}' | tr '\n' ' ')
+    
+    # Check for known schemas first
     case "$table" in
         "elfryd_battery")
             echo "SELECT battery_id, voltage, device_timestamp, timestamp, 
@@ -114,15 +155,30 @@ get_query() {
                   ORDER BY timestamp DESC
                   LIMIT $limit;"
             ;;
-        "mqtt_messages")
-            if [ -n "$topic_filter" ]; then
-                echo "SELECT topic, message, timestamp FROM $table
-                      WHERE topic LIKE '%$topic_filter%'
-                      ORDER BY timestamp DESC
+        *)
+            # Query for a specific messages table
+            # Check if the table has device_timestamp and timestamp
+            if echo "$columns" | grep -qw "device_timestamp" && echo "$columns" | grep -qw "timestamp"; then
+                echo "SELECT *, extract(epoch from timestamp) as server_epoch, 
+                      extract(epoch from timestamp) - device_timestamp::numeric as latency 
+                      FROM $table 
+                      ORDER BY timestamp DESC 
                       LIMIT $limit;"
+            # If it only has timestamp (like mqtt_messages)
+            elif echo "$columns" | grep -qw "timestamp"; then
+                if [ -n "$topic_filter" ]; then
+                    echo "SELECT * FROM $table 
+                          WHERE topic LIKE '%$topic_filter%' 
+                          ORDER BY timestamp DESC 
+                          LIMIT $limit;"
+                else
+                    echo "SELECT * FROM $table 
+                          ORDER BY timestamp DESC 
+                          LIMIT $limit;"
+                fi
+            # For any other schema
             else
-                echo "SELECT topic, message, timestamp FROM $table
-                      ORDER BY timestamp DESC
+                echo "SELECT * FROM $table 
                       LIMIT $limit;"
             fi
             ;;
@@ -150,9 +206,10 @@ get_header() {
             echo -e "Command\t\t\tTopic\t\t\tTimestamp"
             echo -e "-------\t\t\t-----\t\t\t---------"
             ;;
-        "mqtt_messages")
-            echo -e "Topic\t\t\tMessage\t\t\tTimestamp"
-            echo -e "-----\t\t\t-------\t\t\t---------"
+        *)
+            # Print column names from database for the specific messages table
+            echo -e "$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "\\d $table" | grep -E "[a-z_]+ +\\|" | awk '{print $1}' | tr '\n' '\t')"
+            echo -e "$(printf -- '-%.0s' {1..80})"
             ;;
     esac
 }
@@ -160,6 +217,7 @@ get_header() {
 # Function to get the table display name
 get_table_display_name() {
     local table=$1
+    local table_type=$2
 
     case "$table" in
         "elfryd_battery")
@@ -174,8 +232,12 @@ get_table_display_name() {
         "elfryd_config")
             echo "Configuration Commands"
             ;;
-        "mqtt_messages")
-            echo "General Messages"
+        *)
+            if [[ "$table_type" == "messages" ]]; then
+                echo "Messages Table: $table"
+            else
+                echo "Table: $table"
+            fi
             ;;
     esac
 }
@@ -183,7 +245,7 @@ get_table_display_name() {
 # Function to clear screen and display data
 display_data() {
     clear
-    local table_display=$(get_table_display_name "$table")
+    local table_display=$(get_table_display_name "$table" "$table_type")
 
     echo -e "${GREEN}===============================${NC}"
     echo -e "${GREEN}DB Monitor: $table_display${NC}"
