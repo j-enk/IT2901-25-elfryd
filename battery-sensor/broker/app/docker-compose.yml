@@ -59,6 +59,7 @@ services:
     restart: always
     volumes:
       - ../certs:/app/certs
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - elfryd-network
 

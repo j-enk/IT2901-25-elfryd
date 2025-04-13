@@ -64,7 +64,7 @@ echo "✅ Hostname saved to app/.env file"
 # Install required packages
 print_section "Installing required packages"
 apt-get update
-apt-get install -y ca-certificates curl gnupg openssl net-tools
+apt-get install -y ca-certificates curl gnupg openssl net-tools python3-certbot
 
 # Install Docker
 print_section "Installing Docker"
@@ -104,6 +104,67 @@ openssl rsa -in server.key -out server.key
 
 # Set permissions
 chmod a+r *.key
+
+# Create Let's Encrypt certificates for API
+print_section "Setting up Let's Encrypt certificates for API"
+echo "Checking if we can obtain Let's Encrypt certificates..."
+
+# Create folder for Let's Encrypt certificate storage
+mkdir -p /etc/letsencrypt/live/$CommonName
+
+# Check if port 443 is available for the certbot standalone server
+PORT_443_STATUS=$(netstat -tuln | grep ":443 " || echo "Available")
+if [[ "$PORT_443_STATUS" != "Available" ]]; then
+  print_warning "Port 443 appears to be in use. Will create a temporary self-signed certificate for startup."
+  print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --standalone -d $CommonName"
+  
+  # Create directory for Let's Encrypt certificates with self-signed fallback
+  mkdir -p /etc/letsencrypt/live/$CommonName
+  
+  # Generate a temporary self-signed certificate for the API
+  print_section "Generating temporary self-signed certificate for API"
+  # Copy from existing OpenSSL certs as a fallback
+  cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
+  cp $BASE_DIR/certs/server.crt /etc/letsencrypt/live/$CommonName/fullchain.pem
+  
+  # Add to .env file for later renewal
+  echo "NEEDS_LETSENCRYPT=true" >> "$BASE_DIR/app/.env"
+  echo "Temporary certificates created. Will use the same as MQTT broker for now."
+else
+  # Try to get Let's Encrypt certificate
+  if certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
+    print_section "Let's Encrypt certificate obtained successfully"
+    echo "✅ Certificates stored in /etc/letsencrypt/live/$CommonName/"
+    
+    # Verify the certificates exist
+    if [ -f "/etc/letsencrypt/live/$CommonName/privkey.pem" ] && [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ]; then
+      echo "✅ Certificate files verified"
+      echo "NEEDS_LETSENCRYPT=false" >> "$BASE_DIR/app/.env"
+    else
+      print_warning "Let's Encrypt certificates were not found at the expected location"
+      print_warning "Using self-signed certificates as fallback"
+      
+      # Copy from existing OpenSSL certs as a fallback
+      cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
+      cp $BASE_DIR/certs/server.crt /etc/letsencrypt/live/$CommonName/fullchain.pem
+      
+      echo "NEEDS_LETSENCRYPT=true" >> "$BASE_DIR/app/.env"
+    fi
+  else
+    print_warning "Could not obtain Let's Encrypt certificate. Using self-signed certificate instead."
+    print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --standalone -d $CommonName"
+    
+    # Copy from existing OpenSSL certs as a fallback
+    cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
+    cp $BASE_DIR/certs/server.crt /etc/letsencrypt/live/$CommonName/fullchain.pem
+    
+    echo "NEEDS_LETSENCRYPT=true" >> "$BASE_DIR/app/.env"
+  fi
+fi
+
+# Add certificate paths to .env file for the API container
+echo "SSL_CERT_PATH=/etc/letsencrypt/live/$CommonName/fullchain.pem" >> "$BASE_DIR/app/.env"
+echo "SSL_KEY_PATH=/etc/letsencrypt/live/$CommonName/privkey.pem" >> "$BASE_DIR/app/.env"
 
 print_section "Generating API security"
 

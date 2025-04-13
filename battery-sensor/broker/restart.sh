@@ -64,6 +64,107 @@ if [ ! -f "$BASE_DIR/certs/ca.crt" ] || [ ! -f "$BASE_DIR/certs/server.crt" ] ||
   exit 1
 fi
 
+# Check Let's Encrypt certificates for API
+print_section "Checking Let's Encrypt certificates for API"
+
+# Check if Let's Encrypt certificates exist
+if [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/$CommonName/privkey.pem" ]; then
+  echo "Found existing Let's Encrypt certificates for $CommonName"
+  
+  # Try to renew certificates (will only renew if close to expiry)
+  if command -v certbot >/dev/null 2>&1; then
+    echo "Attempting to renew Let's Encrypt certificates..."
+    
+    # Stop API container to free up port 443 for certbot
+    cd $BASE_DIR/app
+    docker compose stop api
+    sleep 5
+    
+    # Renew certificates
+    if certbot renew --cert-name $CommonName; then
+      echo "✅ Certificate renewal successful or not yet needed"
+    else
+      print_warning "Certificate renewal might have failed or was not possible"
+      print_warning "Will continue using existing certificates"
+    fi
+  else
+    print_warning "Certbot not found. Please install certbot to renew certificates:"
+    print_warning "apt-get install -y python3-certbot"
+  fi
+else
+  echo "Let's Encrypt certificates not found. Checking if we need to obtain them..."
+  
+  # Check if we should obtain Let's Encrypt certificates
+  NEEDS_LETSENCRYPT=false
+  if [ -f "$BASE_DIR/app/.env" ]; then
+    if grep -q "NEEDS_LETSENCRYPT=true" "$BASE_DIR/app/.env"; then
+      NEEDS_LETSENCRYPT=true
+    fi
+  fi
+  
+  if [ "$NEEDS_LETSENCRYPT" = true ] && command -v certbot >/dev/null 2>&1; then
+    print_section "Obtaining new Let's Encrypt certificates"
+    
+    # Stop API container to free up port 443
+    cd $BASE_DIR/app
+    docker compose stop api
+    sleep 5
+    
+    # Try to get Let's Encrypt certificate
+    if certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
+      echo "✅ Let's Encrypt certificates obtained successfully"
+      echo "✅ Certificates stored in /etc/letsencrypt/live/$CommonName/"
+      
+      # Update env file to indicate we now have proper certificates
+      if grep -q "NEEDS_LETSENCRYPT=" "$BASE_DIR/app/.env"; then
+        sed -i "s/NEEDS_LETSENCRYPT=.*/NEEDS_LETSENCRYPT=false/" "$BASE_DIR/app/.env"
+      else
+        echo "NEEDS_LETSENCRYPT=false" >> "$BASE_DIR/app/.env"
+      fi
+    else
+      print_warning "Could not obtain Let's Encrypt certificates"
+      print_warning "Will use the self-signed certificates as fallback"
+      
+      # Create directory for Let's Encrypt certificates with self-signed fallback
+      mkdir -p /etc/letsencrypt/live/$CommonName
+      
+      # Copy from existing OpenSSL certs as a fallback if they don't exist
+      if [ ! -f "/etc/letsencrypt/live/$CommonName/privkey.pem" ] || [ ! -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ]; then
+        cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
+        cp $BASE_DIR/certs/server.crt /etc/letsencrypt/live/$CommonName/fullchain.pem
+        echo "Using self-signed certificates as fallback"
+      fi
+    fi
+  else
+    if [ ! -f "/etc/letsencrypt/live/$CommonName/privkey.pem" ] || [ ! -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ]; then
+      print_warning "Let's Encrypt certificates not found and certbot not installed"
+      print_warning "Using self-signed certificates instead"
+      
+      # Create directory for Let's Encrypt certificates
+      mkdir -p /etc/letsencrypt/live/$CommonName
+      
+      # Copy from existing OpenSSL certs as a fallback
+      cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
+      cp $BASE_DIR/certs/server.crt /etc/letsencrypt/live/$CommonName/fullchain.pem
+    fi
+  fi
+fi
+
+# Make sure SSL paths are in the environment file
+if [ -f "$BASE_DIR/app/.env" ]; then
+  if ! grep -q "SSL_CERT_PATH=" "$BASE_DIR/app/.env"; then
+    echo "SSL_CERT_PATH=/etc/letsencrypt/live/$CommonName/fullchain.pem" >> "$BASE_DIR/app/.env"
+  else
+    sed -i "s|SSL_CERT_PATH=.*|SSL_CERT_PATH=/etc/letsencrypt/live/$CommonName/fullchain.pem|" "$BASE_DIR/app/.env"
+  fi
+  
+  if ! grep -q "SSL_KEY_PATH=" "$BASE_DIR/app/.env"; then
+    echo "SSL_KEY_PATH=/etc/letsencrypt/live/$CommonName/privkey.pem" >> "$BASE_DIR/app/.env"
+  else
+    sed -i "s|SSL_KEY_PATH=.*|SSL_KEY_PATH=/etc/letsencrypt/live/$CommonName/privkey.pem|" "$BASE_DIR/app/.env"
+  fi
+fi
+
 print_section "Generating API security"
 
 # Check if API key exists
