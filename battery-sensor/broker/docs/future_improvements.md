@@ -352,6 +352,10 @@ Define a standardized format for the new sensor data. For example, an ampere sen
    ```
    ```
 
+### 5. Update the Scripts
+
+Lastsly, the `seed.sh` and `db_monitor.sh` scripts should be updated to include the new sensor type. This will allow for easy testing and monitoring of the new functionality. The implementation will be similar to the existing scripts, ensuring that the new sensor type is included in the data generation and monitoring processes.
+
 ### Testing New Sensor Types
 
 Once implemented, you can test the new sensor type using the following steps:
