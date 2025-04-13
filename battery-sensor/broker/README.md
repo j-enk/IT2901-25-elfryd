@@ -39,6 +39,7 @@ Detailed documentation is available for all aspects of the broker system:
 - [Scripts Documentation](docs/scripts.md): Details on all utility scripts and their usage
 - [Bridge Documentation](docs/bridge.md): Information on the MQTT bridge and topic/message formats
 - [API Documentation](docs/api.md): Comprehensive guide to the REST API endpoints
+- [Future Improvements](docs/future_improvements.md): Guidelines for extending the system with new sensor types and planned improvements
 
 ## Quick Start
 
@@ -72,7 +73,8 @@ battery-sensor/broker/
 │   ├── api.md                    # API documentation
 │   ├── bridge.md                 # Bridge documentation
 │   ├── scripts.md                # Scripts documentation
-│   └── vm_setup.md               # VM setup guide
+│   ├── vm_setup.md               # VM setup guide
+│   └── future_improvements.md    # Future improvements and extensibility guide
 ├── battery_generator.sh          # Tool to generate battery test data
 ├── cleanup.sh                    # Clean up Docker containers and files
 ├── install.sh                    # Main installation script
