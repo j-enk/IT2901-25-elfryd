@@ -148,7 +148,7 @@ else
     mkdir -p /etc/letsencrypt/live/$CommonName
     
     # Try to get Let's Encrypt certificate using acme.sh HTTP-01 challenge
-    if ~/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt; then
+    if ~/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt --force; then
       echo "✅ Let's Encrypt certificates obtained successfully"
       
       # Install certificates to the standard location

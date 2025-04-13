@@ -152,7 +152,7 @@ if [[ "$PORT_443_STATUS" != "Available" ]]; then
   echo "Temporary certificates created. Will use the same as MQTT broker for now."
 else
   # Try to get Let's Encrypt certificate using HTTP-01 challenge on port 443
-  if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt"; then
+  if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt --force"; then
     print_section "Let's Encrypt certificate obtained successfully"
     
     # Create directory for the certificates if it doesn't exist
