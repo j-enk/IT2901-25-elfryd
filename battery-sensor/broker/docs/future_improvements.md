@@ -9,16 +9,19 @@ This document outlines potential future improvements to the Elfryd MQTT broker s
 While the current system implements several security measures, the following improvements could further strengthen the overall security posture:
 
 1. **Database Credential Management**
+
    - Current implementation: Database credentials are hardcoded in the Docker Compose file, and Docker secrets are not used
    - Improvement: Implement a secrets management solution like HashiCorp Vault or Docker secrets
    - Benefit: Better protection of database credentials, even within the Docker environment
 
 2. **Certificate Rotation**
+
    - Current implementation: TLS certificates are generated during installation
    - Improvement: Implement automatic certificate rotation and renewal
    - Benefit: Reduced risk from compromised certificates and adherence to security best practices
 
 3. **Role-Based Access Control (RBAC)**
+
    - Current implementation: Single API key for all API access
    - Improvement: Implement multiple API keys with different permission levels
    - Benefit: More granular control over who can access what data or functionality
@@ -31,11 +34,13 @@ While the current system implements several security measures, the following imp
 ### Performance Optimizations
 
 1. **Database Partitioning**
+
    - Current implementation: Standard TimescaleDB tables
    - Improvement: Implement TimescaleDB hypertables with automatic partitioning
    - Benefit: Better query performance for time-series data, especially as data volume grows
 
 2. **Data Retention Policies**
+
    - Current implementation: No automatic data cleanup
    - Improvement: Implement data retention policies to automatically archive or delete old data
    - Benefit: Controlled database growth and improved performance
@@ -48,11 +53,13 @@ While the current system implements several security measures, the following imp
 ### Monitoring and Observability
 
 1. **System Metrics**
+
    - Current implementation: Basic health check endpoint
    - Improvement: Implement comprehensive system metrics with Prometheus/Grafana
    - Benefit: Better visibility into system performance and early warning of issues
 
 2. **Logging Infrastructure**
+
    - Current implementation: Console logging
    - Improvement: Implement structured logging with centralized log storage and analysis
    - Benefit: Easier troubleshooting and better visibility into system behavior
@@ -71,6 +78,7 @@ The Elfryd system is designed to be extensible, allowing for the addition of new
 When a new sensor type is added to the Elfryd boat, the data can still be published to the MQTT broker in one of two ways:
 
 1. **Via MQTT TLS Connection**
+
    - As long as the device has the correct TLS client certificates, it can publish to any topic
    - Data will be stored in a generic format in the database (topic, message, timestamp)
    - No specialized processing or interpretation will be done
@@ -94,6 +102,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 #### 2. Update the Bridge
 
 1. **Create a Specialized Handler**
+
    ```bash
    # Create a new handler file
    touch app/bridge/handlers/ampere_handler.py
@@ -101,11 +110,13 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
 2. **Implement the Handler**
    The handler should:
+
    - Parse the message format
    - Validate the data
    - Store it in a specialized table
 
    Example implementation:
+
    ```python
    # app/bridge/handlers/ampere_handler.py
    from pydantic import ValidationError
@@ -131,7 +142,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
            # Store in database
            store_ampere_data(ampere_data)
-           
+
        except Exception as e:
            print(f"Error processing ampere message: {str(e)}")
 
@@ -162,6 +173,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
 3. **Update the Bridge Core**
    Modify `mqtt_bridge.py` to recognize the new topic and use the specialized handler:
+
    ```python
    # In mqtt_bridge.py, update imports
    from bridge.handlers import (
@@ -172,7 +184,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
        ampere_handler,  # Add the new handler
        default_handler,
    )
-   
+
    # In the ensure_table_exists function, add:
    elif table_name == "elfryd_ampere":
        create_table_query = sql.SQL(
@@ -186,7 +198,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
        );
        """
        ).format(sql.Identifier(table_name))
-   
+
    # In the on_message function's match-case statement, update:
    match table_name:
        case "elfryd_battery" | "elfryd_temp" | "elfryd_gyro" | "elfryd_config" | "elfryd_ampere":
@@ -198,6 +210,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
 4. **Update the Data Model**
    Add the new data model in `core/models.py`:
+
    ```python
    # In core/models.py
    class AmpereData(BaseModel):
@@ -206,14 +219,14 @@ Define a standardized format for the new sensor data. For example, an ampere sen
        current: int
        device_timestamp: int
        timestamp: Optional[datetime] = None
-   
+
    # Also add a response model for the API:
    class AmpereDataResponse(BaseModel):
        id: Optional[int] = Field(None, description="Unique record identifier", example=123)
        sensor_id: int = Field(..., description="Identifier of the ampere sensor", example=1)
        current: int = Field(..., description="Current in milliamperes (mA)", example=5600)
        device_timestamp: int = Field(..., description="Timestamp of the measurement on the device (Unix timestamp)", example=1712841632)
-       
+
        class Config:
            json_schema_extra = {
                "example": {
@@ -228,12 +241,14 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 #### 3. Add API Support
 
 1. **Create API Router**
+
    ```bash
    # Create a new API route file
    touch app/api/routes/ampere.py
    ```
 
 2. **Implement the API Endpoint**
+
    ```python
    # app/api/routes/ampere.py
    from fastapi import APIRouter, Depends, Query
@@ -259,29 +274,29 @@ Define a standardized format for the new sensor data. For example, an ampere sen
    ):
        conn = get_connection()
        cursor = conn.cursor()
-       
+
        query = """
            SELECT id, sensor_id, current, device_timestamp
            FROM elfryd_ampere
            WHERE timestamp >= NOW() - INTERVAL '%s hours' - INTERVAL '%s hours'
            AND timestamp <= NOW() - INTERVAL '%s hours'
        """
-       
+
        params = [hours, time_offset, time_offset]
-       
+
        if sensor_id is not None:
            query += " AND sensor_id = %s"
            params.append(sensor_id)
-           
+
        query += " ORDER BY device_timestamp DESC LIMIT %s"
        params.append(limit)
-       
+
        cursor.execute(query, params)
        results = cursor.fetchall()
-       
+
        cursor.close()
        conn.close()
-       
+
        return [
            AmpereDataResponse(
                id=row[0],
@@ -295,10 +310,11 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
 3. **Update the API Main File**
    Add the new router to `app.py`:
+
    ```python
    # In app.py
    from api.routes import ampere
-   
+
    # Add to the app.include_router section:
    app.include_router(ampere.router, tags=["Ampere Sensors"])
    ```
@@ -307,39 +323,44 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
 1. **Update the Bridge Documentation**
    Add information about the new sensor type to `bridge.md`:
+
    ```markdown
    ### Ampere Data (`elfryd/ampere`)
-   
+
    **Format**: `{sensor_id}/{current}/{timestamp}`
-   
+
    **Example**: `1/5600/1680123456`
-   
+
    **Parameters**:
+
    - `sensor_id`: Identifier of the current sensor (integer)
    - `current`: Electric current in milliamperes (integer)
    - `timestamp`: Device timestamp in Unix seconds (integer)
-   
+
    **Storage**: Data is stored in the `elfryd_ampere` table.
    ```
 
 2. **Update the API Documentation**
    Add information about the new endpoint to `api.md`:
-   ```````markdown
+
+   ````markdown
    ### Ampere Data
-   
+
    ```
    GET /ampere
    ```
-   
+
    Retrieves current measurements from ampere sensors.
-   
+
    **Parameters:**
+
    - `sensor_id` (optional): Filter by specific sensor ID
    - `limit` (default: 20): Maximum number of records
    - `hours` (default: 168): Data from last X hours
    - `time_offset` (optional): Hours offset from current time
-   
+
    **Response Example:**
+
    ```json
    [
      {
@@ -350,7 +371,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
      }
    ]
    ```
-   ```````
+   ````
 
 ### 5. Update the Scripts
 
@@ -361,37 +382,43 @@ Lastsly, the `seed.sh` and `db_monitor.sh` scripts should be updated to include 
 Once implemented, you can test the new sensor type using the following steps:
 
 1. **Get the Latest Code**
+
    ```bash
    git pull origin main  # Or the specific branch
    ```
 
 2. **Tear Down Current Setup**
+
    ```bash
    sudo bash cleanup.sh
    ```
 
 3. **Update Docker Images**
+
    ```bash
    cd app
    docker compose build --no-cache mqtt-bridge api
    ```
 
 4. **Start the System**
+
    ```bash
    cd ..
    sudo bash install.sh
    ```
 
 5. **Send Test Data**
+
    ```bash
    mosquitto_pub -h your-hostname -p 8885 --cafile ./client_certs/ca.crt -t elfryd/ampere -m "1/5600/$(date +%s)"
    ```
 
 6. **Verify Data Storage**
+
    ```bash
    # Check database directly
    bash db_monitor.sh ampere
-   
+
    # Or via API
    curl -k -X GET "https://your-hostname:443/ampere?limit=5" -H "X-API-Key: your-api-key"
    ```

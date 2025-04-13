@@ -57,6 +57,7 @@ cat ~/.ssh/id_ed25519.pub
 ```
 
 4. Add the key to your GitHub account:
+
    - Go to GitHub > Settings > SSH and GPG keys
    - Click "New SSH key"
    - Paste your public key and save
@@ -97,6 +98,7 @@ sudo bash install.sh
 ```
 
 The script will:
+
 - Install Docker and required packages
 - Generate TLS certificates for the MQTT server
 - Generate a secure API key for protected endpoints

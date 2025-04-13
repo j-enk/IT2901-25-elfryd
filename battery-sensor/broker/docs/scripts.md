@@ -4,14 +4,14 @@ This document explains all utility scripts available in the Elfryd MQTT broker s
 
 ## Overview of Available Scripts
 
-| Script | Description |
-|--------|-------------|
-| `install.sh` | Main installation script for setting up the entire broker system |
-| `cleanup.sh` | Cleans up Docker containers and optionally preserves data and certificates |
-| `restart.sh` | Restart services without full reinstallation, can also generate new API key |
-| `seed.sh` | Populates the database with sample data (sensor readings and config messages) |
-| `battery_generator.sh` | Continuously generates battery data with configurable parameters |
-| `db_monitor.sh` | Monitors and displays database activity in real-time |
+| Script                 | Description                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `install.sh`           | Main installation script for setting up the entire broker system              |
+| `cleanup.sh`           | Cleans up Docker containers and optionally preserves data and certificates    |
+| `restart.sh`           | Restart services without full reinstallation, can also generate new API key   |
+| `seed.sh`              | Populates the database with sample data (sensor readings and config messages) |
+| `battery_generator.sh` | Continuously generates battery data with configurable parameters              |
+| `db_monitor.sh`        | Monitors and displays database activity in real-time                          |
 
 ## install.sh
 
@@ -64,7 +64,8 @@ sudo bash cleanup.sh
 ### Options
 
 The script will prompt you for preservation choices:
-1. **Database preservation** - Keep your TimescaleDB data volumes intact 
+
+1. **Database preservation** - Keep your TimescaleDB data volumes intact
 2. **Certificate preservation** - Keep your TLS certificates
 3. **API key preservation** - Keep your API key so clients don't need to update
 
@@ -103,6 +104,7 @@ bash seed.sh
 ### What it does
 
 Simulates sensor readings by sending messages of the correct format to the MQTT broker (see `bridge.md` for message formats). It also samples some configuration messages.
+
 - Sends battery data to the `elfryd/battery` topic
 - Sends temperature data to the `elfryd/temp` topic
 - Sends gyroscope data to the `elfryd/gyro` topic
@@ -143,7 +145,7 @@ bash battery_generator.sh 5 10
 
 ### What it does
 
-1. Creates sine-wave based battery voltage data (with some noise) to simulate realistic patterns 
+1. Creates sine-wave based battery voltage data (with some noise) to simulate realistic patterns
 2. Sends data to the `elfryd/battery` topic in the format `{battery_id}/{voltage}/{timestamp}`
 3. Runs continuously until stopped with by pressing 'q'
 

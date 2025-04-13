@@ -99,8 +99,11 @@ get_timestamp() {
 send_battery_readings() {
     local messages=("$@")
     local topic="elfryd/battery"
-    local combined_message=$(IFS='|'; echo "${messages[*]}")
-    
+    local combined_message=$(
+        IFS='|'
+        echo "${messages[*]}"
+    )
+
     echo "Sending battery readings: $combined_message"
     mosquitto_pub -h "$HOST" -p "$PORT" --cafile "$CA_FILE" -t "$topic" -m "$combined_message"
 }
@@ -112,18 +115,18 @@ declare -a phase
 declare -a baseline
 
 # Set different parameters for each battery to create variety
-for ((i=1; i<=$NUM_BATTERIES; i++)); do
+for ((i = 1; i <= $NUM_BATTERIES; i++)); do
     # Random amplitude between 0.5V and 1.5V (in millivolts)
-    amplitude[$i]=$(( (RANDOM % 1000 + 500) ))
-    
+    amplitude[$i]=$(((RANDOM % 1000 + 500)))
+
     # Random period between 60 and 180 seconds
-    period[$i]=$(( (RANDOM % 120 + 60) ))
-    
+    period[$i]=$(((RANDOM % 120 + 60)))
+
     # Random phase offset between 0 and 2π
-    phase[$i]=$(( (RANDOM % 628) / 100 ))
-    
+    phase[$i]=$(((RANDOM % 628) / 100))
+
     # Random baseline voltage between 8V and 10V (in millivolts)
-    baseline[$i]=$(( (RANDOM % 2000 + 8000) ))
+    baseline[$i]=$(((RANDOM % 2000 + 8000)))
 done
 
 # Save terminal settings to restore them later
@@ -145,42 +148,42 @@ running=true
 
 while $running; do
     messages=()
-    
+
     # Generate data points for the current time window
-    for ((t=0; t<FREQUENCY; t++)); do
+    for ((t = 0; t < FREQUENCY; t++)); do
         current_timestamp=$(($(get_timestamp) + t))
-        
-        for ((b=1; b<=$NUM_BATTERIES; b++)); do
+
+        for ((b = 1; b <= $NUM_BATTERIES; b++)); do
             # Calculate elapsed time for sine wave
             elapsed_time=$((time_offset + t))
-            
+
             # Calculate voltage based on sine wave + noise
             sine_value=$(echo "s($elapsed_time / ${period[$b]} * 6.28 + ${phase[$b]})" | bc -l)
             voltage_base=$(echo "${baseline[$b]} + ${amplitude[$b]} * $sine_value" | bc)
-            
+
             # Add random noise (±200mV)
-            noise=$(( (RANDOM % 400) - 200 ))
-            voltage=$(( ${voltage_base%.*} + noise ))
-            
+            noise=$(((RANDOM % 400) - 200))
+            voltage=$((${voltage_base%.*} + noise))
+
             # Ensure voltage stays within bounds (3000mV to 13000mV)
             if [ "$voltage" -lt 3000 ]; then
                 voltage=3000
             elif [ "$voltage" -gt 13000 ]; then
                 voltage=13000
             fi
-            
+
             # Create message in format: battery_id/voltage/timestamp
             message="${b}/${voltage}/${current_timestamp}"
             messages+=("$message")
         done
     done
-    
+
     # Send all messages
     send_battery_readings "${messages[@]}"
-    
+
     # Update time offset for next batch
     time_offset=$((time_offset + FREQUENCY))
-    
+
     # Check for 'q' key press with timeout
     read -t $FREQUENCY -n 1 key 2>/dev/null || true
     if [[ $key == "q" || $key == "Q" ]]; then

@@ -26,11 +26,13 @@ The bridge recognizes the following topic patterns and their corresponding messa
 **Example**: `1/8432/1680123456`
 
 **Parameters**:
+
 - `battery_id`: Identifier of the battery (integer)
 - `voltage`: Battery voltage in millivolts (integer)
 - `timestamp`: Device timestamp in Unix seconds (integer)
 
 **Storage**: Data is stored in the `elfryd_battery` table with fields:
+
 - `id`: Auto-incrementing record ID
 - `battery_id`: Battery identifier
 - `voltage`: Battery voltage
@@ -44,6 +46,7 @@ The bridge recognizes the following topic patterns and their corresponding messa
 **Example**: `25/1680123456`
 
 **Parameters**:
+
 - `temperature`: Temperature reading in degrees Celsius (integer)
 - `timestamp`: Device timestamp in Unix seconds (integer)
 
@@ -56,6 +59,7 @@ The bridge recognizes the following topic patterns and their corresponding messa
 **Example**: `-4991017/-4984009/4979460/-239841/241869/-243303/1680123456`
 
 **Parameters**:
+
 - `accel_x`, `accel_y`, `accel_z`: Accelerometer readings
 - `gyro_x`, `gyro_y`, `gyro_z`: Gyroscope readings
 - `timestamp`: Device timestamp in Unix seconds
@@ -69,9 +73,11 @@ The bridge recognizes the following topic patterns and their corresponding messa
 **Example**: `battery 10`
 
 **Parameters**:
+
 - `command`: Configuration command in the format `<sensor_type> [interval]`
 
 **Valid commands**:
+
 - `battery`, `temperature`, `gyro`: Force the device to send all available data for that sensor type
 - `battery [interval]`, `temperature [interval]`, `gyro [interval]`: Set sampling interval in seconds (0 disables sampling)
 
@@ -83,6 +89,7 @@ Devices can respond to configuration commands by publishing to the `elfryd/confi
 ### Other Topics
 
 For any other topics, the bridge stores the entire message with minimal processing:
+
 - `topic`: Full topic name
 - `message`: Message payload
 - `timestamp`: Server timestamp when received
@@ -102,6 +109,7 @@ This allows for more efficient data transmission from devices that need to send 
 The bridge automatically creates the following tables as needed:
 
 ### elfryd_battery
+
 ```sql
 CREATE TABLE elfryd_battery (
     id SERIAL PRIMARY KEY,
@@ -113,6 +121,7 @@ CREATE TABLE elfryd_battery (
 ```
 
 ### elfryd_temp
+
 ```sql
 CREATE TABLE elfryd_temp (
     id SERIAL PRIMARY KEY,
@@ -123,6 +132,7 @@ CREATE TABLE elfryd_temp (
 ```
 
 ### elfryd_gyro
+
 ```sql
 CREATE TABLE elfryd_gyro (
     id SERIAL PRIMARY KEY,
@@ -138,6 +148,7 @@ CREATE TABLE elfryd_gyro (
 ```
 
 ### elfryd_config
+
 ```sql
 CREATE TABLE elfryd_config (
     id SERIAL PRIMARY KEY,
@@ -148,6 +159,7 @@ CREATE TABLE elfryd_config (
 ```
 
 ### Default table structure for other topics
+
 ```sql
 CREATE TABLE topic_name (
     id SERIAL PRIMARY KEY,

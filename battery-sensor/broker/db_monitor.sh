@@ -55,29 +55,29 @@ if [[ "$table_type" == "messages" ]]; then
         print_error "When using 'messages' type, you must specify the table name as the second argument."
         print_help
     fi
-    
+
     table="$1"
     shift # Remove the table name from arguments
 else
     # Map table_type to actual table name for predefined types
     case "$table_type" in
-        "battery")
-            table="elfryd_battery"
-            ;;
-        "temp")
-            table="elfryd_temp"
-            ;;
-        "gyro")
-            table="elfryd_gyro"
-            ;;
-        "config")
-            table="elfryd_config"
-            ;;
-        *)
-            print_error "Unknown table type: $table_type"
-            echo "Valid options are: battery, temp, gyro, config, or messages <table_name>"
-            print_help
-            ;;
+    "battery")
+        table="elfryd_battery"
+        ;;
+    "temp")
+        table="elfryd_temp"
+        ;;
+    "gyro")
+        table="elfryd_gyro"
+        ;;
+    "config")
+        table="elfryd_config"
+        ;;
+    *)
+        print_error "Unknown table type: $table_type"
+        echo "Valid options are: battery, temp, gyro, config, or messages <table_name>"
+        print_help
+        ;;
     esac
 fi
 
@@ -95,14 +95,14 @@ fi
 # Function to check if a table exists in the database
 check_table_exists() {
     local table_name=$1
-    
+
     # Run SQL query to check if table exists
     result=$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '$table_name');" -t | tr -d '[:space:]')
-    
+
     if [[ "$result" == "t" ]]; then
-        return 0  # Table exists
+        return 0 # Table exists
     else
-        return 1  # Table doesn't exist
+        return 1 # Table doesn't exist
     fi
 }
 
@@ -122,66 +122,66 @@ get_query() {
 
     # Detect table schema to determine appropriate query
     local columns=$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "\d $table" | grep -E "[a-z_]+ +\|" | awk '{print $1}' | tr '\n' ' ')
-    
+
     # Check for known schemas first
     case "$table" in
-        "elfryd_battery")
-            echo "SELECT battery_id, voltage, device_timestamp, timestamp, 
+    "elfryd_battery")
+        echo "SELECT battery_id, voltage, device_timestamp, timestamp, 
                   extract(epoch from timestamp) as server_epoch,
                   extract(epoch from timestamp) - device_timestamp::numeric as latency
                   FROM $table
                   ORDER BY timestamp DESC
                   LIMIT $limit;"
-            ;;
-        "elfryd_temp")
-            echo "SELECT temperature, device_timestamp, timestamp, 
+        ;;
+    "elfryd_temp")
+        echo "SELECT temperature, device_timestamp, timestamp, 
                   extract(epoch from timestamp) as server_epoch,
                   extract(epoch from timestamp) - device_timestamp::numeric as latency
                   FROM $table
                   ORDER BY timestamp DESC
                   LIMIT $limit;"
-            ;;
-        "elfryd_gyro")
-            echo "SELECT accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
+        ;;
+    "elfryd_gyro")
+        echo "SELECT accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, 
                   device_timestamp, timestamp,
                   extract(epoch from timestamp) as server_epoch,
                   extract(epoch from timestamp) - device_timestamp::numeric as latency 
                   FROM $table
                   ORDER BY timestamp DESC
                   LIMIT $limit;"
-            ;;
-        "elfryd_config")
-            echo "SELECT command, topic, timestamp FROM $table
+        ;;
+    "elfryd_config")
+        echo "SELECT command, topic, timestamp FROM $table
                   ORDER BY timestamp DESC
                   LIMIT $limit;"
-            ;;
-        *)
-            # Query for a specific messages table
-            # Check if the table has device_timestamp and timestamp
-            if echo "$columns" | grep -qw "device_timestamp" && echo "$columns" | grep -qw "timestamp"; then
-                echo "SELECT *, extract(epoch from timestamp) as server_epoch, 
+        ;;
+    *)
+        # Query for a specific messages table
+        # Check if the table has device_timestamp and timestamp
+        if echo "$columns" | grep -qw "device_timestamp" && echo "$columns" | grep -qw "timestamp"; then
+            echo "SELECT *, extract(epoch from timestamp) as server_epoch, 
                       extract(epoch from timestamp) - device_timestamp::numeric as latency 
                       FROM $table 
                       ORDER BY timestamp DESC 
                       LIMIT $limit;"
-            # If it only has timestamp (like mqtt_messages)
-            elif echo "$columns" | grep -qw "timestamp"; then
-                if [ -n "$topic_filter" ]; then
-                    echo "SELECT * FROM $table 
+        # If it only has timestamp (like mqtt_messages)
+        elif echo "$columns" | grep -qw "timestamp"; then
+            if [ -n "$topic_filter" ]; then
+                echo "SELECT * FROM $table 
                           WHERE topic LIKE '%$topic_filter%' 
                           ORDER BY timestamp DESC 
                           LIMIT $limit;"
-                else
-                    echo "SELECT * FROM $table 
-                          ORDER BY timestamp DESC 
-                          LIMIT $limit;"
-                fi
-            # For any other schema
             else
                 echo "SELECT * FROM $table 
-                      LIMIT $limit;"
+                          ORDER BY timestamp DESC 
+                          LIMIT $limit;"
             fi
-            ;;
+        # For any other schema
+        else
+            echo "SELECT * FROM $table 
+                      LIMIT $limit;"
+        fi
+        ;;
     esac
 }
 
@@ -190,27 +190,27 @@ get_header() {
     local table=$1
 
     case "$table" in
-        "elfryd_battery")
-            echo -e "Battery ID\tVoltage (mV)\tDevice Time\tServer Time\t\t\tLatency (s)"
-            echo -e "-----------\t------------\t-----------\t-------------------------\t----------"
-            ;;
-        "elfryd_temp")
-            echo -e "Temperature (°C)\tDevice Time\tServer Time\t\t\tLatency (s)"
-            echo -e "----------------\t-----------\t-------------------------\t----------"
-            ;;
-        "elfryd_gyro")
-            echo -e "Accel [X,Y,Z]\t\tGyro [X,Y,Z]\t\t\tDevice Time\tServer Time\t\t\tLatency (s)"
-            echo -e "----------------\t-------------------------\t-----------\t-------------------------\t----------"
-            ;;
-        "elfryd_config")
-            echo -e "Command\t\t\tTopic\t\t\tTimestamp"
-            echo -e "-------\t\t\t-----\t\t\t---------"
-            ;;
-        *)
-            # Print column names from database for the specific messages table
-            echo -e "$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "\\d $table" | grep -E "[a-z_]+ +\\|" | awk '{print $1}' | tr '\n' '\t')"
-            echo -e "$(printf -- '-%.0s' {1..80})"
-            ;;
+    "elfryd_battery")
+        echo -e "Battery ID\tVoltage (mV)\tDevice Time\tServer Time\t\t\tLatency (s)"
+        echo -e "-----------\t------------\t-----------\t-------------------------\t----------"
+        ;;
+    "elfryd_temp")
+        echo -e "Temperature (°C)\tDevice Time\tServer Time\t\t\tLatency (s)"
+        echo -e "----------------\t-----------\t-------------------------\t----------"
+        ;;
+    "elfryd_gyro")
+        echo -e "Accel [X,Y,Z]\t\tGyro [X,Y,Z]\t\t\tDevice Time\tServer Time\t\t\tLatency (s)"
+        echo -e "----------------\t-------------------------\t-----------\t-------------------------\t----------"
+        ;;
+    "elfryd_config")
+        echo -e "Command\t\t\tTopic\t\t\tTimestamp"
+        echo -e "-------\t\t\t-----\t\t\t---------"
+        ;;
+    *)
+        # Print column names from database for the specific messages table
+        echo -e "$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "\\d $table" | grep -E "[a-z_]+ +\\|" | awk '{print $1}' | tr '\n' '\t')"
+        echo -e "$(printf -- '-%.0s' {1..80})"
+        ;;
     esac
 }
 
@@ -220,25 +220,25 @@ get_table_display_name() {
     local table_type=$2
 
     case "$table" in
-        "elfryd_battery")
-            echo "Battery Readings (with Server Timestamps)"
-            ;;
-        "elfryd_temp")
-            echo "Temperature Readings (with Server Timestamps)"
-            ;;
-        "elfryd_gyro")
-            echo "Gyroscope Readings (with Server Timestamps)"
-            ;;
-        "elfryd_config")
-            echo "Configuration Commands"
-            ;;
-        *)
-            if [[ "$table_type" == "messages" ]]; then
-                echo "Messages Table: $table"
-            else
-                echo "Table: $table"
-            fi
-            ;;
+    "elfryd_battery")
+        echo "Battery Readings (with Server Timestamps)"
+        ;;
+    "elfryd_temp")
+        echo "Temperature Readings (with Server Timestamps)"
+        ;;
+    "elfryd_gyro")
+        echo "Gyroscope Readings (with Server Timestamps)"
+        ;;
+    "elfryd_config")
+        echo "Configuration Commands"
+        ;;
+    *)
+        if [[ "$table_type" == "messages" ]]; then
+            echo "Messages Table: $table"
+        else
+            echo "Table: $table"
+        fi
+        ;;
     esac
 }
 
@@ -287,7 +287,7 @@ display_data # Initial empty display
 while $running; do
     # Get the query based on table type
     query=$(get_query "$table" "$lines" "$topic_filter")
-    
+
     # Execute the query in the database container
     current_data=$(docker exec -it timescaledb psql -U myuser -d mqtt_data -c "$query" -t)
 

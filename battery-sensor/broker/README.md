@@ -7,6 +7,7 @@ A comprehensive IoT messaging platform with MQTT broker, TLS security, Timescale
 The Elfryd MQTT Broker system serves as the central data hub for the Elfryd boat monitoring project. It provides a secure and efficient way to collect, store, and access sensor data from IoT devices deployed on the Elfryd boat.
 
 This broker system:
+
 - Receives sensor data from boat-based IoT devices via secure MQTT
 - Stores the data in a time-series database for efficient querying
 - Provides a REST API for the .NET backend to retrieve and analyze the data
@@ -48,7 +49,7 @@ To get started with the broker:
 1. Set up a virtual machine using the [VM Setup Guide](docs/vm_setup.md)
 2. Run the installation script: `sudo bash install.sh`
 3. Download client certificates for secure connections
-4. Access the API at `https://your-vm-hostname:443/health` 
+4. Access the API at `https://your-vm-hostname:443/health`
 5. Explore the full API documentation at `https://your-vm-hostname:443/docs`
 
 ## Data Flow
@@ -86,6 +87,7 @@ battery-sensor/broker/
 ## Security
 
 The system implements multiple security layers:
+
 - TLS encryption for all MQTT communications
 - API key protection for sensitive API endpoints
 - Docker network isolation for the database
@@ -94,6 +96,7 @@ The system implements multiple security layers:
 ## Testing
 
 You can test the system using the provided utility scripts:
+
 - `seed.sh`: Send sample battery data
 - `battery_generator.sh`: Generate continuous battery readings
 - `db_monitor.sh`: Monitor database activity in real-time

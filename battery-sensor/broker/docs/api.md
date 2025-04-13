@@ -35,7 +35,7 @@ These interfaces provide a complete reference of all endpoints, parameters, requ
 ### Core Endpoints
 
 | Endpoint    | Method | Description                  | Authentication |
-|-------------|--------|------------------------------|----------------|
+| ----------- | ------ | ---------------------------- | -------------- |
 | `/health`   | GET    | Check system health status   | Public         |
 | `/messages` | GET    | Get stored messages by topic | API Key        |
 | `/messages` | POST   | Publish a message to MQTT    | API Key        |
@@ -44,17 +44,17 @@ These interfaces provide a complete reference of all endpoints, parameters, requ
 ### Sensor Data Endpoints
 
 | Endpoint       | Method | Description                      | Authentication |
-|----------------|--------|----------------------------------|---------------|
-| `/battery`     | GET    | Retrieve battery sensor data     | API Key       |
-| `/temperature` | GET    | Retrieve temperature sensor data | API Key       |
-| `/gyro`        | GET    | Retrieve gyroscope sensor data   | API Key       |
+| -------------- | ------ | -------------------------------- | -------------- |
+| `/battery`     | GET    | Retrieve battery sensor data     | API Key        |
+| `/temperature` | GET    | Retrieve temperature sensor data | API Key        |
+| `/gyro`        | GET    | Retrieve gyroscope sensor data   | API Key        |
 
 ### Configuration Endpoints
 
 | Endpoint       | Method | Description                | Authentication |
-|----------------|--------|----------------------------|---------------|
-| `/config`      | GET    | Get configuration messages | API Key       |
-| `/config/send` | POST   | Send configuration command | API Key       |
+| -------------- | ------ | -------------------------- | -------------- |
+| `/config`      | GET    | Get configuration messages | API Key        |
+| `/config/send` | POST   | Send configuration command | API Key        |
 
 ## Common Query Parameters
 
@@ -77,6 +77,7 @@ GET /health
 Returns the current health status of the system components.
 
 **Response Example:**
+
 ```json
 {
   "status": "healthy",
@@ -94,12 +95,14 @@ GET /battery
 Retrieves battery voltage measurements.
 
 **Parameters:**
+
 - `battery_id` (optional): Filter by specific battery ID
 - `limit` (default: 20): Maximum number of records
 - `hours` (default: 168): Data from last X hours
 - `time_offset` (optional): Hours offset from current time
 
 **Response Example:**
+
 ```json
 [
   {
@@ -120,11 +123,13 @@ GET /temperature
 Retrieves temperature measurements.
 
 **Parameters:**
+
 - `limit` (default: 20): Maximum number of records
 - `hours` (default: 168): Data from last X hours
 - `time_offset` (optional): Hours offset from current time
 
 **Response Example:**
+
 ```json
 [
   {
@@ -144,11 +149,13 @@ GET /gyro
 Retrieves gyroscope and accelerometer measurements.
 
 **Parameters:**
+
 - `limit` (default: 20): Maximum number of records
 - `hours` (default: 168): Data from last X hours
 - `time_offset` (optional): Hours offset from current time
 
 **Response Example:**
+
 ```json
 [
   {
@@ -173,11 +180,13 @@ GET /config
 Retrieves configuration commands sent to devices.
 
 **Parameters:**
+
 - `limit` (default: 20): Maximum number of records
 - `hours` (default: 168): Data from last X hours
 - `time_offset` (optional): Hours offset from current time
 
 **Response Example:**
+
 ```json
 [
   {
@@ -198,6 +207,7 @@ POST /config/send
 Sends a configuration command to connected devices.
 
 **Request Body:**
+
 ```json
 {
   "command": "battery 10"
@@ -205,6 +215,7 @@ Sends a configuration command to connected devices.
 ```
 
 **Response Example:**
+
 ```json
 {
   "success": true,
@@ -223,6 +234,7 @@ GET /messages?topic=test/topic
 Retrieves general MQTT messages filtered by topic.
 
 **Parameters:**
+
 - `topic` (required): Filter by topic (partial match)
 - `limit` (default: 100): Maximum number of records
 - `offset` (default: 0): Number of records to skip
@@ -230,6 +242,7 @@ Retrieves general MQTT messages filtered by topic.
 - `time_offset` (optional): Hours offset from current time
 
 **Response Example:**
+
 ```json
 [
   {
@@ -247,11 +260,12 @@ Retrieves general MQTT messages filtered by topic.
 POST /messages
 ```
 
-Publishes a message to a specific MQTT topic. 
+Publishes a message to a specific MQTT topic.
 
 > **Note**: Sensor data topics (elfryd/{sensor-type}) are blacklisted and will not be accepted.
 
 **Request Body:**
+
 ```json
 {
   "topic": "test/topic",
@@ -260,6 +274,7 @@ Publishes a message to a specific MQTT topic.
 ```
 
 **Response Example:**
+
 ```json
 {
   "success": true,
@@ -276,6 +291,7 @@ GET /topics
 Returns a list of all unique topics in the database.
 
 **Response Example:**
+
 ```json
 {
   "topics": [
@@ -347,11 +363,13 @@ else:
 ### Curl Examples
 
 Get latest battery readings:
+
 ```bash
 curl -k -X GET "https://your-vm-hostname:443/battery?limit=5" -H "X-API-Key: your-api-key"
 ```
 
 Send configuration command:
+
 ```bash
 curl -k -X POST "https://your-vm-hostname:443/config/send" \
   -H "Content-Type: application/json" \
@@ -360,11 +378,13 @@ curl -k -X POST "https://your-vm-hostname:443/config/send" \
 ```
 
 Get system health:
+
 ```bash
 curl -k -X GET "https://your-vm-hostname:443/health"
 ```
 
 List all available topics:
+
 ```bash
 curl -k -X GET "https://your-vm-hostname:443/topics" -H "X-API-Key: your-api-key"
 ```
