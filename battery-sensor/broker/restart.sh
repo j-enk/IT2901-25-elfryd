@@ -71,8 +71,8 @@ print_section "Checking Let's Encrypt certificates for API"
 if [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ] && [ -f "/etc/letsencrypt/live/$CommonName/privkey.pem" ]; then
   echo "Found existing Let's Encrypt certificates for $CommonName"
   
-  # Check if acme.sh is installed
-  if [ -f "$HOME/.acme.sh/acme.sh" ]; then
+  # Check if acme user exists and has acme.sh installed
+  if id -u acme > /dev/null 2>&1 && [ -f "/opt/acme-sh/.acme.sh/acme.sh" ]; then
     echo "Attempting to renew Let's Encrypt certificates using acme.sh..."
     
     # Stop API container to free up port 443 for acme.sh
@@ -80,30 +80,47 @@ if [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ] && [ -f "/etc/letsen
     docker compose stop api
     sleep 5
     
-    # Source acme.sh environment variables
-    source "$HOME/.acme.sh/acme.sh.env"
-    
-    # Force renew certificates using acme.sh ALPN challenge
-    if ~/.acme.sh/acme.sh --renew --alpn -d $CommonName --force; then
+    # Renew certificates using the acme user
+    if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --renew --alpn -d $CommonName --force"; then
       echo "✅ Certificate renewal successful"
       
       # Update certificate installation
-      ~/.acme.sh/acme.sh --install-cert -d $CommonName \
+      su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --install-cert -d $CommonName \
         --key-file /etc/letsencrypt/live/$CommonName/privkey.pem \
-        --fullchain-file /etc/letsencrypt/live/$CommonName/fullchain.pem
+        --fullchain-file /etc/letsencrypt/live/$CommonName/fullchain.pem"
         
       chmod 644 /etc/letsencrypt/live/$CommonName/fullchain.pem
       chmod 600 /etc/letsencrypt/live/$CommonName/privkey.pem
       
       # Make sure auto-renewal is configured
-      ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+      su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --upgrade --auto-upgrade"
     else
       print_warning "Certificate renewal might have failed"
       print_warning "Will continue using existing certificates"
     fi
   else
-    print_warning "acme.sh not found. Please install acme.sh to renew certificates:"
-    print_warning "curl https://get.acme.sh | sh -s email=admin@example.com"
+    print_warning "acme user or acme.sh not found. Setting up the acme user..."
+    
+    # Create acme user if it doesn't exist
+    if ! id -u acme > /dev/null 2>&1; then
+      useradd -m -d /opt/acme-sh -s /bin/bash acme
+      echo "Created acme user for certificate management"
+    fi
+    
+    # Create necessary directories and set permissions
+    mkdir -p /opt/acme-sh/certs
+    mkdir -p /etc/letsencrypt/live/$CommonName
+    chown -R acme:acme /opt/acme-sh
+    chown -R acme:acme /etc/letsencrypt
+    
+    # Install acme.sh for the acme user if it doesn't exist
+    if [ ! -f "/opt/acme-sh/.acme.sh/acme.sh" ]; then
+      su - acme -c "curl https://get.acme.sh | sh -s email=admin@example.com"
+      echo "Installed acme.sh for acme user"
+    fi
+    
+    print_warning "Acme user setup complete, but certificates were not renewed this time"
+    print_warning "Will try renewing during next restart"
   fi
 else
   echo "Let's Encrypt certificates not found. Checking if we need to obtain them..."

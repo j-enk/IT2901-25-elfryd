@@ -122,10 +122,9 @@ if [ "$REMOVE_CERTS" = true ]; then
         if [ -n "$HOSTNAME" ]; then
           echo "Removing Let's Encrypt certificates for $HOSTNAME..."
           
-          # Try to remove with acme.sh if it exists
-          if [ -f "$HOME/.acme.sh/acme.sh" ]; then
-            source "$HOME/.acme.sh/acme.sh.env"
-            ~/.acme.sh/acme.sh --remove -d $HOSTNAME --force
+          # Try to remove with acme.sh using the acme user if it exists
+          if id -u acme > /dev/null 2>&1 && [ -f "/opt/acme-sh/.acme.sh/acme.sh" ]; then
+            su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --remove -d $HOSTNAME --force"
             echo "Removed certificates from acme.sh management"
           fi
           

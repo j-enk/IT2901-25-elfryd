@@ -66,10 +66,24 @@ print_section "Installing required packages"
 apt-get update
 apt-get install -y ca-certificates curl gnupg openssl net-tools socat
 
-# Install acme.sh as an alternative to certbot
+# Set up dedicated acme.sh user for certificate management
+print_section "Setting up acme.sh user"
+# Create acme user if it doesn't exist
+if ! id -u acme > /dev/null 2>&1; then
+  useradd -m -d /opt/acme-sh -s /bin/bash acme
+  echo "Created acme user for certificate management"
+fi
+
+# Create necessary directories
+mkdir -p /opt/acme-sh/certs
+mkdir -p /etc/letsencrypt/live/$CommonName
+chown -R acme:acme /opt/acme-sh
+chown -R acme:acme /etc/letsencrypt
+
+# Install acme.sh as the acme user
 print_section "Installing acme.sh certificate manager"
-curl https://get.acme.sh | sh -s email=admin@example.com
-source ~/.acme.sh/acme.sh.env
+su - acme -c "curl https://get.acme.sh | sh -s email=admin@example.com"
+echo "✅ acme.sh installed for acme user"
 
 # Install Docker
 print_section "Installing Docker"
@@ -138,16 +152,16 @@ if [[ "$PORT_443_STATUS" != "Available" ]]; then
 else
   # Try to get Let's Encrypt certificate using ALPN challenge
   mkdir -p ~/.acme.sh/$CommonName
-  if ~/.acme.sh/acme.sh --issue --alpn -d $CommonName; then
+  if su - acme -c "~/.acme.sh/acme.sh --issue --alpn -d $CommonName"; then
     print_section "Let's Encrypt certificate obtained successfully"
     
     # Create directory for the certificates if it doesn't exist
     mkdir -p /etc/letsencrypt/live/$CommonName
     
     # Install certificates to the standard location
-    if ~/.acme.sh/acme.sh --install-cert -d $CommonName \
+    if su - acme -c "~/.acme.sh/acme.sh --install-cert -d $CommonName \
       --key-file /etc/letsencrypt/live/$CommonName/privkey.pem \
-      --fullchain-file /etc/letsencrypt/live/$CommonName/fullchain.pem; then
+      --fullchain-file /etc/letsencrypt/live/$CommonName/fullchain.pem"; then
       
       echo "✅ Certificates installed to /etc/letsencrypt/live/$CommonName/"
       
@@ -156,7 +170,7 @@ else
       chmod 600 /etc/letsencrypt/live/$CommonName/privkey.pem
       
       # Configure auto-renewal
-      ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+      su - acme -c "~/.acme.sh/acme.sh --upgrade --auto-upgrade"
       echo "✅ Automated renewal configured"
       
       echo "NEEDS_LETSENCRYPT=false" >> "$BASE_DIR/app/.env"
