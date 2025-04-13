@@ -82,7 +82,8 @@ chown -R acme:acme /etc/letsencrypt
 
 # Install acme.sh as the acme user
 print_section "Installing acme.sh certificate manager"
-su - acme -c "curl https://get.acme.sh | sh -s email=admin@example.com"
+# Use a valid email domain (not example.com which is rejected)
+su - acme -c "curl https://get.acme.sh | sh -s email=admin@$(hostname -f)"
 echo "✅ acme.sh installed for acme user"
 
 # Install Docker
