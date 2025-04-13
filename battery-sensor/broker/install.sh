@@ -112,11 +112,11 @@ echo "Checking if we can obtain Let's Encrypt certificates..."
 # Create folder for Let's Encrypt certificate storage
 mkdir -p /etc/letsencrypt/live/$CommonName
 
-# Check if port 443 is available for the certbot standalone server
+# Check if port 443 is available for the certbot TLS-ALPN challenge
 PORT_443_STATUS=$(netstat -tuln | grep ":443 " || echo "Available")
 if [[ "$PORT_443_STATUS" != "Available" ]]; then
   print_warning "Port 443 appears to be in use. Will create a temporary self-signed certificate for startup."
-  print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --standalone -d $CommonName"
+  print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --preferred-challenges tls-alpn -d $CommonName"
   
   # Create directory for Let's Encrypt certificates with self-signed fallback
   mkdir -p /etc/letsencrypt/live/$CommonName
@@ -131,8 +131,8 @@ if [[ "$PORT_443_STATUS" != "Available" ]]; then
   echo "NEEDS_LETSENCRYPT=true" >> "$BASE_DIR/app/.env"
   echo "Temporary certificates created. Will use the same as MQTT broker for now."
 else
-  # Try to get Let's Encrypt certificate
-  if certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
+  # Try to get Let's Encrypt certificate using TLS-ALPN-01 challenge
+  if certbot certonly --standalone --preferred-challenges tls-alpn --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
     print_section "Let's Encrypt certificate obtained successfully"
     echo "✅ Certificates stored in /etc/letsencrypt/live/$CommonName/"
     
@@ -152,7 +152,7 @@ else
     fi
   else
     print_warning "Could not obtain Let's Encrypt certificate. Using self-signed certificate instead."
-    print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --standalone -d $CommonName"
+    print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --preferred-challenges tls-alpn -d $CommonName"
     
     # Copy from existing OpenSSL certs as a fallback
     cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem

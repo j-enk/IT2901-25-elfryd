@@ -80,8 +80,8 @@ if [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ] && [ -f "/etc/letsen
     docker compose stop api
     sleep 5
     
-    # Renew certificates
-    if certbot renew --cert-name $CommonName; then
+    # Renew certificates using TLS-ALPN-01 challenge
+    if certbot renew --cert-name $CommonName --preferred-challenges tls-alpn; then
       echo "✅ Certificate renewal successful or not yet needed"
     else
       print_warning "Certificate renewal might have failed or was not possible"
@@ -110,8 +110,8 @@ else
     docker compose stop api
     sleep 5
     
-    # Try to get Let's Encrypt certificate
-    if certbot certonly --standalone --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
+    # Try to get Let's Encrypt certificate using TLS-ALPN-01 challenge
+    if certbot certonly --standalone --preferred-challenges tls-alpn --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
       echo "✅ Let's Encrypt certificates obtained successfully"
       echo "✅ Certificates stored in /etc/letsencrypt/live/$CommonName/"
       
