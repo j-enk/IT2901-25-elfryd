@@ -8,7 +8,7 @@ This guide provides step-by-step instructions for setting up a new virtual machi
 2. Click "Create a resource" > "Compute" > "Virtual Machine"
 3. Select "Ubuntu Server 22.04 LTS" or newer
 4. Choose your VM size (at least 1GB RAM recommended)
-5. Setup authentication (SSH key recommended)
+5. Setup authentication (password or SSH key)
 6. Allow SSH (port 22)
 7. Review and create
 
@@ -17,7 +17,6 @@ This guide provides step-by-step instructions for setting up a new virtual machi
 1. Go to your VM's "Networking" settings
 2. Click "Add inbound port rule"
 3. Add rules for the following ports:
-   - MQTT (port 1883) - Internal bridge communication
    - MQTT over TLS (port 8885) - Secure device connections
    - API over HTTPS (port 443) - REST API access
 
@@ -114,25 +113,13 @@ scp yourusername@your-vm-dns-name:~/elfryd/battery-sensor/broker/elfryd_client_c
 tar -xzf elfryd_client_certs.tar.gz
 ```
 
-The certificates will be extracted to a `client_certs` directory containing the CA certificate required for TLS connections.
-
-## VM Sizing Recommendations
-
-For a production environment, we recommend the following VM specifications:
-
-- **CPU**: 2 vCPUs minimum
-- **RAM**: 2GB minimum, 4GB recommended for heavier loads
-- **Disk**: 32GB minimum, SSD recommended
-- **Network**: Standard networking with public IP
-
-For development or testing, a smaller VM with 1 vCPU and 1GB RAM may be sufficient.
+The certificates will be extracted to a `client_certs` directory containing the CA certificate required for TLS connections. Use this in your MQTT clients to establish secure connections over TLS.
 
 ## Security Considerations
 
-- Keep your API key secure - it provides access to all protected endpoints
-- Regularly update your Ubuntu VM to patch security vulnerabilities
 - Consider implementing IP restrictions for the management ports
-- Enable Azure Security Center for additional security monitoring
+- Keep your API key secure - it provides access to all protected endpoints
+- Rotate your API key periodically with the `restart.sh` script
 - Rotate TLS certificates periodically (can be done using the `cleanup.sh` and `install.sh` scripts)
 
 ## Troubleshooting VM Issues

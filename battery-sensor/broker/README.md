@@ -4,7 +4,7 @@ A comprehensive IoT messaging platform with MQTT broker, TLS security, Timescale
 
 ## Overview
 
-The Elfryd MQTT Broker system serves as the central data hub for the Elfryd boat monitoring project. It provides a secure and efficient way to collect, store, and access sensor data from boats equipped with the Elfryd monitoring devices.
+The Elfryd MQTT Broker system serves as the central data hub for the Elfryd boat monitoring project. It provides a secure and efficient way to collect, store, and access sensor data from IoT devices deployed on the Elfryd boat.
 
 This broker system:
 - Receives sensor data from boat-based IoT devices via secure MQTT
@@ -20,7 +20,7 @@ The broker is built using a modular, containerized architecture:
 1. **MQTT Broker (Eclipse Mosquitto)**: Handles secure message communication with TLS
 2. **TimescaleDB**: Optimized time-series database for storing sensor readings
 3. **MQTT-DB Bridge**: Processes incoming messages and stores them in the database
-4. **FastAPI REST API**: Provides HTTP access to the stored data for the backend
+4. **FastAPI REST API**: Provides HTTPS access to the stored data for the backend
 
 ## Project Context
 
@@ -52,10 +52,10 @@ To get started with the broker:
 
 ## Data Flow
 
-The overall data flow through the system is:
+The overall data flow through the system outside the boat is as follows:
 
 ```
-Boat Sensors → MQTT TLS → Broker → Bridge → TimescaleDB → REST API → .NET Backend → Frontend
+Boat Hub → MQTT TLS → Broker → Bridge → TimescaleDB → REST API → .NET Backend → Frontend
 ```
 
 ## Repository Structure
@@ -73,10 +73,10 @@ battery-sensor/broker/
 │   ├── bridge.md                 # Bridge documentation
 │   ├── scripts.md                # Scripts documentation
 │   └── vm_setup.md               # VM setup guide
-├── battery_generator.sh          # Tool to generate test battery data
+├── battery_generator.sh          # Tool to generate battery test data
 ├── cleanup.sh                    # Clean up Docker containers and files
 ├── install.sh                    # Main installation script
-├── mqtt_monitor.sh               # Tool to monitor MQTT messages
+├── db_monitor.sh                 # Tool to monitor the database
 ├── restart.sh                    # Restart script for services
 └── seed.sh                       # Seed script for test data
 ```
@@ -94,8 +94,11 @@ The system implements multiple security layers:
 You can test the system using the provided utility scripts:
 - `seed.sh`: Send sample battery data
 - `battery_generator.sh`: Generate continuous battery readings
-- `mqtt_monitor.sh`: Monitor MQTT messages in real-time
+- `db_monitor.sh`: Monitor database activity in real-time
 
 ## Support and Contribution
 
-For questions or issues, please contact the Elfryd project team.
+For questions or issues, please contact the contributors of the broker system:
+
+- Martin Vågseter Jakobsen (main developer)
+- Magnus Hansen Åsheim (contributor)

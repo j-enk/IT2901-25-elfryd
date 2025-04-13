@@ -69,9 +69,16 @@ The bridge recognizes the following topic patterns and their corresponding messa
 **Example**: `battery 10`
 
 **Parameters**:
-- `command`: Configuration command in format `sensor [interval]`
+- `command`: Configuration command in the format `<sensor_type> [interval]`
 
-**Storage**: Commands are stored in the `elfryd_config` table with command and topic.
+**Valid commands**:
+- `battery`, `temperature`, `gyro`: Force the device to send all available data for that sensor type
+- `battery [interval]`, `temperature [interval]`, `gyro [interval]`: Set sampling interval in seconds (0 disables sampling)
+
+**Confirmation Messages**:
+Devices can respond to configuration commands by publishing to the `elfryd/config/confirm` topic with the same format as the original command. Confirmation messages are stored in the same table as the original command.
+
+**Storage**: Commands are stored in the `elfryd_config` table with command and topic information.
 
 ### Other Topics
 
@@ -169,7 +176,7 @@ mosquitto_pub -h your-vm-dns-name -p 8885 --cafile ./client_certs/ca.crt -t elfr
 After sending a message, you can verify it was processed by querying the API:
 
 ```bash
-curl -k -X GET https://your-vm-dns-name:443/battery -H "X-API-Key: $API_KEY"
+curl -k -X GET https://your-vm-dns-name:443/battery?limit=1 -H "X-API-Key: $API_KEY"
 ```
 
 ## Bridge Code Structure

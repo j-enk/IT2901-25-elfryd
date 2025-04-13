@@ -4,7 +4,7 @@ This document explains the FastAPI-based REST API that provides access to the MQ
 
 ## API Overview
 
-The Elfryd API provides a secure HTTP interface to access sensor data, configuration commands, and MQTT messages stored in the system. It's designed for:
+The Elfryd broker API provides a secure HTTPS interface to access sensor data, configuration commands, and MQTT messages stored in the system. It's designed for:
 
 - Backend applications to retrieve sensor data
 - Administration interfaces to monitor the system
@@ -13,13 +13,13 @@ The Elfryd API provides a secure HTTP interface to access sensor data, configura
 
 ## Authentication
 
-Most API endpoints are protected with an API key that is generated during installation. To access protected endpoints, include the API key in the `X-API-Key` header with your requests:
+Most API endpoints are protected with an API key that is generated during installation (see [VM Setup](vm_setup.md) and [Scripts](scripts.md) documentation). The API key is required for all endpoints except the health check (`/health`), which is publicly accessible to verify system status. To access protected endpoints, include the API key in the `X-API-Key` header with your requests:
 
 ```bash
 curl -k -X GET https://your-vm-dns-name:443/battery -H "X-API-Key: YOUR_API_KEY"
 ```
 
-The API key is stored in the `.env` file inside the app directory and is also shown at the end of the installation process.
+The API key is stored in the `.env` file inside the app directory on the VM, and is also shown at the end of the installation process.
 
 ## Interactive Documentation
 
@@ -28,7 +28,7 @@ Full interactive API documentation is available at:
 - **Swagger UI**: `https://your-vm-dns-name:443/docs`
 - **ReDoc**: `https://your-vm-dns-name:443/redoc`
 
-These interfaces provide a complete reference of all endpoints, parameters, request/response schemas, and example usage.
+These interfaces provide a complete reference of all endpoints, parameters, request/response schemas, and example usage. As long as you have the API key, you can test the endpoints directly from the documentation interface.
 
 ## API Endpoints
 
@@ -247,7 +247,9 @@ Retrieves general MQTT messages filtered by topic.
 POST /messages
 ```
 
-Publishes a message to a MQTT topic.
+Publishes a message to a specific MQTT topic. 
+
+> **Note**: Sensor data topics (elfryd/{sensor-type}) are blacklisted and will not be accepted.
 
 **Request Body:**
 ```json
@@ -331,7 +333,7 @@ response = requests.get(
     f"{API_URL}/battery",
     headers=headers,
     params={"hours": 24, "limit": 5},
-    verify=False  # Skip TLS verification (use proper CA in production)
+    verify=False  # Skip TLS verification
 )
 
 if response.status_code == 200:
@@ -369,4 +371,4 @@ curl -k -X GET "https://your-vm-hostname:443/topics" -H "X-API-Key: your-api-key
 
 ## Further Reading
 
-For details on the data format and topic structure, see the [Bridge Documentation](bridge.md).
+For more details on the data format and topic structure, see the [Bridge Documentation](bridge.md).

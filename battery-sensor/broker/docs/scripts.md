@@ -8,10 +8,10 @@ This document explains all utility scripts available in the Elfryd MQTT broker s
 |--------|-------------|
 | `install.sh` | Main installation script for setting up the entire broker system |
 | `cleanup.sh` | Cleans up Docker containers and optionally preserves data and certificates |
-| `restart.sh` | Restart services without full reinstallation |
-| `seed.sh` | Sends test battery data to the MQTT broker |
+| `restart.sh` | Restart services without full reinstallation, can also generate new API key |
+| `seed.sh` | Populates the database with sample data (sensor readings and config messages) |
 | `battery_generator.sh` | Continuously generates battery data with configurable parameters |
-| `mqtt_monitor.sh` | Monitors MQTT messages in real-time on the server |
+| `db_monitor.sh` | Monitors and displays database activity in real-time |
 
 ## install.sh
 
@@ -26,21 +26,19 @@ sudo bash install.sh
 ### What it does
 
 1. Installs necessary packages (Docker, Docker Compose, OpenSSL, etc.)
-2. Creates TLS certificates for secure MQTT communication
+2. Creates TLS certificates for secure MQTT communication and SSL for the API
 3. Generates a secure API key for protected endpoints
 4. Sets up Docker containers for all services:
    - Mosquitto MQTT broker with TLS
    - TimescaleDB for data storage
    - MQTT-DB bridge service
-   - FastAPI REST API
+   - FastAPI REST API with HTTPS
 5. Runs tests to verify the installation
 6. Creates client certificate package for devices
 
 ### Options
 
-The script will prompt you for the hostname to use for TLS certificates. You can either:
-- Use the VM's DNS name (recommended for production)
-- Use another hostname (for development or testing)
+The script will prompt you for the hostname to use for TLS certificates. To be valid, this must match the DNS name of your VM. You can also choose to generate a new API key or use an existing one.
 
 ## cleanup.sh
 
@@ -94,7 +92,7 @@ The script will prompt you if you want to generate a new API key (if one already
 
 ## seed.sh
 
-Sends sample battery data to the MQTT broker for testing.
+Sends sample data to the MQTT broker for testing purposes. This is useful for populating the database with initial readings.
 
 ### Usage
 
@@ -104,10 +102,13 @@ bash seed.sh
 
 ### What it does
 
-Simulates battery readings by sending messages to the `elfryd/battery` topic with the format:
-```
-{battery_id}/{voltage}/{timestamp}
-```
+Simulates sensor readings by sending messages of the correct format to the MQTT broker (see `bridge.md` for message formats). It also samples some configuration messages.
+- Sends battery data to the `elfryd/battery` topic
+- Sends temperature data to the `elfryd/temp` topic
+- Sends gyroscope data to the `elfryd/gyro` topic
+- Sends configuration messages to the `elfryd/config` topic
+
+Assuming the bridge is running, this data will be stored in the TimescaleDB database, and you can view it via the API or directly in the database.
 
 ### Options
 
@@ -138,43 +139,66 @@ bash battery_generator.sh
 bash battery_generator.sh 5 10
 ```
 
+> **Note**: The script simulates an average of 1 reading per second per battery, regardless of the transmission frequency.
+
 ### What it does
 
-1. Creates sine-wave based battery voltage data to simulate realistic patterns
+1. Creates sine-wave based battery voltage data (with some noise) to simulate realistic patterns 
 2. Sends data to the `elfryd/battery` topic in the format `{battery_id}/{voltage}/{timestamp}`
-3. Runs continuously until stopped with Ctrl+C or by pressing 'q'
+3. Runs continuously until stopped with by pressing 'q'
 
-## mqtt_monitor.sh
+## db_monitor.sh
 
-Monitors MQTT messages in real-time on the server, allowing you to see incoming data.
+Monitors database contents in real-time by directly querying the TimescaleDB database, allowing you to see both device timestamps and server timestamps.
 
 ### Usage
 
 ```bash
-bash mqtt_monitor.sh [lines] [interval]
+bash db_monitor.sh <table> [lines] [interval]
+bash db_monitor.sh messages <table_name> [lines] [interval]
 ```
 
 ### Parameters
 
-- `lines` - Number of lines to display (default: 10)
+- `table` - Required. Table type to monitor (`battery`, `temp`, `gyro`, `config`, or `messages`)
+- `table_name` - Required when using the `messages` type. Specifies the exact table to query.
+- `lines` - Number of rows to display (default: 10)
 - `interval` - Refresh interval in seconds (default: 1)
 
 ### Examples
 
 ```bash
-# Display last 10 messages, refresh every 1 second
-bash mqtt_monitor.sh
+# Display last 10 battery readings, refresh every 1 second
+bash db_monitor.sh battery
 
-# Display last 20 messages, refresh every 2 seconds
-bash mqtt_monitor.sh 20 2
+# Display last 20 temperature readings, refresh every 2 seconds
+bash db_monitor.sh temp 20 2
+
+# Display last 15 gyroscope readings, refresh every 5 seconds
+bash db_monitor.sh gyro 15 5
+
+# Display configuration commands
+bash db_monitor.sh config
+
+# Display messages from a specific table
+bash db_monitor.sh messages test_verification 15 2
 ```
 
 ### What it does
 
-1. Polls the API for new messages
-2. Displays them in a clear, formatted output
-3. Automatically refreshes when new messages arrive
-4. Uses the API key stored in the `.env` file for authentication
+1. Directly queries the TimescaleDB database using Docker exec commands
+2. For sensor data, displays both device timestamps and server timestamps
+3. Calculates and displays latency between device time and server time
+4. Updates in real-time based on the specified interval
+5. Displays data in a formatted table
+6. Provides interactive monitoring (press 'q' to quit)
+
+### Advantages over API-based monitoring
+
+1. Shows raw database data without API processing
+2. Displays server timestamps that are not exposed through the API
+3. Calculates latency between device time and message arrival
+4. Allows monitoring of any table in the database (with the `messages` type)
 
 ## Common Workflows
 
@@ -236,4 +260,4 @@ sudo lsof -i :443   # Check API port
 sudo kill <PID>     # Kill the process if needed
 ```
 
-For more detailed setup information, refer to [VM Setup Guide](vm_setup.md).
+For other troubleshooting options, refer to [VM Setup Guide](vm_setup.md).
