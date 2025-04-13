@@ -112,34 +112,6 @@ if [ "$REMOVE_CERTS" = true ]; then
     rm -rf $BASE_DIR/certs
     rm -rf $BASE_DIR/client_certs
     rm -f $BASE_DIR/elfryd_client_certs.tar.gz
-    
-    # Ask about Let's Encrypt certificates
-    read -p "Do you also want to remove Let's Encrypt certificates? (y/n): " -n 1 -r REMOVE_LETSENCRYPT
-    echo
-    if [[ $REMOVE_LETSENCRYPT =~ ^[Yy]$ ]]; then
-      if [ -f "$BASE_DIR/app/.env" ]; then
-        HOSTNAME=$(grep ELFRYD_HOSTNAME "$BASE_DIR/app/.env" | cut -d'=' -f2)
-        if [ -n "$HOSTNAME" ]; then
-          echo "Removing Let's Encrypt certificates for $HOSTNAME..."
-          
-          # Try to remove with acme.sh using the acme user if it exists
-          if id -u acme > /dev/null 2>&1 && [ -f "/opt/acme-sh/.acme.sh/acme.sh" ]; then
-            su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --remove -d $HOSTNAME --force"
-            echo "Removed certificates from acme.sh management"
-          fi
-          
-          # Also remove the actual certificate files
-          if [ -d "/etc/letsencrypt/live/$HOSTNAME" ]; then
-            rm -rf /etc/letsencrypt/live/$HOSTNAME 2>/dev/null || true
-            rm -rf /etc/letsencrypt/archive/$HOSTNAME 2>/dev/null || true
-            rm -rf /etc/letsencrypt/renewal/$HOSTNAME.conf 2>/dev/null || true
-            echo "Removed Let's Encrypt certificate files"
-          fi
-        fi
-      fi
-    else
-      echo "Let's Encrypt certificates will be preserved."
-    fi
 else
     echo "Preserving TLS certificates for reuse..."
     # Just remove the MQTT broker configuration, keep certificates
