@@ -117,17 +117,29 @@ if [ "$REMOVE_CERTS" = true ]; then
     read -p "Do you also want to remove Let's Encrypt certificates? (y/n): " -n 1 -r REMOVE_LETSENCRYPT
     echo
     if [[ $REMOVE_LETSENCRYPT =~ ^[Yy]$ ]]; then
-        if [ -f "$BASE_DIR/app/.env" ]; then
-            HOSTNAME=$(grep ELFRYD_HOSTNAME "$BASE_DIR/app/.env" | cut -d'=' -f2)
-            if [ -n "$HOSTNAME" ] && [ -d "/etc/letsencrypt/live/$HOSTNAME" ]; then
-                echo "Removing Let's Encrypt certificates for $HOSTNAME..."
-                certbot delete --cert-name $HOSTNAME --non-interactive || echo "Failed to remove Let's Encrypt certificates through certbot"
-                # Remove manual fallback certificates if they exist
-                rm -rf /etc/letsencrypt/live/$HOSTNAME 2>/dev/null || true
-            fi
+      if [ -f "$BASE_DIR/app/.env" ]; then
+        HOSTNAME=$(grep ELFRYD_HOSTNAME "$BASE_DIR/app/.env" | cut -d'=' -f2)
+        if [ -n "$HOSTNAME" ]; then
+          echo "Removing Let's Encrypt certificates for $HOSTNAME..."
+          
+          # Try to remove with acme.sh if it exists
+          if [ -f "$HOME/.acme.sh/acme.sh" ]; then
+            source "$HOME/.acme.sh/acme.sh.env"
+            ~/.acme.sh/acme.sh --remove -d $HOSTNAME --force
+            echo "Removed certificates from acme.sh management"
+          fi
+          
+          # Also remove the actual certificate files
+          if [ -d "/etc/letsencrypt/live/$HOSTNAME" ]; then
+            rm -rf /etc/letsencrypt/live/$HOSTNAME 2>/dev/null || true
+            rm -rf /etc/letsencrypt/archive/$HOSTNAME 2>/dev/null || true
+            rm -rf /etc/letsencrypt/renewal/$HOSTNAME.conf 2>/dev/null || true
+            echo "Removed Let's Encrypt certificate files"
+          fi
         fi
+      fi
     else
-        echo "Let's Encrypt certificates will be preserved."
+      echo "Let's Encrypt certificates will be preserved."
     fi
 else
     echo "Preserving TLS certificates for reuse..."

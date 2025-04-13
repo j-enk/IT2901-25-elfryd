@@ -64,7 +64,12 @@ echo "✅ Hostname saved to app/.env file"
 # Install required packages
 print_section "Installing required packages"
 apt-get update
-apt-get install -y ca-certificates curl gnupg openssl net-tools python3-certbot
+apt-get install -y ca-certificates curl gnupg openssl net-tools socat
+
+# Install acme.sh as an alternative to certbot
+print_section "Installing acme.sh certificate manager"
+curl https://get.acme.sh | sh -s email=admin@example.com
+source ~/.acme.sh/acme.sh.env
 
 # Install Docker
 print_section "Installing Docker"
@@ -112,11 +117,11 @@ echo "Checking if we can obtain Let's Encrypt certificates..."
 # Create folder for Let's Encrypt certificate storage
 mkdir -p /etc/letsencrypt/live/$CommonName
 
-# Check if port 443 is available for the certbot TLS-ALPN challenge
+# Check if port 443 is available for the acme.sh TLS-ALPN challenge
 PORT_443_STATUS=$(netstat -tuln | grep ":443 " || echo "Available")
 if [[ "$PORT_443_STATUS" != "Available" ]]; then
   print_warning "Port 443 appears to be in use. Will create a temporary self-signed certificate for startup."
-  print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --preferred-challenges tls-alpn -d $CommonName"
+  print_warning "To get proper Let's Encrypt certificates later, run: sudo ~/.acme.sh/acme.sh --issue --alpn -d $CommonName"
   
   # Create directory for Let's Encrypt certificates with self-signed fallback
   mkdir -p /etc/letsencrypt/live/$CommonName
@@ -131,18 +136,32 @@ if [[ "$PORT_443_STATUS" != "Available" ]]; then
   echo "NEEDS_LETSENCRYPT=true" >> "$BASE_DIR/app/.env"
   echo "Temporary certificates created. Will use the same as MQTT broker for now."
 else
-  # Try to get Let's Encrypt certificate using TLS-ALPN-01 challenge
-  if certbot certonly --standalone --preferred-challenges tls-alpn --non-interactive --agree-tos --register-unsafely-without-email -d $CommonName; then
+  # Try to get Let's Encrypt certificate using ALPN challenge
+  mkdir -p ~/.acme.sh/$CommonName
+  if ~/.acme.sh/acme.sh --issue --alpn -d $CommonName; then
     print_section "Let's Encrypt certificate obtained successfully"
-    echo "✅ Certificates stored in /etc/letsencrypt/live/$CommonName/"
     
-    # Verify the certificates exist
-    if [ -f "/etc/letsencrypt/live/$CommonName/privkey.pem" ] && [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ]; then
-      echo "✅ Certificate files verified"
+    # Create directory for the certificates if it doesn't exist
+    mkdir -p /etc/letsencrypt/live/$CommonName
+    
+    # Install certificates to the standard location
+    if ~/.acme.sh/acme.sh --install-cert -d $CommonName \
+      --key-file /etc/letsencrypt/live/$CommonName/privkey.pem \
+      --fullchain-file /etc/letsencrypt/live/$CommonName/fullchain.pem; then
+      
+      echo "✅ Certificates installed to /etc/letsencrypt/live/$CommonName/"
+      
+      # Update permissions
+      chmod 644 /etc/letsencrypt/live/$CommonName/fullchain.pem
+      chmod 600 /etc/letsencrypt/live/$CommonName/privkey.pem
+      
+      # Configure auto-renewal
+      ~/.acme.sh/acme.sh --upgrade --auto-upgrade
+      echo "✅ Automated renewal configured"
+      
       echo "NEEDS_LETSENCRYPT=false" >> "$BASE_DIR/app/.env"
     else
-      print_warning "Let's Encrypt certificates were not found at the expected location"
-      print_warning "Using self-signed certificates as fallback"
+      print_warning "Failed to install certificates. Using self-signed certificates as fallback."
       
       # Copy from existing OpenSSL certs as a fallback
       cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
@@ -152,7 +171,7 @@ else
     fi
   else
     print_warning "Could not obtain Let's Encrypt certificate. Using self-signed certificate instead."
-    print_warning "To get proper Let's Encrypt certificates later, run: certbot certonly --preferred-challenges tls-alpn -d $CommonName"
+    print_warning "To get proper Let's Encrypt certificates later, run: sudo ~/.acme.sh/acme.sh --issue --alpn -d $CommonName"
     
     # Copy from existing OpenSSL certs as a fallback
     cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
