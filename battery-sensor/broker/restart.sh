@@ -80,8 +80,8 @@ if [ -f "/etc/letsencrypt/live/$CommonName/fullchain.pem" ] && [ -f "/etc/letsen
     docker compose stop api
     sleep 5
     
-    # Renew certificates using the acme user
-    if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --renew --alpn -d $CommonName --force"; then
+    # Renew certificates using the acme user with explicit Let's Encrypt server
+    if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --renew --standalone --httpport 443 -d $CommonName --server letsencrypt --force"; then
       echo "✅ Certificate renewal successful"
       
       # Update certificate installation
@@ -147,8 +147,8 @@ else
     # Create directory for certificates
     mkdir -p /etc/letsencrypt/live/$CommonName
     
-    # Try to get Let's Encrypt certificate using acme.sh ALPN challenge
-    if ~/.acme.sh/acme.sh --issue --alpn -d $CommonName; then
+    # Try to get Let's Encrypt certificate using acme.sh HTTP-01 challenge
+    if ~/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt; then
       echo "✅ Let's Encrypt certificates obtained successfully"
       
       # Install certificates to the standard location

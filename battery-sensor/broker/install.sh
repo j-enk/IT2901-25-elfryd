@@ -131,11 +131,11 @@ echo "Checking if we can obtain Let's Encrypt certificates..."
 # Create folder for Let's Encrypt certificate storage
 mkdir -p /etc/letsencrypt/live/$CommonName
 
-# Check if port 443 is available for the acme.sh TLS-ALPN challenge
+# Check if port 443 is available for the acme.sh HTTP challenge
 PORT_443_STATUS=$(netstat -tuln | grep ":443 " || echo "Available")
 if [[ "$PORT_443_STATUS" != "Available" ]]; then
   print_warning "Port 443 appears to be in use. Will create a temporary self-signed certificate for startup."
-  print_warning "To get proper Let's Encrypt certificates later, run: sudo ~/.acme.sh/acme.sh --issue --alpn -d $CommonName"
+  print_warning "To get proper Let's Encrypt certificates later, run: su - acme -c '/opt/acme-sh/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt'"
   
   # Create directory for Let's Encrypt certificates with self-signed fallback
   mkdir -p /etc/letsencrypt/live/$CommonName
@@ -150,16 +150,15 @@ if [[ "$PORT_443_STATUS" != "Available" ]]; then
   echo "NEEDS_LETSENCRYPT=true" >> "$BASE_DIR/app/.env"
   echo "Temporary certificates created. Will use the same as MQTT broker for now."
 else
-  # Try to get Let's Encrypt certificate using ALPN challenge
-  mkdir -p ~/.acme.sh/$CommonName
-  if su - acme -c "~/.acme.sh/acme.sh --issue --alpn -d $CommonName"; then
+  # Try to get Let's Encrypt certificate using HTTP-01 challenge on port 443
+  if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt"; then
     print_section "Let's Encrypt certificate obtained successfully"
     
     # Create directory for the certificates if it doesn't exist
     mkdir -p /etc/letsencrypt/live/$CommonName
     
     # Install certificates to the standard location
-    if su - acme -c "~/.acme.sh/acme.sh --install-cert -d $CommonName \
+    if su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --install-cert -d $CommonName \
       --key-file /etc/letsencrypt/live/$CommonName/privkey.pem \
       --fullchain-file /etc/letsencrypt/live/$CommonName/fullchain.pem"; then
       
@@ -170,7 +169,7 @@ else
       chmod 600 /etc/letsencrypt/live/$CommonName/privkey.pem
       
       # Configure auto-renewal
-      su - acme -c "~/.acme.sh/acme.sh --upgrade --auto-upgrade"
+      su - acme -c "/opt/acme-sh/.acme.sh/acme.sh --upgrade --auto-upgrade"
       echo "✅ Automated renewal configured"
       
       echo "NEEDS_LETSENCRYPT=false" >> "$BASE_DIR/app/.env"
@@ -185,7 +184,7 @@ else
     fi
   else
     print_warning "Could not obtain Let's Encrypt certificate. Using self-signed certificate instead."
-    print_warning "To get proper Let's Encrypt certificates later, run: sudo ~/.acme.sh/acme.sh --issue --alpn -d $CommonName"
+    print_warning "To get proper Let's Encrypt certificates later, run: su - acme -c '/opt/acme-sh/.acme.sh/acme.sh --issue --standalone --httpport 443 -d $CommonName --server letsencrypt'"
     
     # Copy from existing OpenSSL certs as a fallback
     cp $BASE_DIR/certs/server.key /etc/letsencrypt/live/$CommonName/privkey.pem
