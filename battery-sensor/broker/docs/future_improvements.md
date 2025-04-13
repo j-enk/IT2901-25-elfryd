@@ -324,7 +324,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
 
 2. **Update the API Documentation**
    Add information about the new endpoint to `api.md`:
-   ```markdown
+   ```````markdown
    ### Ampere Data
    
    ```
@@ -350,7 +350,7 @@ Define a standardized format for the new sensor data. For example, an ampere sen
      }
    ]
    ```
-   ```
+   ```````
 
 ### 5. Update the Scripts
 
