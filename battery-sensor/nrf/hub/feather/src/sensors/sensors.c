@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "sensors/sensors.h"
+#include "utils/utils.h"  /* Added for timestamp */
 
 /* Data storage for sensor readings */
 static battery_reading_t battery_readings[MAX_BATTERY_SAMPLES];
@@ -22,17 +23,6 @@ static int gyro_count = 0;
 
 /* Mutex for protecting the reading arrays */
 static K_MUTEX_DEFINE(sensor_mutex);
-
-/**
- * @brief Get current unix timestamp
- */
-static int64_t get_unix_timestamp(void)
-{
-    /* In a real application, this would get the actual time
-     * but for this simulation we'll use k_uptime_get()
-     */
-    return (int64_t)(k_uptime_get() / 1000) + 1680000000; /* Add Jan 1, 2023 offset for realism */
-}
 
 int sensors_init(void)
 {
@@ -69,7 +59,7 @@ int sensors_generate_battery_reading(int battery_id)
     /* Store the new reading */
     battery_readings[battery_count].battery_id = battery_id;
     battery_readings[battery_count].voltage = voltage;
-    battery_readings[battery_count].timestamp = get_unix_timestamp();
+    battery_readings[battery_count].timestamp = utils_get_timestamp();
     battery_count++;
     
     k_mutex_unlock(&sensor_mutex);
@@ -94,7 +84,7 @@ int sensors_generate_temp_reading(void)
     
     /* Store the new reading */
     temp_readings[temp_count].temperature = temperature;
-    temp_readings[temp_count].timestamp = get_unix_timestamp();
+    temp_readings[temp_count].timestamp = utils_get_timestamp();
     temp_count++;
     
     k_mutex_unlock(&sensor_mutex);
@@ -131,7 +121,7 @@ int sensors_generate_gyro_reading(void)
     gyro_readings[gyro_count].gyro_x = gyro_x;
     gyro_readings[gyro_count].gyro_y = gyro_y;
     gyro_readings[gyro_count].gyro_z = gyro_z;
-    gyro_readings[gyro_count].timestamp = get_unix_timestamp();
+    gyro_readings[gyro_count].timestamp = utils_get_timestamp();
     gyro_count++;
     
     k_mutex_unlock(&sensor_mutex);
