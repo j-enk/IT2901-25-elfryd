@@ -60,25 +60,25 @@ config MQTT_MESSAGE_COUNT
 
 config MQTT_CLIENT_ID
     string "MQTT client identifier"
-    default "circuitdojo_feather"
+    default "elfryd_hub"
     help
       MQTT client identifier.
 
 config MQTT_BROKER_HOSTNAME
     string "MQTT broker hostname"
-    default "mqtt.example.com"
+    default "elfryd.northeurope.cloudapp.azure.com"
     help
       Hostname of the MQTT broker.
 
 config MQTT_BROKER_PORT
     int "MQTT broker port"
-    default 8883
+    default 8885
     help
       Port number of the MQTT broker.
 
 config MQTT_TOPIC
     string "MQTT topic"
-    default "circuitdojo/feather/data"
+    default "hub/data"
     help
       Topic to publish data to.
 
@@ -87,5 +87,28 @@ config MQTT_TLS_SEC_TAG
     default 42
     help
       Security tag for TLS credentials.
+
+# Sensor configuration options
+menu "Sensor Configuration"
+
+config SENSOR_BATTERY_INTERVAL
+    int "Battery sampling interval in seconds"
+    default 60
+    help
+      Interval in seconds between battery data publishing (0 = disabled).
+
+config SENSOR_TEMP_INTERVAL
+    int "Temperature sampling interval in seconds"
+    default 300
+    help
+      Interval in seconds between temperature data publishing (0 = disabled).
+
+config SENSOR_GYRO_INTERVAL
+    int "Gyroscope sampling interval in seconds"
+    default 600
+    help
+      Interval in seconds between gyroscope data publishing (0 = disabled).
+
+endmenu
 
 source "Kconfig.zephyr"

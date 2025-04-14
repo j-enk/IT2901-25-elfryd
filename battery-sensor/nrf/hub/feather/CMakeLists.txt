@@ -28,7 +28,24 @@ endif()
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(mqtt_publisher)
 
-FILE(GLOB app_sources src/*.c)
+# Include all source directories
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sensors
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/mqtt
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
+)
+
+# Gather source files from all subdirectories
+file(GLOB app_sources 
+    src/main.c
+    src/sensors/*.c
+    src/config/*.c
+    src/mqtt/*.c
+    src/utils/*.c
+)
+# FILE(GLOB app_sources src/main_old.c)
 target_sources(app PRIVATE ${app_sources})
 
 # Add dependency to ensure certificate header is generated before building
