@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BASE_DIR=$(pwd)
+
 # Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -7,28 +9,25 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 print_section() {
-  echo -e "${GREEN}\n==== $1 ====${NC}\n"
+    echo -e "${GREEN}\n==== $1 ====${NC}\n"
 }
 
 print_warning() {
-  echo -e "${YELLOW}WARNING: $1${NC}"
+    echo -e "${YELLOW}WARNING: $1${NC}"
 }
 
 print_error() {
-  echo -e "${RED}ERROR: $1${NC}"
+    echo -e "${RED}ERROR: $1${NC}"
 }
 
 # Check if script is run as root
 if [ "$EUID" -ne 0 ]; then
-  print_error "Please run as root or with sudo"
-  exit 1
+    print_error "Please run as root or with sudo"
+    exit 1
 fi
 
 print_section "Elfryd MQTT/TLS Cleanup"
 echo "This script will stop and remove all Docker containers and generated files."
-
-# Working directory
-BASE_DIR=$(pwd)
 
 # Ask about database volume
 read -p "Do you want to preserve the database volume to keep your data? (y/n): " -n 1 -r KEEP_DB_DATA
@@ -46,6 +45,15 @@ REMOVE_CERTS=true
 if [[ $KEEP_CERTS =~ ^[Yy]$ ]]; then
     REMOVE_CERTS=false
     echo "TLS certificates will be preserved."
+fi
+
+# Ask about API key
+read -p "Do you want to preserve the API key? (y/n): " -n 1 -r KEEP_API_KEY
+echo
+REMOVE_API_KEY=true
+if [[ $KEEP_API_KEY =~ ^[Yy]$ ]]; then
+    REMOVE_API_KEY=false
+    echo "API key will be preserved."
 fi
 
 # Get confirmation for everything else
@@ -110,12 +118,40 @@ else
     echo "Preserved certificates in $BASE_DIR/certs/"
 fi
 
+# Handle API key while preserving hostname
+print_section "Managing environment configuration"
+if [ "$REMOVE_API_KEY" = true ]; then
+    echo "Removing API key but preserving hostname..."
+    if [ -f "$BASE_DIR/app/.env" ]; then
+        # Extract hostname if present
+        HOSTNAME_ENTRY=$(grep "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" || echo "")
+
+        # Remove the old .env file
+        rm -f "$BASE_DIR/app/.env"
+
+        # If hostname was present, create a new .env with just the hostname
+        if [ -n "$HOSTNAME_ENTRY" ]; then
+            echo "$HOSTNAME_ENTRY" >"$BASE_DIR/app/.env"
+        fi
+    else
+        echo "No .env file found."
+    fi
+else
+    echo "Preserving API key for reuse..."
+fi
+
 # Always remove the MQTT broker configuration to ensure clean restart
 rm -rf $BASE_DIR/app/mqtt-broker/
 
 # Remove any dangling Docker images
 print_section "Cleaning up Docker images"
 docker image prune -f
+
+# Remove the global environment file if it exists (legacy file)
+if [ -f "/etc/elfryd/elfryd.env" ]; then
+    echo "Removing old environment file format..."
+    rm -f /etc/elfryd/elfryd.env
+fi
 
 print_section "Cleanup Complete!"
 echo -n "All containers"

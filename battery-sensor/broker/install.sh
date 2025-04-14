@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BASE_DIR=$(pwd)
+
 # Colors for terminal output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -27,16 +29,37 @@ fi
 print_section "Elfryd MQTT/TLS Setup"
 echo "This script will set up a secure MQTT broker with TLS, database, and API on this VM."
 
+# Check for existing hostname in environment file
+STORED_HOSTNAME=""
+if [ -f "$BASE_DIR/app/.env" ]; then
+  source $BASE_DIR/app/.env
+  STORED_HOSTNAME=$ELFRYD_HOSTNAME
+fi
+
 # Get hostname for TLS certificate
-HOSTNAME=$(hostname -f)
-read -p "Enter the VM's fully qualified domain name (press Enter to use $HOSTNAME): " USER_HOSTNAME
+SYSTEM_HOSTNAME=$(hostname -f)
+DEFAULT_HOSTNAME=${STORED_HOSTNAME:-$SYSTEM_HOSTNAME}
+
+read -p "Enter the VM's fully qualified domain name (press Enter to use $DEFAULT_HOSTNAME): " USER_HOSTNAME
 if [ -n "$USER_HOSTNAME" ]; then
   CommonName=$USER_HOSTNAME
 else
-  CommonName=$HOSTNAME
+  CommonName=$DEFAULT_HOSTNAME
 fi
 
 echo "Using hostname: $CommonName for TLS certificates"
+
+# Save the hostname to environment file for other scripts
+if [ -f "$BASE_DIR/app/.env" ]; then
+  # Append hostname to existing .env file if it exists
+  grep -q "ELFRYD_HOSTNAME=" "$BASE_DIR/app/.env" &&
+    sed -i "s/ELFRYD_HOSTNAME=.*/ELFRYD_HOSTNAME=$CommonName/" "$BASE_DIR/app/.env" ||
+    echo "ELFRYD_HOSTNAME=$CommonName" >>"$BASE_DIR/app/.env"
+else
+  # Create new .env file with hostname
+  echo "ELFRYD_HOSTNAME=$CommonName" >"$BASE_DIR/app/.env"
+fi
+echo "✅ Hostname saved to app/.env file"
 
 # Install required packages
 print_section "Installing required packages"
@@ -48,7 +71,7 @@ print_section "Installing Docker"
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
-echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | tee /etc/apt/sources.list.d/docker.list >/dev/null
 
 apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -62,9 +85,8 @@ echo "Docker permissions have been configured for non-root usage"
 # Install Mosquitto clients for testing
 apt-get install -y mosquitto-clients
 
-# Setup directory structure 
+# Setup directory structure
 print_section "Setting up directories"
-BASE_DIR=$(pwd)
 
 # Generate TLS certificates
 print_section "Generating TLS certificates"
@@ -83,6 +105,33 @@ openssl rsa -in server.key -out server.key
 # Set permissions
 chmod a+r *.key
 
+print_section "Generating API security"
+
+# Generate a random API key if it doesn't exist
+if [ -f "$BASE_DIR/app/.env" ]; then
+  read -p "Do you want to generate a new API key? (y/n): " -n 1 -r GEN_NEW_KEY
+  echo
+
+  if [[ $GEN_NEW_KEY =~ ^[Yy]$ ]]; then
+    API_KEY=$(openssl rand -hex 32)
+    # Update API key in existing .env file
+    grep -q "API_KEY=" "$BASE_DIR/app/.env" &&
+      sed -i "s/API_KEY=.*/API_KEY=$API_KEY/" "$BASE_DIR/app/.env" ||
+      echo "API_KEY=$API_KEY" >>"$BASE_DIR/app/.env"
+    echo "✅ Generated new API key: $API_KEY"
+    echo "⚠️  Warning: Previous API key is no longer valid"
+  else
+    # Load existing API key
+    API_KEY=$(grep API_KEY "$BASE_DIR/app/.env" | cut -d'=' -f2)
+    echo "✅ Using existing API key"
+  fi
+else
+  # This condition should never be reached since we created the file earlier
+  API_KEY=$(openssl rand -hex 32)
+  echo "API_KEY=$API_KEY" >>"$BASE_DIR/app/.env"
+  echo "✅ Generated secure API key: $API_KEY"
+fi
+
 # Create Mosquitto configuration
 print_section "Configuring MQTT broker"
 
@@ -90,7 +139,7 @@ print_section "Configuring MQTT broker"
 mkdir -p $BASE_DIR/app/mqtt-broker/config
 
 # Create Mosquitto configuration file
-cat > $BASE_DIR/app/mqtt-broker/config/mosquitto.conf << EOL
+cat >$BASE_DIR/app/mqtt-broker/config/mosquitto.conf <<EOL
 # TLS-secured listener for IoT devices
 listener 8885 0.0.0.0
 allow_anonymous true
@@ -112,7 +161,12 @@ tar -czf elfryd_client_certs.tar.gz client_certs
 # Start the Docker containers
 print_section "Starting Docker containers"
 cd $BASE_DIR/app
+docker compose down
 docker compose up -d --force-recreate
+echo ""
+echo "✅ Docker containers started successfully"
+echo "Waiting to ensure all services are up and running..."
+sleep 15
 
 # Wait for services to be ready
 print_section "Testing API readiness"
@@ -122,7 +176,7 @@ echo "Waiting for API to become available..."
 max_retries=30
 retry_count=0
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s http://localhost:8000/health | grep -q "healthy"; then
+  if curl -k -s https://$CommonName:443/health | grep -q "healthy"; then
     echo "✅ API is ready!"
     break
   fi
@@ -133,26 +187,28 @@ done
 
 if [ $retry_count -eq $max_retries ]; then
   print_warning "Timed out waiting for API to become ready. Continuing anyway, but tests may fail."
+  echo "Checking API logs:"
+  docker logs elfryd-api | tail -n 20
 fi
 
-# Test MQTT bridge functionality (using localhost for bridge to connect to broker)
-print_section "Testing MQTT bridge"
-echo "Publishing a test message and verifying it reaches the database..."
+# Test TLS MQTT connection
+print_section "Testing MQTT broker"
+echo "Testing TLS MQTT connection..."
 
 # Unique test topic and message to easily identify in database
 TEST_TOPIC="test/verification/install"
 TEST_MESSAGE="Bridge test message $(date +%s)"
 
 # Test TLS MQTT connection
-echo "Testing TLS MQTT connection..."
 if mosquitto_pub -h $CommonName -p 8885 --cafile $BASE_DIR/certs/ca.crt -t "$TEST_TOPIC" -m "$TEST_MESSAGE" 2>/dev/null; then
   echo "✅ TLS MQTT connection successful!"
 else
   print_warning "TLS MQTT connection test failed"
 fi
 
-# Give the bridge a moment to process
-sleep 5
+# Test internal bridge functionality
+print_section "Testing MQTT bridge"
+echo "Checking if message reaches the database..."
 
 # Check if message made it to the database through API
 BRIDGE_WORKING=false
@@ -160,7 +216,7 @@ max_retries=10
 retry_count=0
 
 while [ $retry_count -lt $max_retries ]; do
-  if curl -s "http://localhost:8000/messages?topic=$TEST_TOPIC&limit=1" | grep -q "$TEST_MESSAGE"; then
+  if curl -k -s "https://$CommonName:443/messages?topic=$TEST_TOPIC&limit=1" -H "X-API-Key: $API_KEY" | grep -q "$TEST_MESSAGE"; then
     echo "✅ MQTT bridge is working correctly! Message successfully stored in database."
     BRIDGE_WORKING=true
     break
@@ -180,8 +236,8 @@ fi
 print_section "Setup complete!"
 echo "System setup is completed with the following services:"
 echo "  - MQTT Broker: port 8885 (TLS-secured)"
-echo "  - FastAPI: port 8000"
-echo "  - TimescaleDB: internal only (not accessible externally)"
+echo "  - FastAPI: port 443 (HTTPS)"
+echo "  - TimescaleDB: internal only (only accessible through API)"
 echo "  - MQTT-DB Bridge: running internally"
 echo ""
 echo "Available API endpoints:"
@@ -189,13 +245,23 @@ echo "  - GET  /health       - Check system health"
 echo "  - GET  /messages     - Get stored messages with filters"
 echo "  - POST /messages     - Publish MQTT message"
 echo "  - GET  /topics       - Get list of unique topics"
+echo "  - GET  /battery      - Get battery sensor data"
+echo "  - GET  /temperature  - Get temperature sensor data"
+echo "  - GET  /gyro         - Get gyroscope sensor data"
+echo "  - GET  /config       - Get configuration messages"
+echo "  - POST /config/send  - Send configuration command"
 echo ""
 echo "To download client certificates to your local machine, run this command from your LOCAL machine:"
 echo "  scp yourusername@$CommonName:$BASE_DIR/elfryd_client_certs.tar.gz ."
 echo ""
 echo "To test from this VM:"
 echo "  - TLS MQTT: mosquitto_pub -h $CommonName -p 8885 --cafile $BASE_DIR/certs/ca.crt -t test/topic -m \"secure test message\""
-echo "  - API: curl http://localhost:8000/health"
+echo "  - API (Public): curl -k -X GET https://$CommonName:443/health -w '\n'"
+echo "  - API (Protected): curl -k -X GET https://$CommonName:443/messages -H \"X-API-Key: $API_KEY\" -w '\n'"
 echo ""
 echo "To stop and remove all containers and generated files, run: sudo bash cleanup.sh"
+echo ""
+echo -e "${GREEN}=================== ACTIVE API KEY ===================${NC}"
+echo -e "${YELLOW}$API_KEY${NC}"
+echo -e "${GREEN}=====================================================${NC}"
 echo ""
