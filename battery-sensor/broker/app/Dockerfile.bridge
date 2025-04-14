@@ -1,11 +1,16 @@
-FROM python:3.9-slim
+FROM python:3.13-alpine
 
 WORKDIR /app
 
 RUN mkdir -p /app/certs
 
-COPY mqtt_bridge.py /app/
+# Copy the entire modular structure
+COPY ./core/ /app/core/
+COPY ./bridge/ /app/bridge/
+COPY ./bridge/requirements.txt /app/
 
-RUN pip install --no-cache-dir paho-mqtt psycopg2-binary
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "mqtt_bridge.py"]
+# Run the bridge script
+CMD ["python", "-m", "bridge.mqtt_bridge"]

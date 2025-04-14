@@ -1,12 +1,16 @@
-FROM python:3.9-slim
+FROM python:3.13-alpine
 
 WORKDIR /app
 
 RUN mkdir -p /app/certs
 
-COPY ./api/app.py /app/
-COPY ./requirements.txt /app/
+# Copy the entire modular structure
+COPY ./core/ /app/core/
+COPY ./api/ /app/api/
+COPY ./api/requirements.txt /app/
 
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run uvicorn with SSL certificates
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "443", "--ssl-keyfile", "/app/certs/server.key", "--ssl-certfile", "/app/certs/server.crt"]
