@@ -54,9 +54,9 @@ The bridge recognizes the following topic patterns and their corresponding messa
 
 ### Gyroscope Data (`elfryd/gyro`)
 
-**Format**: `{accel_x}/{accel_y}/{accel_z}/{gyro_x}/{gyro_y}/{gyro_z}/{timestamp}`
+**Format**: `{accel_x},{accel_y},{accel_z}/{gyro_x},{gyro_y},{gyro_z}/{timestamp}`
 
-**Example**: `-4991017/-4984009/4979460/-239841/241869/-243303/1680123456`
+**Example**: `-4991017,-4984009,4979460/-239841,241869,-243303/1680123456`
 
 **Parameters**:
 
