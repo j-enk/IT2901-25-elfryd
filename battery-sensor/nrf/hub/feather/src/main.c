@@ -10,10 +10,11 @@ LOG_MODULE_REGISTER(elfryd_hub, LOG_LEVEL_INF);
 #include "sensors/sensors.h"
 #include "config/config_module.h"
 #include "mqtt/mqtt_client.h"
+#include "mqtt/mqtt_sensors.h"
 #include "utils/utils.h"
 
 /* Configuration for sensor data generation */
-#define MAIN_LOOP_INTERVAL_MS 100  /* Main loop interval in milliseconds */
+#define MAIN_LOOP_INTERVAL_MS 100 /* Main loop interval in milliseconds */
 
 /* Thread stacks and definitions */
 #define STACK_SIZE 2048
@@ -31,6 +32,14 @@ static int64_t last_battery_publish_time;
 static int64_t last_temp_publish_time;
 static int64_t last_gyro_publish_time;
 
+/* Variables for storing the latest sensor readings */
+static battery_reading_t latest_battery_reading;
+static temp_reading_t latest_temp_reading;
+static gyro_reading_t latest_gyro_reading;
+static int battery_count_cached = 0;
+static int temp_count_cached = 0;
+static int gyro_count_cached = 0;
+
 /* MQTT processing thread function */
 static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
 {
@@ -46,35 +55,42 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
 
     /* Initialize MQTT client */
     err = elfryd_mqtt_client_init();
-    if (err) {
+    if (err)
+    {
         LOG_ERR("Failed to initialize MQTT client: %d", err);
         return;
     }
 
     /* Connect to the MQTT broker with retries */
-    do {
+    do
+    {
         err = mqtt_client_connect();
-        if (err) {
-            LOG_WRN("Failed to connect to MQTT broker, retrying (%d/%d): %d", 
-                   retry_count + 1, max_retries, err);
+        if (err)
+        {
+            LOG_WRN("Failed to connect to MQTT broker, retrying (%d/%d): %d",
+                    retry_count + 1, max_retries, err);
             k_sleep(K_SECONDS(5));
         }
     } while (err && ++retry_count < max_retries);
 
-    if (err) {
+    if (err)
+    {
         LOG_ERR("Failed to connect to MQTT broker after %d attempts", max_retries);
         return;
     }
 
     /* Main MQTT processing loop */
-    while (1) {
+    while (1)
+    {
         /* Process MQTT events */
         err = mqtt_client_process(1000);
-        if (err && err != -EAGAIN) {
+        if (err && err != -EAGAIN)
+        {
             LOG_ERR("Error in MQTT processing: %d", err);
-            
+
             /* Try to reconnect */
-            if (!mqtt_client_is_connected()) {
+            if (!mqtt_client_is_connected())
+            {
                 LOG_INF("Attempting to reconnect to MQTT broker");
                 mqtt_client_connect();
             }
@@ -88,8 +104,8 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
 static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
 {
     int err;
-    static int battery_id = 1;  /* Rotate through battery IDs 1-4 */
-    
+    static int battery_id = 1; /* Rotate through battery IDs 1-4 */
+
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
@@ -106,101 +122,160 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     last_gyro_publish_time = current_time;
 
     /* Main sensor processing loop */
-    while (1) {
+    while (1)
+    {
         current_time = utils_get_timestamp();
-        
+
         /* Generate new sensor data every second regardless of publishing interval */
         err = sensors_generate_battery_reading(battery_id);
-        if (err) {
+        if (err)
+        {
             LOG_ERR("Failed to generate battery reading: %d", err);
         }
-        
+        else
+        {
+            err = sensors_get_latest_battery_reading(&latest_battery_reading);
+            battery_count_cached = sensors_get_battery_reading_count();
+        }
+
         /* Rotate through battery IDs */
         battery_id = (battery_id % 4) + 1;
-        
+
         err = sensors_generate_temp_reading();
-        if (err) {
+        if (err)
+        {
             LOG_ERR("Failed to generate temperature reading: %d", err);
         }
-        
+        else
+        {
+            err = sensors_get_latest_temp_reading(&latest_temp_reading);
+            temp_count_cached = sensors_get_temp_reading_count();
+        }
+
         err = sensors_generate_gyro_reading();
-        if (err) {
+        if (err)
+        {
             LOG_ERR("Failed to generate gyroscope reading: %d", err);
         }
-        
+        else
+        {
+            err = sensors_get_latest_gyro_reading(&latest_gyro_reading);
+            gyro_count_cached = sensors_get_gyro_reading_count();
+        }
+
+        /* Print monitoring information for debugging */
+        LOG_INF("Array sizes - Battery: %d, Temp: %d, Gyro: %d",
+                battery_count_cached, temp_count_cached, gyro_count_cached);
+
+        /* Print monitoring information for array sizes and latest readings */
+        // LOG_INF("--- Sensor Array Status ---");
+        // LOG_INF("Battery readings: %d/%d - Latest: Battery %d at %dmV",
+        //         battery_count_cached, MAX_BATTERY_SAMPLES,
+        //         latest_battery_reading.battery_id, latest_battery_reading.voltage);
+
+        // LOG_INF("Temp readings: %d/%d - Latest: %d°C",
+        //         temp_count_cached, MAX_TEMP_SAMPLES,
+        //         latest_temp_reading.temperature);
+
+        // LOG_INF("Gyro readings: %d/%d - Latest: AccelXYZ(%d,%d,%d) GyroXYZ(%d,%d,%d)",
+        //         gyro_count_cached, MAX_GYRO_SAMPLES,
+        //         latest_gyro_reading.accel_x, latest_gyro_reading.accel_y, latest_gyro_reading.accel_z,
+        //         latest_gyro_reading.gyro_x, latest_gyro_reading.gyro_y, latest_gyro_reading.gyro_z);
+
         /* Check if it's time to publish battery data */
         int battery_interval = config_get_battery_interval();
-        if (battery_interval > 0 && 
-            (current_time - last_battery_publish_time) >= battery_interval) {
-            
-            if (mqtt_client_is_connected()) {
+        if (battery_interval > 0 &&
+            (current_time - last_battery_publish_time) >= battery_interval)
+        {
+
+            if (mqtt_client_is_connected())
+            {
                 /* Get accumulated battery readings and publish them */
                 battery_reading_t readings[MAX_BATTERY_SAMPLES];
                 int count = sensors_get_battery_readings(readings, MAX_BATTERY_SAMPLES);
-                
-                if (count > 0) {
+
+                if (count > 0)
+                {
                     err = mqtt_client_publish_battery(readings, count);
-                    if (err) {
+                    if (err)
+                    {
                         LOG_ERR("Failed to publish battery data: %d", err);
-                    } else {
+                    }
+                    else
+                    {
                         LOG_INF("Published %d battery readings", count);
                         sensors_clear_battery_readings();
+                        battery_count_cached = 0;
                     }
                 }
             }
-            
+
             last_battery_publish_time = current_time;
         }
-        
+
         /* Check if it's time to publish temperature data */
         int temp_interval = config_get_temp_interval();
-        if (temp_interval > 0 && 
-            (current_time - last_temp_publish_time) >= temp_interval) {
-            
-            if (mqtt_client_is_connected()) {
+        if (temp_interval > 0 &&
+            (current_time - last_temp_publish_time) >= temp_interval)
+        {
+
+            if (mqtt_client_is_connected())
+            {
                 /* Get accumulated temperature readings and publish them */
                 temp_reading_t readings[MAX_TEMP_SAMPLES];
                 int count = sensors_get_temp_readings(readings, MAX_TEMP_SAMPLES);
-                
-                if (count > 0) {
+
+                if (count > 0)
+                {
                     err = mqtt_client_publish_temp(readings, count);
-                    if (err) {
+                    if (err)
+                    {
                         LOG_ERR("Failed to publish temperature data: %d", err);
-                    } else {
+                    }
+                    else
+                    {
                         LOG_INF("Published %d temperature readings", count);
                         sensors_clear_temp_readings();
+                        temp_count_cached = 0;
                     }
                 }
             }
-            
+
             last_temp_publish_time = current_time;
         }
-        
+
         /* Check if it's time to publish gyroscope data */
         int gyro_interval = config_get_gyro_interval();
-        if (gyro_interval > 0 && 
-            (current_time - last_gyro_publish_time) >= gyro_interval) {
-            
-            if (mqtt_client_is_connected()) {
+        if (gyro_interval > 0 &&
+            (current_time - last_gyro_publish_time) >= gyro_interval)
+        {
+
+            if (mqtt_client_is_connected())
+            {
                 /* Get accumulated gyroscope readings and publish them */
                 gyro_reading_t readings[MAX_GYRO_SAMPLES];
                 int count = sensors_get_gyro_readings(readings, MAX_GYRO_SAMPLES);
-                
-                if (count > 0) {
+
+                if (count > 0)
+                {
                     err = mqtt_client_publish_gyro(readings, count);
-                    if (err) {
+                    if (err)
+                    {
                         LOG_ERR("Failed to publish gyroscope data: %d", err);
-                    } else {
+                    }
+                    else
+                    {
                         LOG_INF("Published %d gyroscope readings", count);
                         sensors_clear_gyro_readings();
+                        gyro_count_cached = 0;
                     }
                 }
             }
-            
+
             last_gyro_publish_time = current_time;
         }
-        
-        k_sleep(K_SECONDS(1));  /* Generate new data every second */
+
+        k_sleep(K_SECONDS(1)); /* Generate new data every second */
     }
 }
 
@@ -212,31 +287,33 @@ int main(void)
 
     /* Initialize configuration */
     err = config_init();
-    if (err) {
+    if (err)
+    {
         LOG_ERR("Failed to initialize configuration: %d", err);
         return -1;
     }
 
     /* Start MQTT thread */
     k_thread_create(&mqtt_thread_data, mqtt_thread_stack,
-                   K_THREAD_STACK_SIZEOF(mqtt_thread_stack),
-                   mqtt_thread_fn, NULL, NULL, NULL,
-                   MQTT_THREAD_PRIORITY, 0, K_NO_WAIT);
+                    K_THREAD_STACK_SIZEOF(mqtt_thread_stack),
+                    mqtt_thread_fn, NULL, NULL, NULL,
+                    MQTT_THREAD_PRIORITY, 0, K_NO_WAIT);
     k_thread_name_set(&mqtt_thread_data, "mqtt_thread");
 
     /* Start sensor thread */
     k_thread_create(&sensor_thread_data, sensor_thread_stack,
-                   K_THREAD_STACK_SIZEOF(sensor_thread_stack),
-                   sensor_thread_fn, NULL, NULL, NULL,
-                   SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+                    K_THREAD_STACK_SIZEOF(sensor_thread_stack),
+                    sensor_thread_fn, NULL, NULL, NULL,
+                    SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
     k_thread_name_set(&sensor_thread_data, "sensor_thread");
 
     LOG_INF("Elfryd Hub initialized and running");
 
     /* Main thread can sleep as the work is done in other threads */
-    while (1) {
+    while (1)
+    {
         k_sleep(K_FOREVER);
     }
-    
-    return 0;  /* Never reached, but needed for correct return type */
+
+    return 0; /* Never reached, but needed for correct return type */
 }
