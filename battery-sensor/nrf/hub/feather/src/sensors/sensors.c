@@ -8,8 +8,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <zephyr/logging/log.h>
+
 #include "sensors/sensors.h"
-#include "utils/utils.h" /* Added for timestamp */
+#include "utils/utils.h"
+#include "i2c/i2c_master.h"
+
+LOG_MODULE_REGISTER(sensors, LOG_LEVEL_INF);
 
 /* Data storage for sensor readings */
 static battery_reading_t battery_readings[MAX_BATTERY_SAMPLES];
@@ -24,28 +29,85 @@ static int gyro_count = 0;
 /* Mutex for protecting the reading arrays */
 static K_MUTEX_DEFINE(sensor_mutex);
 
+/* Flag to track if using I2C sensors */
+static bool using_i2c = false;
+
 int sensors_init(void)
 {
+#ifdef CONFIG_ELFRYD_USE_I2C_SENSORS
+    int err;
+#endif
+    
     /* Initialize the arrays with empty data */
     battery_count = 0;
     temp_count = 0;
     gyro_count = 0;
 
-    /* Seed the random number generator */
+    /* Seed the random number generator for sample data generation */
     sys_rand_get(NULL, 0);
+
+    /* Check if we should use I2C sensors */
+#ifdef CONFIG_ELFRYD_USE_I2C_SENSORS
+    LOG_INF("Initializing I2C sensor interface");
+    
+    /* Log the timestamp source */
+#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
+    LOG_INF("Using local timestamps for I2C sensor data");
+#else
+    LOG_INF("Using remote timestamps from I2C sensor data");
+#endif
+    
+    err = i2c_master_init();
+    if (err) {
+        LOG_ERR("Failed to initialize I2C: %d", err);
+        LOG_WRN("Falling back to sample data generation");
+        using_i2c = false;
+    } else {
+        LOG_INF("Using I2C for sensor data collection");
+        using_i2c = true;
+    }
+#else
+    LOG_INF("Using sample data generation (I2C disabled in config)");
+    using_i2c = false;
+#endif
 
     return 0;
 }
 
 int sensors_generate_battery_reading(int battery_id)
 {
+    int err;
+    battery_reading_t reading;
+
     if (battery_id < 1 || battery_id > 4)
     {
         return -EINVAL; /* Invalid battery ID */
     }
 
-    /* Generate random voltage between 7000mV and 13000mV */
-    int voltage = 7000 + (sys_rand32_get() % 6000);
+    /* Generate battery reading either from I2C or sample data */
+    if (using_i2c)
+    {
+#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
+        err = i2c_read_battery_data(battery_id, &reading, TIMESTAMP_LOCAL);
+#else
+        err = i2c_read_battery_data(battery_id, &reading, TIMESTAMP_REMOTE);
+#endif
+        if (err)
+        {
+            LOG_ERR("Failed to read battery data from I2C: %d", err);
+            /* Fall back to sample data if I2C fails */
+            reading.battery_id = battery_id;
+            reading.voltage = 7000 + (sys_rand32_get() % 6000);
+            reading.timestamp = utils_get_timestamp();
+        }
+    }
+    else
+    {
+        /* Generate sample battery data */
+        reading.battery_id = battery_id;
+        reading.voltage = 7000 + (sys_rand32_get() % 6000);
+        reading.timestamp = utils_get_timestamp();
+    }
 
     k_mutex_lock(&sensor_mutex, K_FOREVER);
 
@@ -60,9 +122,7 @@ int sensors_generate_battery_reading(int battery_id)
     }
 
     /* Store the new reading */
-    battery_readings[battery_count].battery_id = battery_id;
-    battery_readings[battery_count].voltage = voltage;
-    battery_readings[battery_count].timestamp = utils_get_timestamp();
+    battery_readings[battery_count] = reading;
     battery_count++;
 
     k_mutex_unlock(&sensor_mutex);
@@ -72,8 +132,31 @@ int sensors_generate_battery_reading(int battery_id)
 
 int sensors_generate_temp_reading(void)
 {
-    /* Generate random temperature between 5°C and 35°C */
-    int temperature = 5 + (sys_rand32_get() % 30);
+    int err;
+    temp_reading_t reading;
+
+    /* Generate temperature reading either from I2C or sample data */
+    if (using_i2c)
+    {
+#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
+        err = i2c_read_temp_data(&reading, TIMESTAMP_LOCAL);
+#else
+        err = i2c_read_temp_data(&reading, TIMESTAMP_REMOTE);
+#endif
+        if (err)
+        {
+            LOG_ERR("Failed to read temperature data from I2C: %d", err);
+            /* Fall back to sample data if I2C fails */
+            reading.temperature = 5 + (sys_rand32_get() % 30);
+            reading.timestamp = utils_get_timestamp();
+        }
+    }
+    else
+    {
+        /* Generate sample temperature data */
+        reading.temperature = 5 + (sys_rand32_get() % 30);
+        reading.timestamp = utils_get_timestamp();
+    }
 
     k_mutex_lock(&sensor_mutex, K_FOREVER);
 
@@ -88,8 +171,7 @@ int sensors_generate_temp_reading(void)
     }
 
     /* Store the new reading */
-    temp_readings[temp_count].temperature = temperature;
-    temp_readings[temp_count].timestamp = utils_get_timestamp();
+    temp_readings[temp_count] = reading;
     temp_count++;
 
     k_mutex_unlock(&sensor_mutex);
@@ -99,15 +181,41 @@ int sensors_generate_temp_reading(void)
 
 int sensors_generate_gyro_reading(void)
 {
-    /* Generate random accelerometer readings */
-    int accel_x = -5000000 + (sys_rand32_get() % 10000000);
-    int accel_y = -5000000 + (sys_rand32_get() % 10000000);
-    int accel_z = -5000000 + (sys_rand32_get() % 10000000);
+    int err;
+    gyro_reading_t reading;
 
-    /* Generate random gyroscope readings */
-    int gyro_x = -250000 + (sys_rand32_get() % 500000);
-    int gyro_y = -250000 + (sys_rand32_get() % 500000);
-    int gyro_z = -250000 + (sys_rand32_get() % 500000);
+    /* Generate gyroscope reading either from I2C or sample data */
+    if (using_i2c)
+    {
+#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
+        err = i2c_read_gyro_data(&reading, TIMESTAMP_LOCAL);
+#else
+        err = i2c_read_gyro_data(&reading, TIMESTAMP_REMOTE);
+#endif
+        if (err)
+        {
+            LOG_ERR("Failed to read gyroscope data from I2C: %d", err);
+            /* Fall back to sample data if I2C fails */
+            reading.accel_x = -5000000 + (sys_rand32_get() % 10000000);
+            reading.accel_y = -5000000 + (sys_rand32_get() % 10000000);
+            reading.accel_z = -5000000 + (sys_rand32_get() % 10000000);
+            reading.gyro_x = -250000 + (sys_rand32_get() % 500000);
+            reading.gyro_y = -250000 + (sys_rand32_get() % 500000);
+            reading.gyro_z = -250000 + (sys_rand32_get() % 500000);
+            reading.timestamp = utils_get_timestamp();
+        }
+    }
+    else
+    {
+        /* Generate sample gyroscope data */
+        reading.accel_x = -5000000 + (sys_rand32_get() % 10000000);
+        reading.accel_y = -5000000 + (sys_rand32_get() % 10000000);
+        reading.accel_z = -5000000 + (sys_rand32_get() % 10000000);
+        reading.gyro_x = -250000 + (sys_rand32_get() % 500000);
+        reading.gyro_y = -250000 + (sys_rand32_get() % 500000);
+        reading.gyro_z = -250000 + (sys_rand32_get() % 500000);
+        reading.timestamp = utils_get_timestamp();
+    }
 
     k_mutex_lock(&sensor_mutex, K_FOREVER);
 
@@ -122,13 +230,7 @@ int sensors_generate_gyro_reading(void)
     }
 
     /* Store the new reading */
-    gyro_readings[gyro_count].accel_x = accel_x;
-    gyro_readings[gyro_count].accel_y = accel_y;
-    gyro_readings[gyro_count].accel_z = accel_z;
-    gyro_readings[gyro_count].gyro_x = gyro_x;
-    gyro_readings[gyro_count].gyro_y = gyro_y;
-    gyro_readings[gyro_count].gyro_z = gyro_z;
-    gyro_readings[gyro_count].timestamp = utils_get_timestamp();
+    gyro_readings[gyro_count] = reading;
     gyro_count++;
 
     k_mutex_unlock(&sensor_mutex);
@@ -315,4 +417,9 @@ int sensors_get_gyro_reading_count(void)
     k_mutex_unlock(&sensor_mutex);
 
     return count;
+}
+
+bool sensors_using_i2c(void)
+{
+    return using_i2c;
 }

@@ -162,4 +162,11 @@ int sensors_get_temp_reading_count(void);
  */
 int sensors_get_gyro_reading_count(void);
 
+/**
+ * @brief Check if the sensor module is using I2C for data collection
+ * 
+ * @return true if using I2C, false if using sample data generation
+ */
+bool sensors_using_i2c(void);
+
 #endif /* SENSORS_H */

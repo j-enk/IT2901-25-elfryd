@@ -21,6 +21,12 @@ static int gyro_interval = DEFAULT_GYRO_INTERVAL;
 static char last_command[256]; /* Increased buffer size from 128 to 256 */
 static bool has_new_command = false;
 
+/* Declare external flags for immediate publishing */
+extern struct k_mutex publish_flags_mutex;
+extern bool battery_publish_request;
+extern bool temp_publish_request;
+extern bool gyro_publish_request;
+
 int config_init(void)
 {
     k_mutex_lock(&config_mutex, K_FOREVER);
@@ -175,9 +181,14 @@ int config_process_command(const char *command)
 
             /* Store confirmation that will be sent back */
             k_mutex_lock(&config_mutex, K_FOREVER);
-            snprintf(last_command, sizeof(last_command), "battery send");
+            snprintf(last_command, sizeof(last_command), "battery");
             has_new_command = true;
             k_mutex_unlock(&config_mutex);
+            
+            /* Set the flag to publish battery data immediately */
+            k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+            battery_publish_request = true;
+            k_mutex_unlock(&publish_flags_mutex);
 
             return 0;
         }
@@ -187,9 +198,14 @@ int config_process_command(const char *command)
 
             /* Store confirmation that will be sent back */
             k_mutex_lock(&config_mutex, K_FOREVER);
-            snprintf(last_command, sizeof(last_command), "temperature send");
+            snprintf(last_command, sizeof(last_command), "temp");
             has_new_command = true;
             k_mutex_unlock(&config_mutex);
+            
+            /* Set the flag to publish temperature data immediately */
+            k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+            temp_publish_request = true;
+            k_mutex_unlock(&publish_flags_mutex);
 
             return 0;
         }
@@ -199,9 +215,14 @@ int config_process_command(const char *command)
 
             /* Store confirmation that will be sent back */
             k_mutex_lock(&config_mutex, K_FOREVER);
-            snprintf(last_command, sizeof(last_command), "gyro send");
+            snprintf(last_command, sizeof(last_command), "gyro");
             has_new_command = true;
             k_mutex_unlock(&config_mutex);
+            
+            /* Set the flag to publish gyro data immediately */
+            k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+            gyro_publish_request = true;
+            k_mutex_unlock(&publish_flags_mutex);
 
             return 0;
         }
@@ -226,7 +247,7 @@ int config_process_command(const char *command)
     {
         ret = config_set_battery_interval(value);
     }
-    else if (strcmp(type, "temp") == 0 || strcmp(type, "temperature") == 0)
+    else if (strcmp(type, "temp") == 0)
     {
         ret = config_set_temp_interval(value);
     }

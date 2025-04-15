@@ -109,6 +109,23 @@ config SENSOR_GYRO_INTERVAL
     help
       Interval in seconds between gyroscope data publishing (0 = disabled).
 
+config ELFRYD_USE_I2C_SENSORS
+    bool "Use I2C sensors for data acquisition"
+    default n
+    depends on I2C
+    help
+      If enabled, uses I2C to communicate with external sensor devices.
+      If disabled, generates sample data internally.
+
+config ELFRYD_USE_LOCAL_TIMESTAMP
+    bool "Use local timestamps for I2C sensor data"
+    default y
+    depends on ELFRYD_USE_I2C_SENSORS
+    help
+      If enabled, timestamps for I2C sensor data will be generated locally
+      when the data is received. If disabled, timestamps are expected to be
+      included in the incoming I2C data.
+
 endmenu
 
 source "Kconfig.zephyr"

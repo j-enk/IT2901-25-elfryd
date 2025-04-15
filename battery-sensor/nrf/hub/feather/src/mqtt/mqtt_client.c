@@ -17,6 +17,7 @@
 #include <modem/modem_key_mgmt.h>
 
 #include "mqtt/mqtt_client.h"
+#include "mqtt/mqtt_publishers.h"  /* Add this include for mqtt_client_publish_config_confirm */
 #include "config/config_module.h"
 #include "certificates.h"
 
@@ -56,7 +57,7 @@ static K_SEM_DEFINE(lte_connected, 0, 1);
 
 /* Forward declarations */
 static void mqtt_evt_handler(struct mqtt_client *const client,
-                             const struct mqtt_evt *evt);
+                              const struct mqtt_evt *evt);
 static int get_mqtt_broker_addrinfo(void);
 static int setup_certificates(void);
 
@@ -330,6 +331,8 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 {
     int err;
 
+    printk("MQTT event type: %d, result: %d\n", evt->type, evt->result);
+
     switch (evt->type)
     {
     case MQTT_EVT_CONNACK:
@@ -342,12 +345,12 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         mqtt_connected = true;
         printk("MQTT client connected!\n");
 
-        /* Subscribe to configuration topic */
+        /* Subscribe to configuration topic - USING QoS 1 INSTEAD OF QoS 2 */
         struct mqtt_topic subscribe_topic = {
             .topic = {
                 .utf8 = (uint8_t *)MQTT_TOPIC_CONFIG_SEND,
                 .size = strlen(MQTT_TOPIC_CONFIG_SEND)},
-            .qos = MQTT_QOS_2_EXACTLY_ONCE};
+            .qos = MQTT_QOS_1_AT_LEAST_ONCE};  /* Changed from QoS 2 to QoS 1 */
 
         const struct mqtt_subscription_list subscription_list = {
             .list = &subscribe_topic,
@@ -373,27 +376,120 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         clear_fds();
         break;
 
-    case MQTT_EVT_PUBACK:
-        if (evt->result != 0)
-        {
-            printk("MQTT PUBACK error %d\n", evt->result);
-            break;
+    case MQTT_EVT_PUBLISH:
+    {
+        printk("MQTT_EVT_PUBLISH received\n");
+        
+        const struct mqtt_publish_param *pub = &evt->param.publish;
+        
+        /* Print topic and payload information */
+        if (pub->message.topic.topic.utf8 && pub->message.topic.topic.size > 0) {
+            printk("Topic: %.*s\n", pub->message.topic.topic.size, pub->message.topic.topic.utf8);
         }
-        printk("PUBACK packet id: %u\n", evt->param.puback.message_id);
-        break;
+        
+        printk("Payload length: %d\n", pub->message.payload.len);
+        
+        /* Check if this is a configuration message */
+        bool is_config_message = false;
+        if (pub->message.topic.topic.size == strlen(MQTT_TOPIC_CONFIG_SEND) &&
+            strncmp((char *)pub->message.topic.topic.utf8, MQTT_TOPIC_CONFIG_SEND,
+                   pub->message.topic.topic.size) == 0) {
+            is_config_message = true;
+        }
+        
+        /* Handle configuration messages */
+        if (is_config_message && pub->message.payload.len > 0) {
+            printk("Config message detected, reading payload\n");
+            
+            /* Create buffer for payload */
+            uint8_t payload_buf[256] = {0};
+            int bytes_read;
+            
+            /* Use mqtt_read_publish_payload to read the payload data */
+            bytes_read = mqtt_read_publish_payload(client, payload_buf, 
+                         pub->message.payload.len < sizeof(payload_buf) - 1 ? 
+                         pub->message.payload.len : sizeof(payload_buf) - 1);
+            
+            if (bytes_read > 0) {
+                /* Ensure NULL termination */
+                payload_buf[bytes_read] = '\0';
+                printk("Read %d bytes of payload: '%s'\n", bytes_read, payload_buf);
+                
+                /* Process the command */
+                err = config_process_command((char *)payload_buf);
+                if (err == 0) {
+                    printk("Command processed successfully\n");
+                    
+                    /* Get confirmation message */
+                    char confirm_buf[256];
+                    int confirm_len = config_get_confirmation(confirm_buf, sizeof(confirm_buf));
+                    
+                    if (confirm_len > 0) {
+                        printk("Sending confirmation: %s\n", confirm_buf);
+                        err = mqtt_client_publish_config_confirm(confirm_buf);
+                        if (err) {
+                            printk("Failed to publish confirmation: %d\n", err);
+                        } else {
+                            printk("Confirmation published\n");
+                        }
+                    } else {
+                        printk("No confirmation message available: %d\n", confirm_len);
+                    }
+                } else {
+                    printk("Failed to process configuration command: %d\n", err);
+                    
+                    /* Send error message - using a safer format with limited length */
+                    char error_msg[128];
+                    snprintf(error_msg, sizeof(error_msg), "Error processing command: %.80s", payload_buf);
+                    err = mqtt_client_publish_config_confirm(error_msg);
+                }
+            } else {
+                printk("Failed to read payload: %d\n", bytes_read);
+                
+                /* Send error message */
+                const char *error_msg = "Error: Failed to read command payload";
+                err = mqtt_client_publish_config_confirm(error_msg);
+            }
+        }
+        
+        /* Send acknowledgment for QoS 1 messages */
+        if (pub->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE) {
+            const struct mqtt_puback_param puback = {
+                .message_id = pub->message_id
+            };
+            
+            err = mqtt_publish_qos1_ack(client, &puback);
+            if (err) {
+                printk("Failed to send PUBACK: %d\n", err);
+            }
+        } else if (pub->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE) {
+            const struct mqtt_pubrec_param pubrec = {
+                .message_id = pub->message_id
+            };
+            
+            err = mqtt_publish_qos2_receive(client, &pubrec);
+            if (err) {
+                printk("Failed to send PUBREC: %d\n", err);
+            }
+        }
+    }
+    break;
 
     case MQTT_EVT_PUBREC:
+        printk("PUBREC event received - id: %u, result: %d\n", 
+               evt->param.pubrec.message_id, evt->result);
+        
         if (evt->result != 0)
         {
             printk("MQTT PUBREC error %d\n", evt->result);
             break;
         }
-        printk("PUBREC packet id: %u\n", evt->param.pubrec.message_id);
-
+        
         /* For QoS 2, we need to send a PUBREL */
         const struct mqtt_pubrel_param rel_param = {
             .message_id = evt->param.pubrec.message_id};
-
+        
+        printk("Sending PUBREL for message id: %u\n", rel_param.message_id);
         err = mqtt_publish_qos2_release(client, &rel_param);
         if (err)
         {
@@ -401,7 +497,32 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         }
         break;
 
+    case MQTT_EVT_PUBREL:
+        printk("PUBREL event received - id: %u, result: %d\n",
+               evt->param.pubrel.message_id, evt->result);
+               
+        if (evt->result != 0)
+        {
+            printk("MQTT PUBREL error %d\n", evt->result);
+            break;
+        }
+        
+        /* Send PUBCOMP in response to PUBREL */
+        const struct mqtt_pubcomp_param comp_param = {
+            .message_id = evt->param.pubrel.message_id};
+            
+        printk("Sending PUBCOMP for message id: %u\n", comp_param.message_id);
+        err = mqtt_publish_qos2_complete(client, &comp_param);
+        if (err)
+        {
+            printk("Failed to send PUBCOMP: %d\n", err);
+        }
+        break;
+
     case MQTT_EVT_PUBCOMP:
+        printk("PUBCOMP event received - id: %u, result: %d\n", 
+               evt->param.pubcomp.message_id, evt->result);
+               
         if (evt->result != 0)
         {
             printk("MQTT PUBCOMP error %d\n", evt->result);
@@ -410,117 +531,16 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         printk("PUBCOMP packet id: %u\n", evt->param.pubcomp.message_id);
         break;
 
+    case MQTT_EVT_SUBACK:
+        printk("SUBACK packet id: %u\n", evt->param.suback.message_id);
+        break;
+
     case MQTT_EVT_PINGRESP:
         printk("PINGRESP packet\n");
         break;
 
-    case MQTT_EVT_PUBLISH:
-    {
-        const struct mqtt_publish_param *pub = &evt->param.publish;
-        /* Use a larger buffer for received messages */
-        static uint8_t temp_buf[1024]; /* Increased from 512 to 1024 bytes */
-        size_t len = pub->message.payload.len;
-
-        printk("MQTT message received on topic: %.*s\n",
-               pub->message.topic.topic.size, pub->message.topic.topic.utf8);
-
-        /* Safely handle message length */
-        if (len > sizeof(temp_buf) - 1)
-        {
-            printk("Warning: Message truncated (got %u bytes, buffer size %u)\n",
-                   len, sizeof(temp_buf) - 1);
-            len = sizeof(temp_buf) - 1;
-        }
-
-        /* Copy message payload to temporary buffer */
-        memcpy(temp_buf, pub->message.payload.data, len);
-        temp_buf[len] = '\0';
-
-        printk("Received message: %s\n", temp_buf);
-
-        /* Check if this is a configuration message by explicitly comparing topic length first */
-        if (pub->message.topic.topic.size == strlen(MQTT_TOPIC_CONFIG_SEND) &&
-            strncmp((char *)pub->message.topic.topic.utf8, MQTT_TOPIC_CONFIG_SEND,
-                    pub->message.topic.topic.size) == 0)
-        {
-
-            printk("Processing configuration command: %s\n", temp_buf);
-
-            /* Safe processing of configuration command with proper error handling */
-            if (strlen((char *)temp_buf) < 1)
-            {
-                printk("Error: Empty configuration command\n");
-            }
-            else
-            {
-                /* Process configuration command with proper error handling */
-                int cmd_result = config_process_command((char *)temp_buf);
-                if (cmd_result == 0)
-                {
-                    printk("Configuration command processed successfully\n");
-
-                    /* Get confirmation message and publish it */
-                    char confirm_buf[512]; /* Increased buffer size from 256 to 512 */
-                    int confirm_len = config_get_confirmation(confirm_buf, sizeof(confirm_buf));
-
-                    if (confirm_len > 0)
-                    {
-                        printk("Sending confirmation: %s\n", confirm_buf);
-                        int pub_result = mqtt_client_publish(MQTT_TOPIC_CONFIG_CONFIRM, confirm_buf, MQTT_QOS_2_EXACTLY_ONCE);
-                        if (pub_result != 0)
-                        {
-                            printk("Failed to publish confirmation: %d\n", pub_result);
-                        }
-                    }
-                    else
-                    {
-                        printk("No confirmation message available: %d\n", confirm_len);
-                    }
-                }
-                else
-                {
-                    printk("Failed to process configuration command: %d\n", cmd_result);
-                }
-            }
-        }
-
-        /* Send appropriate QoS acknowledgment */
-        if (pub->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE)
-        {
-            const struct mqtt_puback_param puback = {
-                .message_id = pub->message_id};
-
-            err = mqtt_publish_qos1_ack(client, &puback);
-            if (err)
-            {
-                printk("Failed to send MQTT PUBACK, error: %d\n", err);
-            }
-        }
-        else if (pub->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE)
-        {
-            const struct mqtt_pubrec_param pubrec = {
-                .message_id = pub->message_id};
-
-            err = mqtt_publish_qos2_receive(client, &pubrec);
-            if (err)
-            {
-                printk("Failed to send MQTT PUBREC, error: %d\n", err);
-            }
-        }
-    }
-    break;
-
-    case MQTT_EVT_SUBACK:
-        if (evt->result != 0)
-        {
-            printk("MQTT SUBACK error %d\n", evt->result);
-            break;
-        }
-        printk("SUBACK packet id: %u\n", evt->param.suback.message_id);
-        break;
-
     default:
-        printk("MQTT event: %d\n", evt->type);
+        printk("Unhandled MQTT event: %d\n", evt->type);
         break;
     }
 }

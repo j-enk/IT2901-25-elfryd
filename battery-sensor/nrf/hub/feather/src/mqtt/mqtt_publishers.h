@@ -1,10 +1,10 @@
 /**
- * @file mqtt_sensors.h
+ * @file mqtt_publishers.h
  * @brief MQTT sensor data publishing interface
  */
 
-#ifndef MQTT_SENSORS_H
-#define MQTT_SENSORS_H
+#ifndef MQTT_PUBLISHERS_H
+#define MQTT_PUBLISHERS_H
 
 #include "sensors/sensors.h"
 
@@ -43,4 +43,4 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count);
  */
 int mqtt_client_publish_config_confirm(const char *confirmation);
 
-#endif /* MQTT_SENSORS_H */
+#endif /* MQTT_PUBLISHERS_H */

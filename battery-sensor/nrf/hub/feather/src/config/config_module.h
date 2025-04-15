@@ -9,9 +9,9 @@
 #include <stdbool.h>
 
 /** Default sensor sampling intervals in seconds */
-#define DEFAULT_BATTERY_INTERVAL 100
-#define DEFAULT_TEMP_INTERVAL 300
-#define DEFAULT_GYRO_INTERVAL 10
+#define DEFAULT_BATTERY_INTERVAL 120
+#define DEFAULT_TEMP_INTERVAL 120
+#define DEFAULT_GYRO_INTERVAL 120
 
 /** Configuration parameter types */
 typedef enum

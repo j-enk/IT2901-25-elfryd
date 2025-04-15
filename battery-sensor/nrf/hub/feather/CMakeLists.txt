@@ -35,6 +35,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mqtt
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/i2c
 )
 
 # Gather source files from all subdirectories
@@ -42,11 +43,18 @@ file(GLOB app_sources
     src/main.c
     src/sensors/*.c
     src/config/*.c
-    src/mqtt/*.c
     src/utils/*.c
+    src/i2c/*.c
 )
+
+# Explicitly add only the mqtt files we want to avoid duplicates
+file(GLOB mqtt_sources 
+    src/mqtt/mqtt_client.c
+    src/mqtt/mqtt_publishers.c
+)
+
 # FILE(GLOB app_sources src/main_old.c)
-target_sources(app PRIVATE ${app_sources})
+target_sources(app PRIVATE ${app_sources} ${mqtt_sources})
 
 # Add dependency to ensure certificate header is generated before building
 if(PYTHON3)

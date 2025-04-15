@@ -10,11 +10,11 @@ LOG_MODULE_REGISTER(elfryd_hub, LOG_LEVEL_INF);
 #include "sensors/sensors.h"
 #include "config/config_module.h"
 #include "mqtt/mqtt_client.h"
-#include "mqtt/mqtt_sensors.h"
+#include "mqtt/mqtt_publishers.h"
 #include "utils/utils.h"
 
 /* Configuration for sensor data generation */
-#define MAIN_LOOP_INTERVAL_MS 100 /* Main loop interval in milliseconds */
+#define MAIN_LOOP_INTERVAL_MS 1000 /* Main loop interval in milliseconds */
 
 /* Thread stacks and definitions */
 #define STACK_SIZE 2048
@@ -39,6 +39,14 @@ static gyro_reading_t latest_gyro_reading;
 static int battery_count_cached = 0;
 static int temp_count_cached = 0;
 static int gyro_count_cached = 0;
+
+/* External flags for immediate publishing - these definitions need to match
+ * the extern declarations in config_module.c
+ */
+K_MUTEX_DEFINE(publish_flags_mutex);
+bool battery_publish_request = false;
+bool temp_publish_request = false;
+bool gyro_publish_request = false;
 
 /* MQTT processing thread function */
 static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
@@ -97,6 +105,113 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 
         k_sleep(K_MSEC(100));
+    }
+}
+
+/* Function to publish sensor data immediately */
+static void process_immediate_publish_requests(void)
+{
+    int err;
+    bool has_requests = false;
+    
+    /* Check for publish requests */
+    k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+    has_requests = battery_publish_request || temp_publish_request || gyro_publish_request;
+    k_mutex_unlock(&publish_flags_mutex);
+    
+    if (!has_requests) {
+        return;
+    }
+    
+    /* Only process requests if we're connected to MQTT */
+    if (!mqtt_client_is_connected()) {
+        LOG_WRN("MQTT not connected, immediate publishing requests will be ignored");
+        
+        /* Clear all requests since we can't process them now */
+        k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+        battery_publish_request = false;
+        temp_publish_request = false;
+        gyro_publish_request = false;
+        k_mutex_unlock(&publish_flags_mutex);
+        
+        return;
+    }
+    
+    LOG_INF("Processing immediate publish requests");
+    
+    /* Check and publish battery data if requested */
+    k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+    bool publish_battery = battery_publish_request;
+    battery_publish_request = false;
+    k_mutex_unlock(&publish_flags_mutex);
+    
+    if (publish_battery) {
+        LOG_INF("Processing immediate battery publish request");
+        battery_reading_t readings[MAX_BATTERY_SAMPLES];
+        int count = sensors_get_battery_readings(readings, MAX_BATTERY_SAMPLES);
+        
+        if (count > 0) {
+            err = mqtt_client_publish_battery(readings, count);
+            if (err) {
+                LOG_ERR("Failed to publish battery data: %d", err);
+            } else {
+                LOG_INF("Immediately published %d battery readings", count);
+                sensors_clear_battery_readings();
+                battery_count_cached = 0;
+            }
+        } else {
+            LOG_WRN("No battery readings available to publish");
+        }
+    }
+    
+    /* Check and publish temperature data if requested */
+    k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+    bool publish_temp = temp_publish_request;
+    temp_publish_request = false;
+    k_mutex_unlock(&publish_flags_mutex);
+    
+    if (publish_temp) {
+        LOG_INF("Processing immediate temperature publish request");
+        temp_reading_t readings[MAX_TEMP_SAMPLES];
+        int count = sensors_get_temp_readings(readings, MAX_TEMP_SAMPLES);
+        
+        if (count > 0) {
+            err = mqtt_client_publish_temp(readings, count);
+            if (err) {
+                LOG_ERR("Failed to publish temperature data: %d", err);
+            } else {
+                LOG_INF("Immediately published %d temperature readings", count);
+                sensors_clear_temp_readings();
+                temp_count_cached = 0;
+            }
+        } else {
+            LOG_WRN("No temperature readings available to publish");
+        }
+    }
+    
+    /* Check and publish gyroscope data if requested */
+    k_mutex_lock(&publish_flags_mutex, K_FOREVER);
+    bool publish_gyro = gyro_publish_request;
+    gyro_publish_request = false;
+    k_mutex_unlock(&publish_flags_mutex);
+    
+    if (publish_gyro) {
+        LOG_INF("Processing immediate gyroscope publish request");
+        gyro_reading_t readings[MAX_GYRO_SAMPLES];
+        int count = sensors_get_gyro_readings(readings, MAX_GYRO_SAMPLES);
+        
+        if (count > 0) {
+            err = mqtt_client_publish_gyro(readings, count);
+            if (err) {
+                LOG_ERR("Failed to publish gyroscope data: %d", err);
+            } else {
+                LOG_INF("Immediately published %d gyroscope readings", count);
+                sensors_clear_gyro_readings();
+                gyro_count_cached = 0;
+            }
+        } else {
+            LOG_WRN("No gyroscope readings available to publish");
+        }
     }
 }
 
@@ -167,20 +282,8 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         LOG_INF("Array sizes - Battery: %d, Temp: %d, Gyro: %d",
                 battery_count_cached, temp_count_cached, gyro_count_cached);
 
-        /* Print monitoring information for array sizes and latest readings */
-        // LOG_INF("--- Sensor Array Status ---");
-        // LOG_INF("Battery readings: %d/%d - Latest: Battery %d at %dmV",
-        //         battery_count_cached, MAX_BATTERY_SAMPLES,
-        //         latest_battery_reading.battery_id, latest_battery_reading.voltage);
-
-        // LOG_INF("Temp readings: %d/%d - Latest: %d°C",
-        //         temp_count_cached, MAX_TEMP_SAMPLES,
-        //         latest_temp_reading.temperature);
-
-        // LOG_INF("Gyro readings: %d/%d - Latest: AccelXYZ(%d,%d,%d) GyroXYZ(%d,%d,%d)",
-        //         gyro_count_cached, MAX_GYRO_SAMPLES,
-        //         latest_gyro_reading.accel_x, latest_gyro_reading.accel_y, latest_gyro_reading.accel_z,
-        //         latest_gyro_reading.gyro_x, latest_gyro_reading.gyro_y, latest_gyro_reading.gyro_z);
+        /* Process any immediate publish requests */
+        process_immediate_publish_requests();
 
         /* Check if it's time to publish battery data */
         int battery_interval = config_get_battery_interval();

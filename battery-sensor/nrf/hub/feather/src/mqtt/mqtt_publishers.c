@@ -1,5 +1,5 @@
 /**
- * @file mqtt_sensors.c
+ * @file mqtt_publishers.c
  * @brief MQTT sensor data publishing implementation
  */
 
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "mqtt/mqtt_sensors.h"
+#include "mqtt/mqtt_publishers.h"
 #include "mqtt/mqtt_client.h"
 #include "config/config_module.h"
 #include "utils/utils.h"
@@ -121,6 +121,9 @@ int mqtt_client_publish_temp(temp_reading_t *readings, int count)
         first = false;
     }
 
+    /* Debug output to verify format */
+    printk("Temperature payload: %s\n", message);
+
     if (offset > 0)
     {
         /* Publish the message with QoS 2 */
@@ -183,6 +186,9 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count)
         first = false;
     }
 
+    /* Debug output to verify format */
+    printk("Gyro payload: %s\n", message);
+
     if (offset > 0)
     {
         /* Publish the message with QoS 2 */
@@ -198,5 +204,5 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count)
 
 int mqtt_client_publish_config_confirm(const char *confirmation)
 {
-    return mqtt_client_publish(MQTT_TOPIC_CONFIG_CONFIRM, confirmation, MQTT_QOS_2_EXACTLY_ONCE);
+        return mqtt_client_publish(MQTT_TOPIC_CONFIG_CONFIRM, confirmation, MQTT_QOS_2_EXACTLY_ONCE);
 }
