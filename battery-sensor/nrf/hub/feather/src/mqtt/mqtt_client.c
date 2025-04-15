@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <zephyr/logging/log.h>
 
 #include <nrf_modem_at.h>
 #include <modem/lte_lc.h>
@@ -20,6 +21,12 @@
 #include "mqtt/mqtt_publishers.h"  /* Add this include for mqtt_client_publish_config_confirm */
 #include "config/config_module.h"
 #include "certificates.h"
+
+LOG_MODULE_REGISTER(mqtt_client, LOG_LEVEL_INF);
+#define LOG_PREFIX_MQTT "[MQTT] "
+#define LOG_PREFIX_LTE "[LTE] "
+#define LOG_PREFIX_TLS "[TLS] "
+#define LOG_PREFIX_NET "[NET] "
 
 /* MQTT broker details (from prj.conf) */
 #define SERVER_HOST CONFIG_MQTT_BROKER_HOSTNAME
@@ -74,27 +81,27 @@ static void lte_handler(const struct lte_lc_evt *const evt)
         if ((evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME) ||
             (evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING))
         {
-            printk("Network registration status: %d\n", evt->nw_reg_status);
+            LOG_INF(LOG_PREFIX_LTE "Network registration status: %d", evt->nw_reg_status);
             k_sem_give(&lte_connected);
         }
         break;
     case LTE_LC_EVT_PSM_UPDATE:
-        printk("PSM parameter update: TAU: %d, Active time: %d\n",
+        LOG_INF(LOG_PREFIX_LTE "PSM parameter update: TAU: %d, Active time: %d",
                evt->psm_cfg.tau, evt->psm_cfg.active_time);
         break;
     case LTE_LC_EVT_EDRX_UPDATE:
-        printk("eDRX parameter update: eDRX: %f, PTW: %f\n",
+        LOG_INF(LOG_PREFIX_LTE "eDRX parameter update: eDRX: %f, PTW: %f",
                evt->edrx_cfg.edrx, evt->edrx_cfg.ptw);
         break;
     case LTE_LC_EVT_RRC_UPDATE:
-        printk("RRC mode: %s\n", evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ? "Connected" : "Idle");
+        LOG_INF(LOG_PREFIX_LTE "RRC mode: %s", evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ? "Connected" : "Idle");
         break;
     case LTE_LC_EVT_CELL_UPDATE:
-        printk("LTE cell changed: Cell ID: %d, Tracking area: %d\n",
+        LOG_INF(LOG_PREFIX_LTE "LTE cell changed: Cell ID: %d, Tracking area: %d",
                evt->cell.id, evt->cell.tac);
         break;
     case LTE_LC_EVT_LTE_MODE_UPDATE:
-        printk("Active LTE mode changed: %s\n",
+        LOG_INF(LOG_PREFIX_LTE "Active LTE mode changed: %s",
                evt->lte_mode == LTE_LC_LTE_MODE_NONE ? "None" : evt->lte_mode == LTE_LC_LTE_MODE_LTEM ? "LTE-M"
                                                             : evt->lte_mode == LTE_LC_LTE_MODE_NBIOT  ? "NB-IoT"
                                                                                                       : "Unknown");
@@ -108,13 +115,13 @@ static int setup_lte(void)
 {
     int err;
 
-    printk("Setting up LTE connection...\n");
+    LOG_INF(LOG_PREFIX_LTE "Setting up LTE connection...");
 
     /* Initialize the modem first */
     err = nrf_modem_lib_init();
     if (err)
     {
-        printk("Failed to initialize modem library, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to initialize modem library, error: %d", err);
         return err;
     }
 
@@ -122,7 +129,7 @@ static int setup_lte(void)
     err = lte_lc_init();
     if (err)
     {
-        printk("Failed to initialize LTE link controller, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to initialize LTE link controller, error: %d", err);
         return err;
     }
 
@@ -131,7 +138,7 @@ static int setup_lte(void)
                                  LTE_LC_SYSTEM_MODE_PREFER_LTEM);
     if (err)
     {
-        printk("Failed to set system mode, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to set system mode, error: %d", err);
         return err;
     }
 
@@ -139,7 +146,7 @@ static int setup_lte(void)
     err = lte_lc_offline();
     if (err)
     {
-        printk("Failed to set modem offline: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to set modem offline: %d", err);
         return err;
     }
 
@@ -147,20 +154,20 @@ static int setup_lte(void)
     err = setup_certificates();
     if (err)
     {
-        printk("Failed to set up certificates, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to set up certificates, error: %d", err);
         return err;
     }
 
     /* Register event handler */
     lte_lc_register_handler(lte_handler);
 
-    printk("Waiting for LTE connection...\n");
+    LOG_INF(LOG_PREFIX_LTE "Waiting for LTE connection...");
 
     /* Connect to network asynchronously */
     err = lte_lc_connect_async(lte_handler);
     if (err)
     {
-        printk("Failed to connect to LTE network, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to connect to LTE network, error: %d", err);
         return err;
     }
 
@@ -168,22 +175,22 @@ static int setup_lte(void)
     err = k_sem_take(&lte_connected, K_SECONDS(120));
     if (err == -EAGAIN)
     {
-        printk("Timeout waiting for LTE connection\n");
+        LOG_ERR(LOG_PREFIX_LTE "Timeout waiting for LTE connection");
         return -ETIMEDOUT;
     }
 
-    printk("LTE connected!\n");
+    LOG_INF(LOG_PREFIX_LTE "LTE connected!");
 
     /* Additional check of registration status */
     enum lte_lc_nw_reg_status reg_status;
     err = lte_lc_nw_reg_status_get(&reg_status);
     if (err)
     {
-        printk("Failed to get network registration status: %d\n", err);
+        LOG_ERR(LOG_PREFIX_LTE "Failed to get network registration status: %d", err);
     }
     else
     {
-        printk("Network registration status: %d\n", reg_status);
+        LOG_INF(LOG_PREFIX_LTE "Network registration status: %d", reg_status);
     }
 
     return 0;
@@ -194,13 +201,13 @@ static int setup_certificates(void)
     int err;
     bool exists;
 
-    printk("Checking for existing certificate...\n");
+    LOG_INF(LOG_PREFIX_TLS "Checking for existing certificate...");
 
     /* Check if certificates already exist */
     err = modem_key_mgmt_exists(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN, &exists);
     if (err)
     {
-        printk("Failed to check for certificates, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_TLS "Failed to check for certificates, error: %d", err);
         return err;
     }
 
@@ -213,37 +220,37 @@ static int setup_certificates(void)
                                  ca_certificate_len);
         if (err == 0)
         {
-            printk("Certificate already provisioned and matches\n");
+            LOG_INF(LOG_PREFIX_TLS "Certificate already provisioned and matches");
             return 0;
         }
 
-        printk("Certificate exists but doesn't match, updating...\n");
+        LOG_INF(LOG_PREFIX_TLS "Certificate exists but doesn't match, updating...");
         /* Delete existing certificate */
         err = modem_key_mgmt_delete(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN);
         if (err)
         {
-            printk("Failed to delete existing certificate: %d\n", err);
+            LOG_ERR(LOG_PREFIX_TLS "Failed to delete existing certificate: %d", err);
             /* Continue anyway, as write might still succeed */
         }
     }
     else
     {
-        printk("No existing certificate found, provisioning new one\n");
+        LOG_INF(LOG_PREFIX_TLS "No existing certificate found, provisioning new one");
     }
 
     /* Provision certificates */
-    printk("Provisioning certificate...\n");
+    LOG_INF(LOG_PREFIX_TLS "Provisioning certificate...");
 
     /* CA certificate */
     err = modem_key_mgmt_write(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN,
                                ca_certificate, ca_certificate_len);
     if (err)
     {
-        printk("Failed to provision CA certificate, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_TLS "Failed to provision CA certificate, error: %d", err);
         return err;
     }
 
-    printk("Certificate provisioned successfully\n");
+    LOG_INF(LOG_PREFIX_TLS "Certificate provisioned successfully");
     return 0;
 }
 
@@ -258,18 +265,18 @@ static int get_mqtt_broker_addrinfo(void)
 
     snprintf(port, sizeof(port), "%d", SERVER_PORT);
 
-    printk("Resolving hostname: %s\n", SERVER_HOST);
+    LOG_INF(LOG_PREFIX_NET "Resolving hostname: %s", SERVER_HOST);
 
     err = getaddrinfo(SERVER_HOST, port, &hints, &result);
     if (err)
     {
-        printk("getaddrinfo() failed, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_NET "getaddrinfo() failed, error: %d", err);
         return -ECHILD;
     }
 
     if (result == NULL)
     {
-        printk("Error: Address not found\n");
+        LOG_ERR(LOG_PREFIX_NET "Error: Address not found");
         return -ENOENT;
     }
 
@@ -283,7 +290,7 @@ static int get_mqtt_broker_addrinfo(void)
 
     /* Store the resolved IP address */
     inet_ntop(AF_INET, &server4->sin_addr, resolved_ip, sizeof(resolved_ip));
-    printk("Hostname %s resolved to %s\n", SERVER_HOST, resolved_ip);
+    LOG_INF(LOG_PREFIX_NET "Hostname %s resolved to %s", SERVER_HOST, resolved_ip);
 
     dns_resolved = true;
     freeaddrinfo(result);
@@ -319,7 +326,7 @@ static int wait(int timeout)
         ret = zsock_poll(fds, nfds, timeout);
         if (ret < 0)
         {
-            printk("poll error: %d\n", errno);
+            LOG_ERR(LOG_PREFIX_NET "poll error: %d", errno);
         }
     }
 
@@ -331,19 +338,19 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 {
     int err;
 
-    printk("MQTT event type: %d, result: %d\n", evt->type, evt->result);
+    LOG_INF(LOG_PREFIX_MQTT "MQTT event type: %d, result: %d", evt->type, evt->result);
 
     switch (evt->type)
     {
     case MQTT_EVT_CONNACK:
         if (evt->result != 0)
         {
-            printk("MQTT connection failed %d\n", evt->result);
+            LOG_ERR(LOG_PREFIX_MQTT "MQTT connection failed %d", evt->result);
             break;
         }
 
         mqtt_connected = true;
-        printk("MQTT client connected!\n");
+        LOG_INF(LOG_PREFIX_MQTT "MQTT client connected!");
 
         /* Subscribe to configuration topic - USING QoS 1 INSTEAD OF QoS 2 */
         struct mqtt_topic subscribe_topic = {
@@ -360,34 +367,34 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         err = mqtt_subscribe(client, &subscription_list);
         if (err)
         {
-            printk("Failed to subscribe to %s topic (err %d)\n",
+            LOG_ERR(LOG_PREFIX_MQTT "Failed to subscribe to %s topic (err %d)",
                    MQTT_TOPIC_CONFIG_SEND, err);
         }
         else
         {
-            printk("Subscribed to topic: %s\n", MQTT_TOPIC_CONFIG_SEND);
+            LOG_INF(LOG_PREFIX_MQTT "Subscribed to topic: %s", MQTT_TOPIC_CONFIG_SEND);
         }
 
         break;
 
     case MQTT_EVT_DISCONNECT:
-        printk("MQTT client disconnected %d\n", evt->result);
+        LOG_INF(LOG_PREFIX_MQTT "MQTT client disconnected %d", evt->result);
         mqtt_connected = false;
         clear_fds();
         break;
 
     case MQTT_EVT_PUBLISH:
     {
-        printk("MQTT_EVT_PUBLISH received\n");
+        LOG_INF(LOG_PREFIX_MQTT "MQTT_EVT_PUBLISH received");
         
         const struct mqtt_publish_param *pub = &evt->param.publish;
         
         /* Print topic and payload information */
         if (pub->message.topic.topic.utf8 && pub->message.topic.topic.size > 0) {
-            printk("Topic: %.*s\n", pub->message.topic.topic.size, pub->message.topic.topic.utf8);
+            LOG_INF(LOG_PREFIX_MQTT "Topic: %.*s", pub->message.topic.topic.size, pub->message.topic.topic.utf8);
         }
         
-        printk("Payload length: %d\n", pub->message.payload.len);
+        LOG_INF(LOG_PREFIX_MQTT "Payload length: %d", pub->message.payload.len);
         
         /* Check if this is a configuration message */
         bool is_config_message = false;
@@ -399,7 +406,7 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         
         /* Handle configuration messages */
         if (is_config_message && pub->message.payload.len > 0) {
-            printk("Config message detected, reading payload\n");
+            LOG_INF(LOG_PREFIX_MQTT "Config message detected, reading payload");
             
             /* Create buffer for payload */
             uint8_t payload_buf[256] = {0};
@@ -413,30 +420,30 @@ void mqtt_evt_handler(struct mqtt_client *const client,
             if (bytes_read > 0) {
                 /* Ensure NULL termination */
                 payload_buf[bytes_read] = '\0';
-                printk("Read %d bytes of payload: '%s'\n", bytes_read, payload_buf);
+                LOG_INF(LOG_PREFIX_MQTT "Read %d bytes of payload: '%s'", bytes_read, payload_buf);
                 
                 /* Process the command */
                 err = config_process_command((char *)payload_buf);
                 if (err == 0) {
-                    printk("Command processed successfully\n");
+                    LOG_INF(LOG_PREFIX_MQTT "Command processed successfully");
                     
                     /* Get confirmation message */
                     char confirm_buf[256];
                     int confirm_len = config_get_confirmation(confirm_buf, sizeof(confirm_buf));
                     
                     if (confirm_len > 0) {
-                        printk("Sending confirmation: %s\n", confirm_buf);
+                        LOG_INF(LOG_PREFIX_MQTT "Sending confirmation: %s", confirm_buf);
                         err = mqtt_client_publish_config_confirm(confirm_buf);
                         if (err) {
-                            printk("Failed to publish confirmation: %d\n", err);
+                            LOG_ERR(LOG_PREFIX_MQTT "Failed to publish confirmation: %d", err);
                         } else {
-                            printk("Confirmation published\n");
+                            LOG_INF(LOG_PREFIX_MQTT "Confirmation published");
                         }
                     } else {
-                        printk("No confirmation message available: %d\n", confirm_len);
+                        LOG_ERR(LOG_PREFIX_MQTT "No confirmation message available: %d", confirm_len);
                     }
                 } else {
-                    printk("Failed to process configuration command: %d\n", err);
+                    LOG_ERR(LOG_PREFIX_MQTT "Failed to process configuration command: %d", err);
                     
                     /* Send error message - using a safer format with limited length */
                     char error_msg[128];
@@ -444,7 +451,7 @@ void mqtt_evt_handler(struct mqtt_client *const client,
                     err = mqtt_client_publish_config_confirm(error_msg);
                 }
             } else {
-                printk("Failed to read payload: %d\n", bytes_read);
+                LOG_ERR(LOG_PREFIX_MQTT "Failed to read payload: %d", bytes_read);
                 
                 /* Send error message */
                 const char *error_msg = "Error: Failed to read command payload";
@@ -460,7 +467,7 @@ void mqtt_evt_handler(struct mqtt_client *const client,
             
             err = mqtt_publish_qos1_ack(client, &puback);
             if (err) {
-                printk("Failed to send PUBACK: %d\n", err);
+                LOG_ERR(LOG_PREFIX_MQTT "Failed to send PUBACK: %d", err);
             }
         } else if (pub->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE) {
             const struct mqtt_pubrec_param pubrec = {
@@ -469,19 +476,19 @@ void mqtt_evt_handler(struct mqtt_client *const client,
             
             err = mqtt_publish_qos2_receive(client, &pubrec);
             if (err) {
-                printk("Failed to send PUBREC: %d\n", err);
+                LOG_ERR(LOG_PREFIX_MQTT "Failed to send PUBREC: %d", err);
             }
         }
     }
     break;
 
     case MQTT_EVT_PUBREC:
-        printk("PUBREC event received - id: %u, result: %d\n", 
+        LOG_INF(LOG_PREFIX_MQTT "PUBREC event received - id: %u, result: %d", 
                evt->param.pubrec.message_id, evt->result);
         
         if (evt->result != 0)
         {
-            printk("MQTT PUBREC error %d\n", evt->result);
+            LOG_ERR(LOG_PREFIX_MQTT "MQTT PUBREC error %d", evt->result);
             break;
         }
         
@@ -489,21 +496,21 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         const struct mqtt_pubrel_param rel_param = {
             .message_id = evt->param.pubrec.message_id};
         
-        printk("Sending PUBREL for message id: %u\n", rel_param.message_id);
+        LOG_INF(LOG_PREFIX_MQTT "Sending PUBREL for message id: %u", rel_param.message_id);
         err = mqtt_publish_qos2_release(client, &rel_param);
         if (err)
         {
-            printk("Failed to send PUBREL: %d\n", err);
+            LOG_ERR(LOG_PREFIX_MQTT "Failed to send PUBREL: %d", err);
         }
         break;
 
     case MQTT_EVT_PUBREL:
-        printk("PUBREL event received - id: %u, result: %d\n",
+        LOG_INF(LOG_PREFIX_MQTT "PUBREL event received - id: %u, result: %d",
                evt->param.pubrel.message_id, evt->result);
                
         if (evt->result != 0)
         {
-            printk("MQTT PUBREL error %d\n", evt->result);
+            LOG_ERR(LOG_PREFIX_MQTT "MQTT PUBREL error %d", evt->result);
             break;
         }
         
@@ -511,36 +518,36 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         const struct mqtt_pubcomp_param comp_param = {
             .message_id = evt->param.pubrel.message_id};
             
-        printk("Sending PUBCOMP for message id: %u\n", comp_param.message_id);
+        LOG_INF(LOG_PREFIX_MQTT "Sending PUBCOMP for message id: %u", comp_param.message_id);
         err = mqtt_publish_qos2_complete(client, &comp_param);
         if (err)
         {
-            printk("Failed to send PUBCOMP: %d\n", err);
+            LOG_ERR(LOG_PREFIX_MQTT "Failed to send PUBCOMP: %d", err);
         }
         break;
 
     case MQTT_EVT_PUBCOMP:
-        printk("PUBCOMP event received - id: %u, result: %d\n", 
+        LOG_INF(LOG_PREFIX_MQTT "PUBCOMP event received - id: %u, result: %d", 
                evt->param.pubcomp.message_id, evt->result);
                
         if (evt->result != 0)
         {
-            printk("MQTT PUBCOMP error %d\n", evt->result);
+            LOG_ERR(LOG_PREFIX_MQTT "MQTT PUBCOMP error %d", evt->result);
             break;
         }
-        printk("PUBCOMP packet id: %u\n", evt->param.pubcomp.message_id);
+        LOG_INF(LOG_PREFIX_MQTT "PUBCOMP packet id: %u", evt->param.pubcomp.message_id);
         break;
 
     case MQTT_EVT_SUBACK:
-        printk("SUBACK packet id: %u\n", evt->param.suback.message_id);
+        LOG_INF(LOG_PREFIX_MQTT "SUBACK packet id: %u", evt->param.suback.message_id);
         break;
 
     case MQTT_EVT_PINGRESP:
-        printk("PINGRESP packet\n");
+        LOG_INF(LOG_PREFIX_MQTT "PINGRESP packet");
         break;
 
     default:
-        printk("Unhandled MQTT event: %d\n", evt->type);
+        LOG_INF(LOG_PREFIX_MQTT "Unhandled MQTT event: %d", evt->type);
         break;
     }
 }
@@ -549,13 +556,13 @@ int elfryd_mqtt_client_init(void)
 {
     int err;
 
-    printk("Initializing MQTT client...\n");
+    LOG_INF(LOG_PREFIX_MQTT "Initializing MQTT client...");
 
     /* Set up LTE connection */
     err = setup_lte();
     if (err)
     {
-        printk("Failed to set up LTE connection, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to set up LTE connection, error: %d", err);
         return err;
     }
 
@@ -563,7 +570,7 @@ int elfryd_mqtt_client_init(void)
     err = get_mqtt_broker_addrinfo();
     if (err)
     {
-        printk("Failed to get broker address, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to get broker address, error: %d", err);
         return err;
     }
 
@@ -598,7 +605,7 @@ int elfryd_mqtt_client_init(void)
     client_ctx.tx_buf = tx_buffer;
     client_ctx.tx_buf_size = sizeof(tx_buffer);
 
-    printk("MQTT client initialized\n");
+    LOG_INF(LOG_PREFIX_MQTT "MQTT client initialized");
 
     return 0;
 }
@@ -613,7 +620,7 @@ int mqtt_client_connect(void)
 
     if (mqtt_connected)
     {
-        printk("Already connected to MQTT broker\n");
+        LOG_INF(LOG_PREFIX_MQTT "Already connected to MQTT broker");
         k_mutex_unlock(&mqtt_mutex);
         return 0;
     }
@@ -624,7 +631,7 @@ int mqtt_client_connect(void)
         err = get_mqtt_broker_addrinfo();
         if (err)
         {
-            printk("Failed to resolve MQTT broker hostname, error: %d\n", err);
+            LOG_ERR(LOG_PREFIX_MQTT "Failed to resolve MQTT broker hostname, error: %d", err);
             k_mutex_unlock(&mqtt_mutex);
             return err;
         }
@@ -633,13 +640,13 @@ int mqtt_client_connect(void)
     /* Try connecting with retries */
     while (retry_count < max_retries && !mqtt_connected)
     {
-        printk("Attempting to connect to MQTT broker: %s:%d... (attempt %d/%d)\n",
+        LOG_INF(LOG_PREFIX_MQTT "Attempting to connect to MQTT broker: %s:%d... (attempt %d/%d)",
                SERVER_HOST, SERVER_PORT, retry_count + 1, max_retries);
 
         err = mqtt_connect(&client_ctx);
         if (err)
         {
-            printk("Failed to connect to MQTT broker, error: %d\n", err);
+            LOG_ERR(LOG_PREFIX_MQTT "Failed to connect to MQTT broker, error: %d", err);
             retry_count++;
             k_sleep(K_MSEC(CONFIG_MQTT_CONNECT_RETRY_DELAY_MS));
             continue;
@@ -653,13 +660,13 @@ int mqtt_client_connect(void)
             err = mqtt_input(&client_ctx);
             if (err)
             {
-                printk("MQTT input error: %d\n", err);
+                LOG_ERR(LOG_PREFIX_MQTT "MQTT input error: %d", err);
             }
         }
 
         if (!mqtt_connected)
         {
-            printk("MQTT connection failed or timed out\n");
+            LOG_ERR(LOG_PREFIX_MQTT "MQTT connection failed or timed out");
             mqtt_abort(&client_ctx);
             retry_count++;
             k_sleep(K_MSEC(CONFIG_MQTT_CONNECT_RETRY_DELAY_MS));
@@ -668,7 +675,7 @@ int mqtt_client_connect(void)
 
     if (!mqtt_connected)
     {
-        printk("Failed to connect to MQTT broker after %d attempts\n", max_retries);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to connect to MQTT broker after %d attempts", max_retries);
         k_mutex_unlock(&mqtt_mutex);
         return -ETIMEDOUT;
     }
@@ -677,7 +684,7 @@ int mqtt_client_connect(void)
     err = mqtt_ping(&client_ctx);
     if (err)
     {
-        printk("Failed to ping MQTT broker: %d\n", err);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to ping MQTT broker: %d", err);
         mqtt_abort(&client_ctx);
         mqtt_connected = false;
         k_mutex_unlock(&mqtt_mutex);
@@ -690,7 +697,7 @@ int mqtt_client_connect(void)
         err = mqtt_input(&client_ctx);
         if (err)
         {
-            printk("Error processing ping response: %d\n", err);
+            LOG_ERR(LOG_PREFIX_MQTT "Error processing ping response: %d", err);
             mqtt_abort(&client_ctx);
             mqtt_connected = false;
             k_mutex_unlock(&mqtt_mutex);
@@ -699,7 +706,7 @@ int mqtt_client_connect(void)
     }
     else
     {
-        printk("Ping response timeout\n");
+        LOG_ERR(LOG_PREFIX_MQTT "Ping response timeout");
     }
 
     k_mutex_unlock(&mqtt_mutex);
@@ -714,7 +721,7 @@ int mqtt_client_disconnect(void)
 
     if (!mqtt_connected)
     {
-        printk("Not connected to MQTT broker\n");
+        LOG_INF(LOG_PREFIX_MQTT "Not connected to MQTT broker");
         k_mutex_unlock(&mqtt_mutex);
         return 0;
     }
@@ -722,11 +729,11 @@ int mqtt_client_disconnect(void)
     err = mqtt_disconnect(&client_ctx);
     if (err)
     {
-        printk("Failed to disconnect from MQTT broker, error: %d\n", err);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to disconnect from MQTT broker, error: %d", err);
     }
     else
     {
-        printk("Disconnected from MQTT broker\n");
+        LOG_INF(LOG_PREFIX_MQTT "Disconnected from MQTT broker");
     }
 
     mqtt_connected = false;
@@ -769,7 +776,7 @@ int mqtt_client_process(int timeout)
     err = mqtt_input(&client_ctx);
     if (err)
     {
-        printk("Error in MQTT input: %d\n", err);
+        LOG_ERR(LOG_PREFIX_MQTT "Error in MQTT input: %d", err);
         mqtt_abort(&client_ctx);
         mqtt_connected = false;
         clear_fds();
@@ -787,7 +794,7 @@ int mqtt_client_publish(const char *topic, const char *message, enum mqtt_qos qo
 
     if (!mqtt_connected)
     {
-        printk("Not connected to MQTT broker\n");
+        LOG_ERR(LOG_PREFIX_MQTT "Not connected to MQTT broker");
         k_mutex_unlock(&mqtt_mutex);
         return -ENOTCONN;
     }
@@ -796,7 +803,7 @@ int mqtt_client_publish(const char *topic, const char *message, enum mqtt_qos qo
     size_t message_len = strlen(message);
     if (message_len > sizeof(payload_buffer))
     {
-        printk("Message too long for payload buffer\n");
+        LOG_ERR(LOG_PREFIX_MQTT "Message too long for payload buffer");
         k_mutex_unlock(&mqtt_mutex);
         return -ENOMEM;
     }
@@ -818,7 +825,7 @@ int mqtt_client_publish(const char *topic, const char *message, enum mqtt_qos qo
     err = mqtt_publish(&client_ctx, &param);
     if (err)
     {
-        printk("Failed to publish to %s, error: %d\n", topic, err);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to publish to %s, error: %d", topic, err);
     }
 
     k_mutex_unlock(&mqtt_mutex);

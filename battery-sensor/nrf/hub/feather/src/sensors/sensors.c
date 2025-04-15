@@ -15,6 +15,8 @@
 #include "i2c/i2c_master.h"
 
 LOG_MODULE_REGISTER(sensors, LOG_LEVEL_INF);
+#define LOG_PREFIX_SENSOR "[SENSOR] "
+#define LOG_PREFIX_I2C "[I2C] "
 
 /* Data storage for sensor readings */
 static battery_reading_t battery_readings[MAX_BATTERY_SAMPLES];
@@ -48,26 +50,26 @@ int sensors_init(void)
 
     /* Check if we should use I2C sensors */
 #ifdef CONFIG_ELFRYD_USE_I2C_SENSORS
-    LOG_INF("Initializing I2C sensor interface");
+    LOG_INF(LOG_PREFIX_I2C "Initializing I2C sensor interface");
     
     /* Log the timestamp source */
 #ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
-    LOG_INF("Using local timestamps for I2C sensor data");
+    LOG_INF(LOG_PREFIX_I2C "Using local timestamps for I2C sensor data");
 #else
-    LOG_INF("Using remote timestamps from I2C sensor data");
+    LOG_INF(LOG_PREFIX_I2C "Using remote timestamps from I2C sensor data");
 #endif
     
     err = i2c_master_init();
     if (err) {
-        LOG_ERR("Failed to initialize I2C: %d", err);
-        LOG_WRN("Falling back to sample data generation");
+        LOG_ERR(LOG_PREFIX_I2C "Failed to initialize I2C: %d", err);
+        LOG_WRN(LOG_PREFIX_I2C "Falling back to sample data generation");
         using_i2c = false;
     } else {
-        LOG_INF("Using I2C for sensor data collection");
+        LOG_INF(LOG_PREFIX_I2C "Using I2C for sensor data collection");
         using_i2c = true;
     }
 #else
-    LOG_INF("Using sample data generation (I2C disabled in config)");
+    LOG_INF(LOG_PREFIX_SENSOR "Using sample data generation (I2C disabled in config)");
     using_i2c = false;
 #endif
 
@@ -94,7 +96,7 @@ int sensors_generate_battery_reading(int battery_id)
 #endif
         if (err)
         {
-            LOG_ERR("Failed to read battery data from I2C: %d", err);
+            LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", err);
             /* Fall back to sample data if I2C fails */
             reading.battery_id = battery_id;
             reading.voltage = 7000 + (sys_rand32_get() % 6000);
@@ -145,7 +147,7 @@ int sensors_generate_temp_reading(void)
 #endif
         if (err)
         {
-            LOG_ERR("Failed to read temperature data from I2C: %d", err);
+            LOG_ERR(LOG_PREFIX_I2C "Failed to read temperature data from I2C: %d", err);
             /* Fall back to sample data if I2C fails */
             reading.temperature = 5 + (sys_rand32_get() % 30);
             reading.timestamp = utils_get_timestamp();
@@ -194,7 +196,7 @@ int sensors_generate_gyro_reading(void)
 #endif
         if (err)
         {
-            LOG_ERR("Failed to read gyroscope data from I2C: %d", err);
+            LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope data from I2C: %d", err);
             /* Fall back to sample data if I2C fails */
             reading.accel_x = -5000000 + (sys_rand32_get() % 10000000);
             reading.accel_y = -5000000 + (sys_rand32_get() % 10000000);

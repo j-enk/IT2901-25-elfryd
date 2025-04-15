@@ -7,7 +7,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <zephyr/logging/log.h>
 #include "config/config_module.h"
+
+/* Register the module with a dedicated log level and prefix */
+LOG_MODULE_REGISTER(config_module, LOG_LEVEL_INF);
+#define LOG_PREFIX_CONFIG "[CONFIG] "
 
 /* Mutex for protecting configuration access */
 static K_MUTEX_DEFINE(config_mutex);
@@ -142,7 +147,7 @@ int config_process_command(const char *command)
 
     if (!command || command[0] == '\0')
     {
-        printf("Error: Empty command received\n");
+        LOG_ERR(LOG_PREFIX_CONFIG "Empty command received");
         return -EINVAL;
     }
 
@@ -150,7 +155,7 @@ int config_process_command(const char *command)
     size_t cmd_len = strlen(command);
     if (cmd_len >= sizeof(cmd_copy))
     {
-        printf("Error: Command too long (%u bytes, max %u)\n",
+        LOG_ERR(LOG_PREFIX_CONFIG "Command too long (%u bytes, max %u)",
                (unsigned int)cmd_len, (unsigned int)(sizeof(cmd_copy) - 1));
         return -EINVAL;
     }
@@ -162,7 +167,7 @@ int config_process_command(const char *command)
     type = strtok(cmd_copy, " ");
     if (!type)
     {
-        printf("Error: Invalid command format\n");
+        LOG_ERR(LOG_PREFIX_CONFIG "Invalid command format");
         return -EINVAL;
     }
 
@@ -172,12 +177,12 @@ int config_process_command(const char *command)
     /* Process simple commands without value (meaning to send all data) */
     if (value_str == NULL)
     {
-        printf("Command without value: %s\n", type);
+        LOG_INF(LOG_PREFIX_CONFIG "Command without value: %s", type);
 
         /* Commands without values trigger immediate data sending */
         if (strcmp(type, "battery") == 0)
         {
-            printf("Request to send all battery data\n");
+            LOG_INF(LOG_PREFIX_CONFIG "Request to send all battery data");
 
             /* Store confirmation that will be sent back */
             k_mutex_lock(&config_mutex, K_FOREVER);
@@ -194,7 +199,7 @@ int config_process_command(const char *command)
         }
         else if (strcmp(type, "temp") == 0)
         {
-            printf("Request to send all temperature data\n");
+            LOG_INF(LOG_PREFIX_CONFIG "Request to send all temperature data");
 
             /* Store confirmation that will be sent back */
             k_mutex_lock(&config_mutex, K_FOREVER);
@@ -211,7 +216,7 @@ int config_process_command(const char *command)
         }
         else if (strcmp(type, "gyro") == 0)
         {
-            printf("Request to send all gyroscope data\n");
+            LOG_INF(LOG_PREFIX_CONFIG "Request to send all gyroscope data");
 
             /* Store confirmation that will be sent back */
             k_mutex_lock(&config_mutex, K_FOREVER);
@@ -227,18 +232,18 @@ int config_process_command(const char *command)
             return 0;
         }
 
-        printf("Unknown command type: %s\n", type);
+        LOG_ERR(LOG_PREFIX_CONFIG "Unknown command type: %s", type);
         return -EINVAL;
     }
 
     /* Parse the integer value */
     value = atoi(value_str);
-    printf("Command: %s with value: %d\n", type, value);
+    LOG_INF(LOG_PREFIX_CONFIG "Command: %s with value: %d", type, value);
 
     /* Value must be non-negative */
     if (value < 0)
     {
-        printf("Error: Negative values not allowed\n");
+        LOG_ERR(LOG_PREFIX_CONFIG "Negative values not allowed");
         return -EINVAL;
     }
 
@@ -257,7 +262,7 @@ int config_process_command(const char *command)
     }
     else
     {
-        printf("Unknown command type: %s\n", type);
+        LOG_ERR(LOG_PREFIX_CONFIG "Unknown command type: %s", type);
     }
 
     return ret;
@@ -278,7 +283,7 @@ int config_get_confirmation(char *buffer, size_t size)
     {
         len = snprintf(buffer, size, "%s", last_command);
         has_new_command = false;
-        printf("Confirmation prepared: %s\n", buffer);
+        LOG_INF(LOG_PREFIX_CONFIG "Confirmation prepared: %s", buffer);
     }
 
     k_mutex_unlock(&config_mutex);

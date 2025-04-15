@@ -5,7 +5,12 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+/* Register the module with a dedicated log level and prefix */
 LOG_MODULE_REGISTER(elfryd_hub, LOG_LEVEL_INF);
+#define LOG_MODULE_NAME elfryd_hub
+#define LOG_PREFIX_MAIN "[MAIN] "
+#define LOG_PREFIX_MQTT "[MQTT] "
+#define LOG_PREFIX_SENS "[SENS] "
 
 #include "sensors/sensors.h"
 #include "config/config_module.h"
@@ -59,13 +64,13 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    LOG_INF("MQTT thread started");
+    LOG_INF(LOG_PREFIX_MQTT "MQTT thread started");
 
     /* Initialize MQTT client */
     err = elfryd_mqtt_client_init();
     if (err)
     {
-        LOG_ERR("Failed to initialize MQTT client: %d", err);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to initialize MQTT client: %d", err);
         return;
     }
 
@@ -75,7 +80,7 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
         err = mqtt_client_connect();
         if (err)
         {
-            LOG_WRN("Failed to connect to MQTT broker, retrying (%d/%d): %d",
+            LOG_WRN(LOG_PREFIX_MQTT "Failed to connect to MQTT broker, retrying (%d/%d): %d",
                     retry_count + 1, max_retries, err);
             k_sleep(K_SECONDS(5));
         }
@@ -83,7 +88,7 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
 
     if (err)
     {
-        LOG_ERR("Failed to connect to MQTT broker after %d attempts", max_retries);
+        LOG_ERR(LOG_PREFIX_MQTT "Failed to connect to MQTT broker after %d attempts", max_retries);
         return;
     }
 
@@ -94,12 +99,12 @@ static void mqtt_thread_fn(void *arg1, void *arg2, void *arg3)
         err = mqtt_client_process(1000);
         if (err && err != -EAGAIN)
         {
-            LOG_ERR("Error in MQTT processing: %d", err);
+            LOG_ERR(LOG_PREFIX_MQTT "Error in MQTT processing: %d", err);
 
             /* Try to reconnect */
             if (!mqtt_client_is_connected())
             {
-                LOG_INF("Attempting to reconnect to MQTT broker");
+                LOG_INF(LOG_PREFIX_MQTT "Attempting to reconnect to MQTT broker");
                 mqtt_client_connect();
             }
         }
@@ -125,7 +130,7 @@ static void process_immediate_publish_requests(void)
     
     /* Only process requests if we're connected to MQTT */
     if (!mqtt_client_is_connected()) {
-        LOG_WRN("MQTT not connected, immediate publishing requests will be ignored");
+        LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, immediate publishing requests will be ignored");
         
         /* Clear all requests since we can't process them now */
         k_mutex_lock(&publish_flags_mutex, K_FOREVER);
@@ -137,7 +142,7 @@ static void process_immediate_publish_requests(void)
         return;
     }
     
-    LOG_INF("Processing immediate publish requests");
+    LOG_INF(LOG_PREFIX_MAIN "Processing immediate publish requests");
     
     /* Check and publish battery data if requested */
     k_mutex_lock(&publish_flags_mutex, K_FOREVER);
@@ -146,21 +151,21 @@ static void process_immediate_publish_requests(void)
     k_mutex_unlock(&publish_flags_mutex);
     
     if (publish_battery) {
-        LOG_INF("Processing immediate battery publish request");
+        LOG_INF(LOG_PREFIX_MAIN "Processing immediate battery publish request");
         battery_reading_t readings[MAX_BATTERY_SAMPLES];
         int count = sensors_get_battery_readings(readings, MAX_BATTERY_SAMPLES);
         
         if (count > 0) {
             err = mqtt_client_publish_battery(readings, count);
             if (err) {
-                LOG_ERR("Failed to publish battery data: %d", err);
+                LOG_ERR(LOG_PREFIX_MAIN "Failed to publish battery data: %d", err);
             } else {
-                LOG_INF("Immediately published %d battery readings", count);
+                LOG_INF(LOG_PREFIX_MAIN "Immediately published %d battery readings", count);
                 sensors_clear_battery_readings();
                 battery_count_cached = 0;
             }
         } else {
-            LOG_WRN("No battery readings available to publish");
+            LOG_WRN(LOG_PREFIX_MAIN "No battery readings available to publish");
         }
     }
     
@@ -171,21 +176,21 @@ static void process_immediate_publish_requests(void)
     k_mutex_unlock(&publish_flags_mutex);
     
     if (publish_temp) {
-        LOG_INF("Processing immediate temperature publish request");
+        LOG_INF(LOG_PREFIX_MAIN "Processing immediate temperature publish request");
         temp_reading_t readings[MAX_TEMP_SAMPLES];
         int count = sensors_get_temp_readings(readings, MAX_TEMP_SAMPLES);
         
         if (count > 0) {
             err = mqtt_client_publish_temp(readings, count);
             if (err) {
-                LOG_ERR("Failed to publish temperature data: %d", err);
+                LOG_ERR(LOG_PREFIX_MAIN "Failed to publish temperature data: %d", err);
             } else {
-                LOG_INF("Immediately published %d temperature readings", count);
+                LOG_INF(LOG_PREFIX_MAIN "Immediately published %d temperature readings", count);
                 sensors_clear_temp_readings();
                 temp_count_cached = 0;
             }
         } else {
-            LOG_WRN("No temperature readings available to publish");
+            LOG_WRN(LOG_PREFIX_MAIN "No temperature readings available to publish");
         }
     }
     
@@ -196,21 +201,21 @@ static void process_immediate_publish_requests(void)
     k_mutex_unlock(&publish_flags_mutex);
     
     if (publish_gyro) {
-        LOG_INF("Processing immediate gyroscope publish request");
+        LOG_INF(LOG_PREFIX_MAIN "Processing immediate gyroscope publish request");
         gyro_reading_t readings[MAX_GYRO_SAMPLES];
         int count = sensors_get_gyro_readings(readings, MAX_GYRO_SAMPLES);
         
         if (count > 0) {
             err = mqtt_client_publish_gyro(readings, count);
             if (err) {
-                LOG_ERR("Failed to publish gyroscope data: %d", err);
+                LOG_ERR(LOG_PREFIX_MAIN "Failed to publish gyroscope data: %d", err);
             } else {
-                LOG_INF("Immediately published %d gyroscope readings", count);
+                LOG_INF(LOG_PREFIX_MAIN "Immediately published %d gyroscope readings", count);
                 sensors_clear_gyro_readings();
                 gyro_count_cached = 0;
             }
         } else {
-            LOG_WRN("No gyroscope readings available to publish");
+            LOG_WRN(LOG_PREFIX_MAIN "No gyroscope readings available to publish");
         }
     }
 }
@@ -225,7 +230,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    LOG_INF("Sensor thread started");
+    LOG_INF(LOG_PREFIX_SENS "Sensor thread started");
 
     /* Initialize sensors */
     sensors_init();
@@ -245,7 +250,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         err = sensors_generate_battery_reading(battery_id);
         if (err)
         {
-            LOG_ERR("Failed to generate battery reading: %d", err);
+            LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading: %d", err);
         }
         else
         {
@@ -259,7 +264,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         err = sensors_generate_temp_reading();
         if (err)
         {
-            LOG_ERR("Failed to generate temperature reading: %d", err);
+            LOG_ERR(LOG_PREFIX_SENS "Failed to generate temperature reading: %d", err);
         }
         else
         {
@@ -270,7 +275,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         err = sensors_generate_gyro_reading();
         if (err)
         {
-            LOG_ERR("Failed to generate gyroscope reading: %d", err);
+            LOG_ERR(LOG_PREFIX_SENS "Failed to generate gyroscope reading: %d", err);
         }
         else
         {
@@ -279,7 +284,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 
         /* Print monitoring information for debugging */
-        LOG_INF("Array sizes - Battery: %d, Temp: %d, Gyro: %d",
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d, Temp: %d, Gyro: %d",
                 battery_count_cached, temp_count_cached, gyro_count_cached);
 
         /* Process any immediate publish requests */
@@ -302,11 +307,11 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                     err = mqtt_client_publish_battery(readings, count);
                     if (err)
                     {
-                        LOG_ERR("Failed to publish battery data: %d", err);
+                        LOG_ERR(LOG_PREFIX_SENS "Failed to publish battery data: %d", err);
                     }
                     else
                     {
-                        LOG_INF("Published %d battery readings", count);
+                        LOG_INF(LOG_PREFIX_SENS "Published %d battery readings", count);
                         sensors_clear_battery_readings();
                         battery_count_cached = 0;
                     }
@@ -333,11 +338,11 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                     err = mqtt_client_publish_temp(readings, count);
                     if (err)
                     {
-                        LOG_ERR("Failed to publish temperature data: %d", err);
+                        LOG_ERR(LOG_PREFIX_SENS "Failed to publish temperature data: %d", err);
                     }
                     else
                     {
-                        LOG_INF("Published %d temperature readings", count);
+                        LOG_INF(LOG_PREFIX_SENS "Published %d temperature readings", count);
                         sensors_clear_temp_readings();
                         temp_count_cached = 0;
                     }
@@ -364,11 +369,11 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                     err = mqtt_client_publish_gyro(readings, count);
                     if (err)
                     {
-                        LOG_ERR("Failed to publish gyroscope data: %d", err);
+                        LOG_ERR(LOG_PREFIX_SENS "Failed to publish gyroscope data: %d", err);
                     }
                     else
                     {
-                        LOG_INF("Published %d gyroscope readings", count);
+                        LOG_INF(LOG_PREFIX_SENS "Published %d gyroscope readings", count);
                         sensors_clear_gyro_readings();
                         gyro_count_cached = 0;
                     }
@@ -386,13 +391,13 @@ int main(void)
 {
     int err;
 
-    LOG_INF("Elfryd Hub starting...");
+    LOG_INF(LOG_PREFIX_MAIN "Elfryd Hub starting...");
 
     /* Initialize configuration */
     err = config_init();
     if (err)
     {
-        LOG_ERR("Failed to initialize configuration: %d", err);
+        LOG_ERR(LOG_PREFIX_MAIN "Failed to initialize configuration: %d", err);
         return -1;
     }
 
@@ -410,7 +415,7 @@ int main(void)
                     SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
     k_thread_name_set(&sensor_thread_data, "sensor_thread");
 
-    LOG_INF("Elfryd Hub initialized and running");
+    LOG_INF(LOG_PREFIX_MAIN "Elfryd Hub initialized and running");
 
     /* Main thread can sleep as the work is done in other threads */
     while (1)

@@ -12,6 +12,8 @@
 #include "utils/utils.h"
 
 LOG_MODULE_REGISTER(i2c_master, LOG_LEVEL_INF);
+#define LOG_PREFIX_I2C "[I2C] "
+#define LOG_PREFIX_HW "[HW] "
 
 /* I2C device */
 static const struct device *i2c_dev;
@@ -55,11 +57,11 @@ int i2c_master_init(void)
     i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c1));
     
     if (!device_is_ready(i2c_dev)) {
-        LOG_ERR("I2C device not ready");
+        LOG_ERR(LOG_PREFIX_I2C "I2C device not ready");
         return -ENODEV;
     }
     
-    LOG_INF("I2C master initialized successfully");
+    LOG_INF(LOG_PREFIX_I2C "I2C master initialized successfully");
     i2c_ready = true;
     return 0;
 }
@@ -83,7 +85,7 @@ static int read_i2c_16bit(uint8_t dev_addr, uint8_t reg_addr, int16_t *value)
     k_mutex_unlock(&i2c_mutex);
     
     if (ret < 0) {
-        LOG_ERR("Failed to read from I2C device 0x%02x (reg 0x%02x): %d", 
+        LOG_ERR(LOG_PREFIX_HW "Failed to read from I2C device 0x%02x (reg 0x%02x): %d", 
                 dev_addr, reg_addr, ret);
         return ret;
     }
@@ -109,7 +111,7 @@ static int read_i2c_with_timestamp(uint8_t dev_addr, uint8_t reg_addr,
     k_mutex_unlock(&i2c_mutex);
     
     if (ret < 0) {
-        LOG_ERR("Failed to read from I2C device 0x%02x (reg 0x%02x): %d", 
+        LOG_ERR(LOG_PREFIX_HW "Failed to read from I2C device 0x%02x (reg 0x%02x): %d", 
                 dev_addr, reg_addr, ret);
         return ret;
     }
@@ -141,7 +143,7 @@ static int read_i2c_gyro_with_timestamp(uint8_t dev_addr, uint8_t reg_addr,
     k_mutex_unlock(&i2c_mutex);
     
     if (ret < 0) {
-        LOG_ERR("Failed to read from I2C device 0x%02x (reg 0x%02x): %d", 
+        LOG_ERR(LOG_PREFIX_HW "Failed to read from I2C device 0x%02x (reg 0x%02x): %d", 
                 dev_addr, reg_addr, ret);
         return ret;
     }
@@ -169,7 +171,7 @@ int i2c_read_battery_data(int battery_id, battery_reading_t *reading, enum times
     int16_t voltage_raw;
     
     if (!i2c_ready) {
-        LOG_WRN("I2C not ready for battery reading");
+        LOG_WRN(LOG_PREFIX_I2C "I2C not ready for battery reading");
         return -ENODEV;
     }
     
@@ -205,14 +207,14 @@ int i2c_read_battery_data(int battery_id, battery_reading_t *reading, enum times
         reading->voltage = voltage_raw;
     }
     
-    LOG_DBG("Read battery data: id=%d, voltage=%d mV, timestamp=%lld", 
+    LOG_DBG(LOG_PREFIX_I2C "Read battery data: id=%d, voltage=%d mV, timestamp=%lld", 
             reading->battery_id, reading->voltage, reading->timestamp);
     
     return 0;
     
 simulate_values:
     /* In case of failure, simulate with values similar to the sample generator */
-    LOG_WRN("Failed to read battery data, simulating values");
+    LOG_WRN(LOG_PREFIX_I2C "Failed to read battery data, simulating values");
     reading->battery_id = battery_id;
     reading->voltage = 7000 + (sys_rand32_get() % 6000);
     reading->timestamp = utils_get_timestamp();
@@ -225,7 +227,7 @@ int i2c_read_temp_data(temp_reading_t *reading, enum timestamp_source src)
     int16_t temp_raw;
     
     if (!i2c_ready) {
-        LOG_WRN("I2C not ready for temperature reading");
+        LOG_WRN(LOG_PREFIX_I2C "I2C not ready for temperature reading");
         return -ENODEV;
     }
     
@@ -256,14 +258,14 @@ int i2c_read_temp_data(temp_reading_t *reading, enum timestamp_source src)
         reading->temperature = temp_raw;
     }
     
-    LOG_DBG("Read temperature data: %d °C, timestamp=%lld", 
+    LOG_DBG(LOG_PREFIX_I2C "Read temperature data: %d °C, timestamp=%lld", 
             reading->temperature, reading->timestamp);
     
     return 0;
     
 simulate_values:
     /* In case of failure, simulate with values similar to the sample generator */
-    LOG_WRN("Failed to read temperature data, simulating values");
+    LOG_WRN(LOG_PREFIX_I2C "Failed to read temperature data, simulating values");
     reading->temperature = 5 + (sys_rand32_get() % 30);
     reading->timestamp = utils_get_timestamp();
     return 0;  /* Return success for simulation mode */
@@ -274,7 +276,7 @@ int i2c_read_gyro_data(gyro_reading_t *reading, enum timestamp_source src)
     int ret;
     
     if (!i2c_ready) {
-        LOG_WRN("I2C not ready for gyroscope reading");
+        LOG_WRN(LOG_PREFIX_I2C "I2C not ready for gyroscope reading");
         return -ENODEV;
     }
     
@@ -338,7 +340,7 @@ int i2c_read_gyro_data(gyro_reading_t *reading, enum timestamp_source src)
         }
     }
     
-    LOG_DBG("Read gyro data: accel_x=%d, accel_y=%d, accel_z=%d, gyro_x=%d, gyro_y=%d, gyro_z=%d, timestamp=%lld",
+    LOG_DBG(LOG_PREFIX_I2C "Read gyro data: accel_x=%d, accel_y=%d, accel_z=%d, gyro_x=%d, gyro_y=%d, gyro_z=%d, timestamp=%lld",
             reading->accel_x, reading->accel_y, reading->accel_z,
             reading->gyro_x, reading->gyro_y, reading->gyro_z,
             reading->timestamp);
@@ -347,7 +349,7 @@ int i2c_read_gyro_data(gyro_reading_t *reading, enum timestamp_source src)
     
 simulate_values:
     /* In case of failure, simulate with values similar to the sample generator */
-    LOG_WRN("Failed to read gyroscope data, simulating values");
+    LOG_WRN(LOG_PREFIX_I2C "Failed to read gyroscope data, simulating values");
     reading->accel_x = -5000000 + (sys_rand32_get() % 10000000);
     reading->accel_y = -5000000 + (sys_rand32_get() % 10000000);
     reading->accel_z = -5000000 + (sys_rand32_get() % 10000000);

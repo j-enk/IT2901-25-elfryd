@@ -9,11 +9,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <zephyr/logging/log.h>
 
 #include "mqtt/mqtt_publishers.h"
 #include "mqtt/mqtt_client.h"
 #include "config/config_module.h"
 #include "utils/utils.h"
+
+/* Register the module with a dedicated log level and prefix */
+LOG_MODULE_REGISTER(mqtt_publishers, LOG_LEVEL_INF);
+#define LOG_PREFIX_PUB "[PUB] "
 
 /* Sensor data publishing */
 int mqtt_client_publish_battery(battery_reading_t *readings, int count)
@@ -33,7 +38,7 @@ int mqtt_client_publish_battery(battery_reading_t *readings, int count)
         int ts_len = format_timestamp(readings[i].timestamp, timestamp_str, sizeof(timestamp_str));
         if (ts_len < 0)
         {
-            printk("Error formatting timestamp\n");
+            LOG_ERR(LOG_PREFIX_PUB "Error formatting timestamp");
             continue;
         }
 
@@ -62,15 +67,21 @@ int mqtt_client_publish_battery(battery_reading_t *readings, int count)
     }
 
     /* Debug output to verify format */
-    printk("Battery payload: %s\n", message);
+    LOG_DBG(LOG_PREFIX_PUB "Battery payload: %s", message);
 
     if (offset > 0)
     {
         /* Publish the message with QoS 2 */
         err = mqtt_client_publish(MQTT_TOPIC_BATTERY, message, MQTT_QOS_2_EXACTLY_ONCE);
+        if (err) {
+            LOG_ERR(LOG_PREFIX_PUB "Failed to publish battery data: %d", err);
+        } else {
+            LOG_INF(LOG_PREFIX_PUB "Published battery data: %d readings", count);
+        }
     }
     else
     {
+        LOG_ERR(LOG_PREFIX_PUB "No valid battery data to publish");
         err = -EINVAL;
     }
 
@@ -94,7 +105,7 @@ int mqtt_client_publish_temp(temp_reading_t *readings, int count)
         int ts_len = format_timestamp(readings[i].timestamp, timestamp_str, sizeof(timestamp_str));
         if (ts_len < 0)
         {
-            printk("Error formatting timestamp\n");
+            LOG_ERR(LOG_PREFIX_PUB "Error formatting timestamp");
             continue;
         }
 
@@ -122,15 +133,21 @@ int mqtt_client_publish_temp(temp_reading_t *readings, int count)
     }
 
     /* Debug output to verify format */
-    printk("Temperature payload: %s\n", message);
+    LOG_DBG(LOG_PREFIX_PUB "Temperature payload: %s", message);
 
     if (offset > 0)
     {
         /* Publish the message with QoS 2 */
         err = mqtt_client_publish(MQTT_TOPIC_TEMP, message, MQTT_QOS_2_EXACTLY_ONCE);
+        if (err) {
+            LOG_ERR(LOG_PREFIX_PUB "Failed to publish temperature data: %d", err);
+        } else {
+            LOG_INF(LOG_PREFIX_PUB "Published temperature data: %d readings", count);
+        }
     }
     else
     {
+        LOG_ERR(LOG_PREFIX_PUB "No valid temperature data to publish");
         err = -EINVAL;
     }
 
@@ -154,7 +171,7 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count)
         int ts_len = format_timestamp(readings[i].timestamp, timestamp_str, sizeof(timestamp_str));
         if (ts_len < 0)
         {
-            printk("Error formatting timestamp\n");
+            LOG_ERR(LOG_PREFIX_PUB "Error formatting timestamp");
             continue;
         }
 
@@ -187,15 +204,21 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count)
     }
 
     /* Debug output to verify format */
-    printk("Gyro payload: %s\n", message);
+    LOG_DBG(LOG_PREFIX_PUB "Gyro payload: %s", message);
 
     if (offset > 0)
     {
         /* Publish the message with QoS 2 */
         err = mqtt_client_publish(MQTT_TOPIC_GYRO, message, MQTT_QOS_2_EXACTLY_ONCE);
+        if (err) {
+            LOG_ERR(LOG_PREFIX_PUB "Failed to publish gyroscope data: %d", err);
+        } else {
+            LOG_INF(LOG_PREFIX_PUB "Published gyroscope data: %d readings", count);
+        }
     }
     else
     {
+        LOG_ERR(LOG_PREFIX_PUB "No valid gyroscope data to publish");
         err = -EINVAL;
     }
 
