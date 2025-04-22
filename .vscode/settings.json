@@ -1,5 +1,0 @@
-{
-    "nrf-connect.applications": [
-        "${workspaceFolder}\\temperature-sensor\\bme280-temp"
-    ]
-}
