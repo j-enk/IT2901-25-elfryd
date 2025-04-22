@@ -19,19 +19,15 @@ void main(void) {
     while(true) {
 
         do {
+
             err = sensor_sample_fetch(bme280_dev);
-            if (err < 0) {
-                printk("Failed to fetch sensor data: %d", err);
-                break;
-            }
-			
             err = sensor_channel_get(bme280_dev, SENSOR_CHAN_AMBIENT_TEMP, &temperature);
             if (err < 0) {
                 printk("Failed to get temperature: %d", err);
                 break;
             }
 
-            printk("Temperature: %.2f Celsius ", sensor_value_to_double(&temperature));
+            printk("Temperature: %d Celsius\n", temperature.val1);
 
         } while (false);
 
