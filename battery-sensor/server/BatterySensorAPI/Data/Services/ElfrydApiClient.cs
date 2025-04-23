@@ -4,7 +4,11 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Text.Json;
 
-public class ElfrydApiClient
+
+namespace BatterySensorAPI.Services
+{
+
+public class ElfrydApiClient : IElfrydApiClient
 {
     private readonly HttpClient _client;
     private readonly string _apiKey;
@@ -105,4 +109,5 @@ public class ElfrydApiClient
         
         return await response.Content.ReadAsStringAsync();
     }
+}
 }
