@@ -22,7 +22,7 @@ builder.Services.AddSingleton<BatterySensorService>();
 builder.Services.AddSingleton<BatteryDataGenerator>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<BatteryDataGenerator>());
 
-builder.Services.AddSingleton<ElfrydApiClient>(sp => {
+builder.Services.AddSingleton<IElfrydApiClient, ElfrydApiClient>(sp => {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<ElfrydApiClient>>();
     
@@ -53,6 +53,7 @@ builder.Services.AddSingleton<ElfrydApiClient>(sp => {
     
     return new ElfrydApiClient(hostName, apiKey, handler);
 });
+
 // Add CORS support
 builder.Services.AddCors(options =>
 {
@@ -78,3 +79,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+public partial class Program { }
