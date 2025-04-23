@@ -8,11 +8,27 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
+
+/**
+ * @brief Notify that time has been synchronized
+ * 
+ * This must be called when the system has obtained valid time
+ * from the network or other source before timestamp usage
+ */
+void utils_notify_time_synchronized(void);
+
+/**
+ * @brief Check if time is synchronized
+ * 
+ * @return true if time is synchronized, false otherwise
+ */
+bool utils_is_time_synchronized(void);
 
 /**
  * @brief Get current timestamp
  *
- * @return Current timestamp in seconds since epoch
+ * @return Current timestamp in seconds since epoch, or 0 if time not synchronized
  */
 int64_t utils_get_timestamp(void);
 

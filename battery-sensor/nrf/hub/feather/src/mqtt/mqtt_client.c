@@ -117,14 +117,6 @@ static int setup_lte(void)
 
     LOG_INF(LOG_PREFIX_LTE "Setting up LTE connection...");
 
-    /* Initialize the modem first */
-    err = nrf_modem_lib_init();
-    if (err)
-    {
-        LOG_ERR(LOG_PREFIX_LTE "Failed to initialize modem library, error: %d", err);
-        return err;
-    }
-
     /* Initialize LTE link controller */
     err = lte_lc_init();
     if (err)

@@ -86,6 +86,12 @@ int sensors_generate_battery_reading(int battery_id)
         return -EINVAL; /* Invalid battery ID */
     }
 
+    /* Check if time is synchronized before collecting data */
+    if (!utils_is_time_synchronized()) {
+        LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping battery reading");
+        return 0;  /* Skip data collection but don't report as error */
+    }
+
     /* Generate battery reading either from I2C or sample data */
     if (using_i2c)
     {
@@ -137,6 +143,12 @@ int sensors_generate_temp_reading(void)
     int err;
     temp_reading_t reading;
 
+    /* Check if time is synchronized before collecting data */
+    if (!utils_is_time_synchronized()) {
+        LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping temperature reading");
+        return 0;  /* Skip data collection but don't report as error */
+    }
+
     /* Generate temperature reading either from I2C or sample data */
     if (using_i2c)
     {
@@ -185,6 +197,12 @@ int sensors_generate_gyro_reading(void)
 {
     int err;
     gyro_reading_t reading;
+
+    /* Check if time is synchronized before collecting data */
+    if (!utils_is_time_synchronized()) {
+        LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping gyroscope reading");
+        return 0;  /* Skip data collection but don't report as error */
+    }
 
     /* Generate gyroscope reading either from I2C or sample data */
     if (using_i2c)

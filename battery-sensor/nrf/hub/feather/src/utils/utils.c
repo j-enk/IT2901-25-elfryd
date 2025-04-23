@@ -8,14 +8,52 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <date_time.h>
 #include "utils/utils.h"
+
+/* Flag to track if RTC is synchronized */
+static bool rtc_synchronized = false;
+
+/* Mutex to protect the RTC sync flag */
+static K_MUTEX_DEFINE(rtc_sync_mutex);
+
+void utils_notify_time_synchronized(void)
+{
+    k_mutex_lock(&rtc_sync_mutex, K_FOREVER);
+    rtc_synchronized = true;
+    k_mutex_unlock(&rtc_sync_mutex);
+}
+
+bool utils_is_time_synchronized(void)
+{
+    bool is_sync;
+    
+    k_mutex_lock(&rtc_sync_mutex, K_FOREVER);
+    is_sync = rtc_synchronized;
+    k_mutex_unlock(&rtc_sync_mutex);
+    
+    return is_sync;
+}
 
 int64_t utils_get_timestamp(void)
 {
-    /* In a real application with a proper RTC, this would get the actual time
-     * but for this simulation we'll use k_uptime_get()
-     */
-    return (int64_t)(k_uptime_get() / 1000) + 1680000000; /* Add Jan 1, 2023 offset for realism */
+    int err;
+    int64_t timestamp = 0;
+    
+    /* Check if RTC is synchronized before using date_time API */
+    if (!utils_is_time_synchronized()) {
+        return 0;  /* Return 0 to indicate that time is not valid yet */
+    }
+    
+    /* Get the current real timestamp from date_time API */
+    err = date_time_now(&timestamp);
+    if (err) {
+        /* Fall back to uptime-based timestamp if date_time fails */
+        return (int64_t)(k_uptime_get() / 1000) + 1680000000; /* Add Jan 1, 2023 offset for realism */
+    }
+    
+    /* date_time_now returns timestamp in milliseconds, convert to seconds */
+    return timestamp / 1000;
 }
 
 int utils_generate_random_id(char *buffer, size_t size)
