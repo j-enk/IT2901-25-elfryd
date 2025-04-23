@@ -10,7 +10,7 @@
 #define CMD_LED_ON '1'
 #define CMD_LED_OFF '0'
 
-static const struct device *uart;
+static const struct device *uart_control;
 static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 static uint8_t rx_buf[1];
 
@@ -47,7 +47,7 @@ void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data)
 
         case UART_RX_DISABLED:
                 // Re-enable UART reception
-                if (uart_rx_enable(uart, rx_buf, sizeof(rx_buf), 50) < 0)
+                if (uart_rx_enable(uart_control, rx_buf, sizeof(rx_buf), 50) < 0)
                 {
                         printk("Failed to re-enable UART RX\n");
                 }
@@ -67,10 +67,11 @@ int main(void)
 {
         int ret;
 
-        uart = DEVICE_DT_GET(DT_NODELABEL(uart0));
-        if (!device_is_ready(uart))
+        // Use uart1 for control, leaving uart0 for debug/console
+        uart_control = DEVICE_DT_GET(DT_NODELABEL(uart1));
+        if (!device_is_ready(uart_control))
         {
-                printk("UART not ready\n");
+                printk("UART control device not ready\n");
                 return 1;
         }
 
@@ -87,14 +88,14 @@ int main(void)
                 return 1;
         }
 
-        ret = uart_callback_set(uart, uart_cb, NULL);
+        ret = uart_callback_set(uart_control, uart_cb, NULL);
         if (ret < 0)
         {
                 printk("Failed to set UART callback: %d\n", ret);
                 return 1;
         }
 
-        ret = uart_rx_enable(uart, rx_buf, sizeof(rx_buf), 50);
+        ret = uart_rx_enable(uart_control, rx_buf, sizeof(rx_buf), 50);
         if (ret < 0)
         {
                 printk("Failed to enable UART RX: %d\n", ret);
