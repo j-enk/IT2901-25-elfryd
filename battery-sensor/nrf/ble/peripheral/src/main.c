@@ -17,11 +17,17 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/adc.h>
+#include <zephyr/drivers/sensor.h>
 #include <math.h>
 #include <zephyr/kernel.h>
 
 #define BAUT_VOLTAGE
 #define BAUT_TEMPERATURE
+
+#ifdef BAUT_TEMPERATURE
+const struct device *bme280_dev = DEVICE_DT_GET_ANY(bosch_bme280);
+static struct sensor_value temperature;
+#endif
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
@@ -199,20 +205,69 @@ static ssize_t vol_read_function(struct bt_conn *conn, const struct bt_gatt_attr
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &mv, sizeof(mv));
 }
 
+int baut_bme_init() {
+    if(bme280_dev == NULL) {
+        printk("BME is missing!\n");
+        return -1;
+    }
+
+    if (!device_is_ready(bme280_dev)) {
+        printk("BME is not ready\n");
+        return -1;
+    }
+
+	return 0;
+}
+
+int baut_bme_read(int32_t * celcius) {
+	// we have to retry on EAGAIN (we just do it no matter the error :) )
+	int suceeded = false;
+
+	for(int i = 0; i < 10; i ++) {
+		// printk("i %d\n", i);
+		int err;
+
+		err = sensor_sample_fetch(bme280_dev);
+		if(err) {
+			if(err != -EAGAIN) {
+				printk("BME sample fail: %d\n", err);
+			}
+			continue;
+		}
+
+		err = sensor_channel_get(bme280_dev, SENSOR_CHAN_AMBIENT_TEMP, &temperature);
+		if (err) {
+			printk("BME channel fail: %d\n", err);
+			continue;
+		}
+
+		suceeded = true;
+		break;
+	}
+
+	if(suceeded) {
+		// printk("Temperature: %d Celsius\n", temperature.val1);
+		*celcius = temperature.val1;	
+	}
+
+	return 0;
+}
+
+
 static ssize_t temp_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
 				  uint16_t len, uint16_t offset)
 {
 
-	int64_t ms = k_uptime_get();
+	int32_t celcius = -1;
+	if(baut_bme_read(&celcius) == 0) {
+		printk("celcius = %d\n", celcius);
+	} else {
+		printk("celcius failed\n");
+		celcius = -1;
+		// return;
+	}
 
-	double s = ms / 1000.0;
-	double y = 20 + cos(s / 10) * 10; // 20 + [-10, 10] = [10, 30]
-
-	int32_t my_data = (int32_t)(y);
-
-	printk("TEMP: uptime = %8lld, value = %5d\n", ms, my_data);
-
-	return bt_gatt_attr_read(conn, attr, buf, len, offset, &my_data, sizeof(my_data));
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &celcius, sizeof(celcius));
 }
 
 #ifdef BAUT_VOLTAGE
@@ -240,6 +295,10 @@ int main(void)
 #ifdef BAUT_VOLTAGE
 	// yolo, no error check
 	baut_adc_init();
+#endif
+
+#ifdef BAUT_TEMPERATURE
+	baut_bme_init();
 #endif
 
 	printk("Bluetooth initialized\n");
