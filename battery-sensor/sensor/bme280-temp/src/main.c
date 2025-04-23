@@ -12,8 +12,14 @@ void main(void) {
 
     int err;
 
+    if(bme280_dev == NULL) {
+        printk("BME is missing!\n");
+        return;
+
+    }
+
     if (!device_is_ready(bme280_dev)) {
-        printk("Device is not ready\n");
+        printk("BME is not ready\n");
         return;
     }
     while(true) {
