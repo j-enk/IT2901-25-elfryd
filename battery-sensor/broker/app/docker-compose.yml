@@ -3,7 +3,7 @@ services:
     image: eclipse-mosquitto:latest
     container_name: mqtt-broker
     ports:
-      - "8885:8885"      # TLS MQTT port (for secure external devices)
+      - "8885:8885" # TLS MQTT port (for secure external devices)
     volumes:
       - ./mqtt-broker/config:/mosquitto/config
       - ../certs:/mosquitto/certs
@@ -12,7 +12,7 @@ services:
     restart: always
     networks:
       - elfryd-network
-      
+
   timescaledb:
     image: timescale/timescaledb:latest-pg17
     container_name: timescaledb
@@ -26,12 +26,14 @@ services:
     restart: always
     networks:
       - elfryd-network
-      
+
   mqtt-bridge:
     build:
       context: .
       dockerfile: Dockerfile.bridge
     container_name: mqtt-bridge
+    env_file:
+      - .env
     depends_on:
       - mqtt-broker
       - timescaledb
@@ -40,14 +42,16 @@ services:
       - ../certs:/app/certs
     networks:
       - elfryd-network
-      
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     container_name: elfryd-api
+    env_file:
+      - .env
     ports:
-      - "8000:8000"      # API port (exposed externally)
+      - "443:443" # HTTPS access
     depends_on:
       - mqtt-broker
       - timescaledb
