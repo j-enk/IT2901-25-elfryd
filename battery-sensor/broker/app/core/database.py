@@ -117,6 +117,8 @@ def query_messages(
 ) -> List[StoredMessage]:
     """
     Query messages from the database with optional filtering.
+    When limit is specified alongside hours, data points are distributed evenly across
+    the time range instead of just returning the newest points.
 
     Parameters:
     - conn: Database connection
@@ -137,58 +139,111 @@ def query_messages(
     try:
         cur = conn.cursor()
 
-        # Build the query based on parameters and table structure
-        query = sql.SQL(
-            "SELECT id, topic, message, timestamp FROM {} WHERE 1=1"
-        ).format(sql.Identifier(table))
-
-        params = []
-
-        if topic:
-            query = sql.SQL("{} AND topic LIKE %s").format(query)
-            params.append(f"%{topic}%")
-
         # Apply time-based filtering using server timestamp
         if hours is not None:
+            # Calculate the time range
+            end_time = datetime.now()
             if time_offset is not None:
-                # Calculate the time range with offset
-                end_time = datetime.now() - timedelta(hours=time_offset)
-                start_time = end_time - timedelta(hours=hours)
-
-                query = sql.SQL("{} AND timestamp >= %s AND timestamp <= %s").format(
-                    query
-                )
-                params.extend([start_time, end_time])
+                end_time = end_time - timedelta(hours=time_offset)
+            start_time = end_time - timedelta(hours=hours)
+            
+            # If we have both a time range and a limit, use the sampling approach
+            if limit > 0:
+                # First, check how many records we have in the time range
+                count_query = sql.SQL(
+                    """
+                    SELECT COUNT(*) FROM {} 
+                    WHERE topic LIKE %s
+                    AND timestamp >= %s AND timestamp <= %s
+                    """
+                ).format(sql.Identifier(table))
+                
+                count_params = [f"%{topic}%", start_time, end_time]
+                cur.execute(count_query, count_params)
+                total_count = cur.fetchone()[0]
+                
+                if total_count <= limit:
+                    # If we have fewer points than the limit, just return all of them
+                    query = sql.SQL(
+                        """
+                        SELECT id, topic, message, timestamp 
+                        FROM {} 
+                        WHERE topic LIKE %s
+                        AND timestamp >= %s AND timestamp <= %s
+                        ORDER BY timestamp ASC
+                        """
+                    ).format(sql.Identifier(table))
+                    params = [f"%{topic}%", start_time, end_time]
+                else:
+                    # Use window functions to divide the time range into equal buckets
+                    # and select one representative point from each bucket
+                    query = sql.SQL(
+                        """
+                        WITH bucketed_data AS (
+                            SELECT 
+                                id, topic, message, timestamp,
+                                WIDTH_BUCKET(EXTRACT(EPOCH FROM timestamp), 
+                                            EXTRACT(EPOCH FROM %s::timestamp), 
+                                            EXTRACT(EPOCH FROM %s::timestamp), 
+                                            %s) AS bucket
+                            FROM {} 
+                            WHERE topic LIKE %s
+                            AND timestamp >= %s AND timestamp <= %s
+                        ),
+                        ranked_data AS (
+                            SELECT 
+                                *,
+                                ROW_NUMBER() OVER (PARTITION BY bucket ORDER BY timestamp) AS row_num
+                            FROM bucketed_data
+                        )
+                        SELECT id, topic, message, timestamp
+                        FROM ranked_data
+                        WHERE row_num = 1
+                        ORDER BY timestamp ASC
+                        """
+                    ).format(sql.Identifier(table))
+                    params = [start_time, end_time, limit, f"%{topic}%", start_time, end_time]
             else:
-                # Standard time window from current time
-                query = sql.SQL("{} AND timestamp > %s").format(query)
-                params.append(datetime.now() - timedelta(hours=hours))
-
-        query = sql.SQL("{} ORDER BY timestamp DESC").format(query)
+                # No limit specified, use regular time filtering
+                query = sql.SQL(
+                    """
+                    SELECT id, topic, message, timestamp 
+                    FROM {} 
+                    WHERE topic LIKE %s
+                    AND timestamp >= %s AND timestamp <= %s
+                    ORDER BY timestamp ASC
+                    """
+                ).format(sql.Identifier(table))
+                params = [f"%{topic}%", start_time, end_time]
+        else:
+            # No time filtering, just apply regular limit with newest first
+            query = sql.SQL(
+                """
+                SELECT id, topic, message, timestamp 
+                FROM {} 
+                WHERE topic LIKE %s
+                ORDER BY timestamp DESC 
+                LIMIT %s
+                OFFSET %s
+                """
+            ).format(sql.Identifier(table))
+            params = [f"%{topic}%", limit, offset]
 
         cur.execute(query, params)
         rows = cur.fetchall()
 
         # Convert rows to model instances and then to dictionaries
-        table_results = []
         for row in rows:
             model = row_to_model(table, row)
             # Convert model to dictionary for API response
-            table_results.append(model.model_dump())
+            all_results.append(model.model_dump())
 
-        all_results.extend(table_results)
         cur.close()
 
     except Exception as table_error:
         print(f"Error querying table {table}: {str(table_error)}")
 
-    # Sort combined results by timestamp (newest first)
-    all_results.sort(key=lambda x: x["timestamp"], reverse=True)
-
-    # Apply limit and offset to the combined results
-    paginated_results = all_results[offset : offset + limit]
-
-    return paginated_results
+    return all_results
 
 
 def query_sensor_data(
@@ -203,6 +258,9 @@ def query_sensor_data(
     """
     Query sensor-specific data (battery, temperature, gyro) with optional filtering.
     Uses device_timestamp for time-based filtering and excludes server timestamp from results.
+    
+    When limit is specified alongside hours, data points are distributed evenly across
+    the time range instead of just returning the newest points.
 
     Parameters:
     - conn: Database connection
@@ -229,17 +287,8 @@ def query_sensor_data(
 
         # Build query with specific columns (excluding timestamp)
         columns = table_columns[table_name]
-        query = sql.SQL("SELECT {} FROM {} WHERE 1=1").format(
-            sql.SQL(columns), sql.Identifier(table_name)
-        )
-        params = []
-
-        # Apply ID filtering if provided
-        if id_column and id_value is not None:
-            query = sql.SQL("{} AND {} = %s").format(query, sql.Identifier(id_column))
-            params.append(id_value)
-
-        # Apply time-based filtering using device_timestamp
+        
+        # Apply time-based filtering and determine sampling approach
         if hours is not None:
             # Convert hours to seconds
             seconds_duration = int(hours * 3600)
@@ -250,23 +299,124 @@ def query_sensor_data(
             # Apply time offset if provided
             if time_offset is not None:
                 seconds_offset = int(time_offset * 3600)
-                start_time = current_unix - seconds_offset
+                end_time = current_unix - seconds_offset
             else:
-                start_time = current_unix
+                end_time = current_unix
 
-            # Calculate the end time based on the duration
-            end_time = start_time
+            # Calculate the start time based on the duration
             start_time = end_time - seconds_duration
-
-            # Add the time range filter to the query
-            query = sql.SQL(
-                "{} AND device_timestamp >= %s AND device_timestamp <= %s"
-            ).format(query)
-            params.extend([start_time, end_time])
-
-        # Order by device_timestamp
-        query = sql.SQL("{} ORDER BY device_timestamp DESC LIMIT %s").format(query)
-        params.append(limit)
+            
+            # If we have both a time range and a limit, use a more sophisticated sampling approach
+            if limit > 0:
+                # Option 1: Time-bucket based approach using window functions
+                # This creates evenly distributed time buckets and selects one point from each bucket
+                
+                # First, build a query to determine the count of records in the time range
+                count_query = sql.SQL(
+                    """
+                    SELECT COUNT(*) FROM {} 
+                    WHERE device_timestamp >= %s AND device_timestamp <= %s
+                    """
+                ).format(sql.Identifier(table_name))
+                
+                count_params = [start_time, end_time]
+                
+                # Add ID filtering if provided
+                if id_column and id_value is not None:
+                    count_query = sql.SQL("{} AND {} = %s").format(
+                        count_query, sql.Identifier(id_column)
+                    )
+                    count_params.append(id_value)
+                
+                cur.execute(count_query, count_params)
+                total_count = cur.fetchone()[0]
+                
+                if total_count <= limit:
+                    # If we have fewer points than the limit, just return all of them
+                    query = sql.SQL("SELECT {} FROM {} WHERE device_timestamp >= %s AND device_timestamp <= %s").format(
+                        sql.SQL(columns), sql.Identifier(table_name)
+                    )
+                    params = [start_time, end_time]
+                    
+                    # Add ID filtering if provided
+                    if id_column and id_value is not None:
+                        query = sql.SQL("{} AND {} = %s").format(query, sql.Identifier(id_column))
+                        params.append(id_value)
+                    
+                    query = sql.SQL("{} ORDER BY device_timestamp ASC").format(query)
+                    
+                else:
+                    # Use window functions to divide the time range into equal buckets
+                    # and select one representative point from each bucket
+                    
+                    # We need to include the device_timestamp in the output columns
+                    # to construct the time buckets properly
+                    time_bucket_size = seconds_duration / limit
+                    
+                    # Build the window function query to sample evenly across time
+                    query = sql.SQL(
+                        """
+                        WITH bucketed_data AS (
+                            SELECT 
+                                {},
+                                WIDTH_BUCKET(device_timestamp, %s, %s, %s) AS bucket
+                            FROM {} 
+                            WHERE device_timestamp >= %s AND device_timestamp <= %s
+                        """).format(
+                            sql.SQL(columns), 
+                            sql.Identifier(table_name)
+                        )
+                    
+                    params = [start_time, end_time, limit, start_time, end_time]
+                    
+                    # Add ID filtering if provided
+                    if id_column and id_value is not None:
+                        query = sql.SQL("{} AND {} = %s").format(query, sql.Identifier(id_column))
+                        params.append(id_value)
+                    
+                    query = sql.SQL(
+                        """
+                        {}
+                        ),
+                        ranked_data AS (
+                            SELECT 
+                                *,
+                                ROW_NUMBER() OVER (PARTITION BY bucket ORDER BY device_timestamp) AS row_num
+                            FROM bucketed_data
+                        )
+                        SELECT {}
+                        FROM ranked_data
+                        WHERE row_num = 1
+                        ORDER BY device_timestamp ASC
+                        """
+                    ).format(query, sql.SQL(columns))
+            else:
+                # No limit specified, use regular time filtering
+                query = sql.SQL("SELECT {} FROM {} WHERE device_timestamp >= %s AND device_timestamp <= %s").format(
+                    sql.SQL(columns), sql.Identifier(table_name)
+                )
+                params = [start_time, end_time]
+                
+                # Add ID filtering if provided
+                if id_column and id_value is not None:
+                    query = sql.SQL("{} AND {} = %s").format(query, sql.Identifier(id_column))
+                    params.append(id_value)
+                
+                query = sql.SQL("{} ORDER BY device_timestamp ASC").format(query)
+        else:
+            # No time filtering, just apply regular limit
+            query = sql.SQL("SELECT {} FROM {} WHERE 1=1").format(
+                sql.SQL(columns), sql.Identifier(table_name)
+            )
+            params = []
+            
+            # Apply ID filtering if provided
+            if id_column and id_value is not None:
+                query = sql.SQL("{} AND {} = %s").format(query, sql.Identifier(id_column))
+                params.append(id_value)
+            
+            query = sql.SQL("{} ORDER BY device_timestamp DESC LIMIT %s").format(query)
+            params.append(limit)
 
         cur.execute(query, params)
         rows = cur.fetchall()
@@ -292,6 +442,9 @@ def query_config_data(
     """
     Query configuration data with optional filtering.
     Uses server timestamp for time-based filtering.
+    
+    When limit is specified alongside hours, data points are distributed evenly across
+    the time range instead of just returning the newest points.
 
     Parameters:
     - conn: Database connection
@@ -304,30 +457,88 @@ def query_config_data(
         table_name = "elfryd_config"
 
         # Build query with all columns including timestamp
-        query = sql.SQL(
-            "SELECT id, command, topic, timestamp FROM {} WHERE 1=1"
-        ).format(sql.Identifier(table_name))
-        params = []
-
-        # Apply time-based filtering using server timestamp
         if hours is not None:
+            # Calculate the time range
+            end_time = datetime.now()
             if time_offset is not None:
-                # Calculate the time range with offset
-                end_time = datetime.now() - timedelta(hours=time_offset)
-                start_time = end_time - timedelta(hours=hours)
-
-                query = sql.SQL("{} AND timestamp >= %s AND timestamp <= %s").format(
-                    query
-                )
-                params.extend([start_time, end_time])
+                end_time = end_time - timedelta(hours=time_offset)
+            start_time = end_time - timedelta(hours=hours)
+            
+            # If we have both a time range and a limit, use the sampling approach
+            if limit > 0:
+                # First, check how many records we have in the time range
+                count_query = sql.SQL(
+                    """
+                    SELECT COUNT(*) FROM {} 
+                    WHERE timestamp >= %s AND timestamp <= %s
+                    """
+                ).format(sql.Identifier(table_name))
+                
+                count_params = [start_time, end_time]
+                cur.execute(count_query, count_params)
+                total_count = cur.fetchone()[0]
+                
+                if total_count <= limit:
+                    # If we have fewer points than the limit, just return all of them
+                    query = sql.SQL(
+                        """
+                        SELECT id, command, topic, timestamp 
+                        FROM {} 
+                        WHERE timestamp >= %s AND timestamp <= %s
+                        ORDER BY timestamp ASC
+                        """
+                    ).format(sql.Identifier(table_name))
+                    params = [start_time, end_time]
+                else:
+                    # Use window functions to divide the time range into equal buckets
+                    # and select one representative point from each bucket
+                    query = sql.SQL(
+                        """
+                        WITH bucketed_data AS (
+                            SELECT 
+                                id, command, topic, timestamp,
+                                WIDTH_BUCKET(EXTRACT(EPOCH FROM timestamp), 
+                                            EXTRACT(EPOCH FROM %s::timestamp), 
+                                            EXTRACT(EPOCH FROM %s::timestamp), 
+                                            %s) AS bucket
+                            FROM {} 
+                            WHERE timestamp >= %s AND timestamp <= %s
+                        ),
+                        ranked_data AS (
+                            SELECT 
+                                *,
+                                ROW_NUMBER() OVER (PARTITION BY bucket ORDER BY timestamp) AS row_num
+                            FROM bucketed_data
+                        )
+                        SELECT id, command, topic, timestamp
+                        FROM ranked_data
+                        WHERE row_num = 1
+                        ORDER BY timestamp ASC
+                        """
+                    ).format(sql.Identifier(table_name))
+                    params = [start_time, end_time, limit, start_time, end_time]
             else:
-                # Standard time window from current time
-                query = sql.SQL("{} AND timestamp > %s").format(query)
-                params.append(datetime.now() - timedelta(hours=hours))
-
-        # Order by server timestamp
-        query = sql.SQL("{} ORDER BY timestamp DESC LIMIT %s").format(query)
-        params.append(limit)
+                # No limit specified or limit is zero, use regular time filtering
+                query = sql.SQL(
+                    """
+                    SELECT id, command, topic, timestamp 
+                    FROM {} 
+                    WHERE timestamp >= %s AND timestamp <= %s
+                    ORDER BY timestamp ASC
+                    """
+                ).format(sql.Identifier(table_name))
+                params = [start_time, end_time]
+        else:
+            # No time filtering, just apply regular limit with newest first
+            query = sql.SQL(
+                """
+                SELECT id, command, topic, timestamp 
+                FROM {} 
+                ORDER BY timestamp DESC 
+                LIMIT %s
+                """
+            ).format(sql.Identifier(table_name))
+            params = [limit]
 
         cur.execute(query, params)
         rows = cur.fetchall()
