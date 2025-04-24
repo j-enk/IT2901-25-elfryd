@@ -107,9 +107,9 @@ namespace BatterySensorAPI.Services
         {
             var json = await this.GetBatteryDataAsync(
                 battery_id: battery_id,
-                limit: 100,
+                limit: 0,
                 hours: 10,
-                time_offset: 16
+                time_offset: 0
             );
 
             using var doc = JsonDocument.Parse(json);
