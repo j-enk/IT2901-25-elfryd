@@ -11,16 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Register HttpClient for BatterySensorService
-builder.Services.AddHttpClient<BatterySensorService>();
-builder.Services.AddScoped<BatterySensorService>();
 
-// Register BatterySensorService as a singleton
-builder.Services.AddSingleton<BatterySensorService>();
-
-// Register BatteryDataGenerator as both a singleton service and a hosted service
-builder.Services.AddSingleton<BatteryDataGenerator>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<BatteryDataGenerator>());
 
 builder.Services.AddSingleton<IElfrydApiClient, ElfrydApiClient>(sp => {
     var configuration = sp.GetRequiredService<IConfiguration>();
