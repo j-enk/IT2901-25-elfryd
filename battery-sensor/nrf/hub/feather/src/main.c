@@ -25,10 +25,10 @@ LOG_MODULE_REGISTER(elfryd_hub, LOG_LEVEL_INF);
 #include "utils/utils.h"
 
 /* Configuration for sensor data generation */
-#define MAIN_LOOP_INTERVAL_MS 1000 /* Main loop interval in milliseconds */
+#define MAIN_LOOP_INTERVAL_MS 1000
 
 /* Thread stacks and definitions */
-#define STACK_SIZE 2048
+#define STACK_SIZE 4096
 #define MQTT_THREAD_PRIORITY 5
 #define SENSOR_THREAD_PRIORITY 6
 #define TIME_THREAD_PRIORITY 4
@@ -67,6 +67,11 @@ K_SEM_DEFINE(lte_ready, 0, 1);
 
 /* Message queue for publishing operations */
 K_MSGQ_DEFINE(publish_msgq, sizeof(publish_msg_t), 10, 4);
+
+/* Static buffers for readings to avoid stack allocations */
+static battery_reading_t static_battery_readings[MAX_BATTERY_SAMPLES];
+static temp_reading_t static_temp_readings[MAX_TEMP_SAMPLES];
+static gyro_reading_t static_gyro_readings[MAX_GYRO_SAMPLES];
 
 /* Timers for tracking when to publish data */
 static int64_t last_battery_publish_time;
@@ -169,12 +174,12 @@ static void publisher_thread_fn(void *arg1, void *arg2, void *arg3)
                 case PUBLISH_TYPE_BATTERY:
                     {
                         LOG_INF(LOG_PREFIX_MAIN "Processing battery publish request");
-                        battery_reading_t readings[MAX_BATTERY_SAMPLES];
-                        int count = sensors_get_battery_readings(readings, MAX_BATTERY_SAMPLES);
+                        /* Use static buffer instead of stack allocation */
+                        int count = sensors_get_battery_readings(static_battery_readings, MAX_BATTERY_SAMPLES);
 
                         if (count > 0) {
                             if (mqtt_client_is_connected()) {
-                                err = mqtt_client_publish_battery(readings, count);
+                                err = mqtt_client_publish_battery(static_battery_readings, count);
                                 if (err) {
                                     LOG_ERR(LOG_PREFIX_MAIN "Failed to publish battery data: %d", err);
                                 } else {
@@ -193,12 +198,12 @@ static void publisher_thread_fn(void *arg1, void *arg2, void *arg3)
                 case PUBLISH_TYPE_TEMP:
                     {
                         LOG_INF(LOG_PREFIX_MAIN "Processing temperature publish request");
-                        temp_reading_t readings[MAX_TEMP_SAMPLES];
-                        int count = sensors_get_temp_readings(readings, MAX_TEMP_SAMPLES);
+                        /* Use static buffer instead of stack allocation */
+                        int count = sensors_get_temp_readings(static_temp_readings, MAX_TEMP_SAMPLES);
 
                         if (count > 0) {
                             if (mqtt_client_is_connected()) {
-                                err = mqtt_client_publish_temp(readings, count);
+                                err = mqtt_client_publish_temp(static_temp_readings, count);
                                 if (err) {
                                     LOG_ERR(LOG_PREFIX_MAIN "Failed to publish temperature data: %d", err);
                                 } else {
@@ -217,12 +222,12 @@ static void publisher_thread_fn(void *arg1, void *arg2, void *arg3)
                 case PUBLISH_TYPE_GYRO:
                     {
                         LOG_INF(LOG_PREFIX_MAIN "Processing gyroscope publish request");
-                        gyro_reading_t readings[MAX_GYRO_SAMPLES];
-                        int count = sensors_get_gyro_readings(readings, MAX_GYRO_SAMPLES);
+                        /* Use static buffer instead of stack allocation */
+                        int count = sensors_get_gyro_readings(static_gyro_readings, MAX_GYRO_SAMPLES);
 
                         if (count > 0) {
                             if (mqtt_client_is_connected()) {
-                                err = mqtt_client_publish_gyro(readings, count);
+                                err = mqtt_client_publish_gyro(static_gyro_readings, count);
                                 if (err) {
                                     LOG_ERR(LOG_PREFIX_MAIN "Failed to publish gyroscope data: %d", err);
                                 } else {
@@ -323,7 +328,6 @@ static void time_thread_fn(void *arg1, void *arg2, void *arg3)
          * - TIME_AUTO_UPDATE setting
          * - TIME_UPDATE_INTERVAL_SECONDS for regular updates
          * - TIME_TOO_OLD_SECONDS for staleness checks
-         * from prj.conf, no manual updates needed
          */
         
         k_sleep(K_SECONDS(5));  /* Update time display every 5 seconds */
@@ -336,7 +340,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     int err;
     static int battery_id = 1; /* Rotate through battery IDs 1-4 */
     publish_msg_t msg;
-    bool first_run = true;  /* Flag to track the first run through the loop */
+    bool is_first_run = true;  /* Flag to track the first run through the loop */
 
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
@@ -347,19 +351,22 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     /* Initialize sensors */
     sensors_init();
 
-    /* Initialize timestamps - set to "old" values so we don't publish immediately */
+    /* Get the current time */
     int64_t current_time = utils_get_timestamp();
-    /* Set last publish times to an offset time to ensure we wait a full interval before first publish */
+    
+    /* Get intervals */
     int battery_interval = config_get_battery_interval();
     int temp_interval = config_get_temp_interval();
     int gyro_interval = config_get_gyro_interval();
-    
-    /* Initialize last publish times with the appropriate offset to delay first publish */
-    last_battery_publish_time = current_time - (battery_interval > 0 ? 1 : battery_interval);
-    last_temp_publish_time = current_time - (temp_interval > 0 ? 1 : temp_interval);
-    last_gyro_publish_time = current_time - (gyro_interval > 0 ? 1 : gyro_interval);
+
+    /* Initialize last publish timestamps to ensure we wait a full interval before first publish */
+    last_battery_publish_time = current_time;
+    last_temp_publish_time = current_time;
+    last_gyro_publish_time = current_time;
     
     LOG_INF(LOG_PREFIX_SENS "Waiting for first interval before publishing data");
+    LOG_INF(LOG_PREFIX_SENS "Intervals (seconds) - Battery: %d, Temp: %d, Gyro: %d",
+            battery_interval, temp_interval, gyro_interval);
 
     /* Main sensor processing loop */
     while (1)
@@ -459,30 +466,12 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         
         k_mutex_unlock(&publish_flags_mutex);
 
-        /* On the first run, update the interval values and timestamps */
-        if (first_run) {
-            /* Update intervals in case they were changed during initialization */
-            battery_interval = config_get_battery_interval();
-            temp_interval = config_get_temp_interval();
-            gyro_interval = config_get_gyro_interval();
-            
-            /* Update last publish times to current time to start the interval count */
-            last_battery_publish_time = current_time;
-            last_temp_publish_time = current_time;
-            last_gyro_publish_time = current_time;
-            
-            first_run = false;
-            LOG_INF(LOG_PREFIX_SENS "First data collection complete, starting interval timers");
-            LOG_INF(LOG_PREFIX_SENS "Intervals (seconds) - Battery: %d, Temp: %d, Gyro: %d",
-                    battery_interval, temp_interval, gyro_interval);
-            
-            /* Skip interval checking on first run */
-            k_sleep(K_SECONDS(1));
-            continue;
-        }
+        /* Refresh the interval values (in case config changed) */
+        battery_interval = config_get_battery_interval();
+        temp_interval = config_get_temp_interval();
+        gyro_interval = config_get_gyro_interval();
 
         /* Check if it's time to publish battery data based on intervals */
-        battery_interval = config_get_battery_interval(); /* Refresh in case config changed */
         if (battery_interval > 0 &&
             (current_time - last_battery_publish_time) >= battery_interval)
         {
@@ -501,7 +490,6 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 
         /* Check if it's time to publish temperature data */
-        temp_interval = config_get_temp_interval(); /* Refresh in case config changed */
         if (temp_interval > 0 &&
             (current_time - last_temp_publish_time) >= temp_interval)
         {
@@ -520,7 +508,6 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 
         /* Check if it's time to publish gyroscope data */
-        gyro_interval = config_get_gyro_interval(); /* Refresh in case config changed */
         if (gyro_interval > 0 &&
             (current_time - last_gyro_publish_time) >= gyro_interval)
         {
