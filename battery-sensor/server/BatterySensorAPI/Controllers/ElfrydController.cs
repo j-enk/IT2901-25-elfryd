@@ -107,13 +107,14 @@ namespace BatterySensorAPI.Controllers
 
         [HttpGet("config")]
         public async Task<IActionResult> GetConfig(
-        [FromQuery] bool sendAll = false,
-        [FromQuery] int limit = 10
+        [FromQuery] int limit = 20,
+        [FromQuery] int hours = 168,
+        [FromQuery] int time_offset = 0
         )
         {
             try
             {
-                var config = await _elfrydClient.GetConfigAsync(sendAll, limit);
+                var config = await _elfrydClient.GetConfigAsync(limit, hours, time_offset);
                 return Content(config, "application/json");
             }
             catch (Exception ex)
@@ -127,12 +128,13 @@ namespace BatterySensorAPI.Controllers
         public async Task<IActionResult> GetBatteryData(
             [FromQuery] string battery_id = null,
             [FromQuery] int limit = 20,
-            [FromQuery] int hours = 24
+            [FromQuery] int hours = 24,
+            [FromQuery] int time_offset = 0
         )
         {
              try
     {
-        var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours);
+        var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
         
         // Verify the response matches query id
         if (!string.IsNullOrEmpty(battery_id))
@@ -185,6 +187,91 @@ namespace BatterySensorAPI.Controllers
         _logger.LogError(ex, "Error retrieving battery data");
         return StatusCode(500, "Error retrieving battery data from Elfryd API");
     }
+}
+
+        [HttpGet("gyro")]
+        public async Task<IActionResult> GetGyroData(
+            [FromQuery] int limit = 20,
+            [FromQuery] int hours = 24,
+            [FromQuery] int time_offset = 0
+        )
+        {
+            try
+            {
+                var result = await _elfrydClient.GetGyroDataAsync(limit, hours, time_offset);
+                return Content(result, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving gyro data");
+                return StatusCode(500, "Error retrieving gyro data from Elfryd API");
+            }
+        }
+
+        [HttpGet("temp")]
+        public async Task<IActionResult> GetTempData(
+            [FromQuery] int limit = 20,
+            [FromQuery] int hours = 24,
+            [FromQuery] int time_offset = 0
+        )
+        {
+            try
+            {
+                var result = await _elfrydClient.GetTempDataAsync(limit, hours, time_offset);
+                return Content(result, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving temperature data");
+                return StatusCode(500, "Error retrieving temperature data from Elfryd API");
+            }
+        }
+
+        [HttpGet("battery/system/soc")]
+public async Task<IActionResult> GetSystemSocVoltage()
+{
+    var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync();
+
+    if (!latestReadings.Any())
+        return StatusCode(500, "No battery readings available");
+
+    var socValues = latestReadings
+        .Select(r => VoltageToSoC(r.millivoltage))
+        .ToList();
+
+    var systemSoc = socValues.Average();
+    return Ok(Math.Round(systemSoc));
+}
+
+    [HttpGet("battery/individual/soc")]
+    public async Task<IActionResult> GetIndividualSocVoltage(string battery_id = null)
+    {
+
+        var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync(battery_id);
+
+        if (!latestReadings.Any())
+            return StatusCode(500, "No battery readings available");
+
+        var socValues = latestReadings
+            .Select(r => new { r.battery_id, Soc = VoltageToSoC(r.millivoltage) })
+            .ToList();
+
+        return Ok(socValues);
+    }
+
+
+private double VoltageToSoC(double millivolts)
+{
+    const double minVoltage = 10500.0; // Fully discharged
+    const double maxVoltage = 12700.0; //Fully charged
+    
+    // Clamp voltage within range
+    double clampedVoltage = Math.Clamp(millivolts, minVoltage, maxVoltage);
+    
+    // Calculate percentage
+    double soc = ((clampedVoltage - minVoltage) / (maxVoltage - minVoltage)) * 100.0;
+    
+    return soc;
 }
     }
 }
