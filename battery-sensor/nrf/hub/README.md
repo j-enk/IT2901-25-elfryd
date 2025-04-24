@@ -70,17 +70,18 @@ CONFIG_SENSOR_GYRO_INTERVAL=180         # Gyroscope data publish interval (secon
 
 The application publishes to the VM broker using the following MQTT topics:
 
-| Topic | Message Format | Description |
-|-------|--------|-------------|
-| `elfryd/battery` | `{battery_id}/{voltage}/{timestamp}` | Battery voltage readings |
-| `elfryd/temp` | `{temperature}/{timestamp}` | Temperature readings |
-| `elfryd/gyro` | `{accel_x},{accel_y},{accel_z}/{gyro_x},{gyro_y},{gyro_z}/{timestamp}` | Gyroscope readings |
+| Topic            | Message Format                                                         | Description              |
+| ---------------- | ---------------------------------------------------------------------- | ------------------------ |
+| `elfryd/battery` | `{battery_id}/{voltage}/{timestamp}`                                   | Battery voltage readings |
+| `elfryd/temp`    | `{temperature}/{timestamp}`                                            | Temperature readings     |
+| `elfryd/gyro`    | `{accel_x},{accel_y},{accel_z}/{gyro_x},{gyro_y},{gyro_z}/{timestamp}` | Gyroscope readings       |
 
 The hub supports batch publishing of multiple readings in a single message using the pipe (`|`) character as a separator. See the [Bridge Documentation](../broker/docs/bridge.md) for more details on message formats.
 
 ### Configuration Commands
 
 The application subscribes to the `elfryd/config/send` topic, where it can receive configuration commands over MQTT. There are two types of commands:
+
 1. **Publish Commands**: Commands that trigger data publishing for specific sensor types
 2. **Interval Commands**: Commands that change the configuration of data transmission intervals
 
@@ -91,6 +92,7 @@ Whenever a command is received and processed, the hub will publish a confirmatio
 ## Data Integration
 
 Data published by this hub is received and processed by the Elfryd MQTT Broker System, which:
+
 - Receives the MQTT messages via a secure TLS connection
 - Parses the messages into separate readings
 - Stores them in a TimescaleDB time-series database
