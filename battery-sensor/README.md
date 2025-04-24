@@ -4,11 +4,11 @@
   <a href="https://www.kystlaget-trh.no/">
     <img src="images/logo.jpg" alt="Logo" width="120" height="120">
   </a>
-  
+
   <br />
   <h1 align="center">Elfryd Sensor Monitoring System</h1>
 
-  <p align="center">
+  <p align="center" style="max-width: 500px;">
     A comprehensive IoT solution for monitoring battery levels and environmental conditions on the Elfryd boat, featuring secure data collection, cloud storage, and real-time monitoring capabilities.
   </p>
 </div>
