@@ -174,32 +174,3 @@ For detailed setup instructions, visit the specific component documentation link
 This project is developed as part of IT2901 Information Technology Project II at NTNU. Our team is focused on creating a reliable IoT monitoring solution for the Elfryd boat.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
-
-<!-- Links -->
-[dotnet-url]: https://dotnet.microsoft.com/
-[dotnet-badge]: https://tinyurl.com/26sekyup
-[azure-url]: https://azure.microsoft.com/
-[azure-badge]: https://tinyurl.com/2b7fwu7m
-
-
-
-[python-url]: https://www.python.org/
-[python-badge]: https://tinyurl.com/26vvmywy
-[docker-url]: https://www.docker.com/
-[docker-badge]: https://tinyurl.com/278rykn6
-[c-url]: https://en.wikipedia.org/wiki/C_(programming_language)
-[c-badge]: https://tinyurl.com/249mjzb9
-[csharp-url]: https://docs.microsoft.com/en-us/dotnet/csharp/
-[csharp-badge]: https://tinyurl.com/2c9p4knv
-[dotnet-url]: https://dotnet.microsoft.com/
-[dotnet-badge]: https://tinyurl.com/26sekyup
-[azure-url]: https://azure.microsoft.com/
-[azure-badge]: https://tinyurl.com/2b7fwu7m
-[mqtt-url]: https://mqtt.org/
-[mqtt-badge]: https://tinyurl.com/2yeuyq5z
-[nuxtjs-url]: https://nuxtjs.org/
-[nuxtjs-badge]: https://tinyurl.com/25w36sc9
-[vuejs-url]: https://vuejs.org/
-[vuejs-badge]: https://tinyurl.com/22c28lf3
-
