@@ -262,8 +262,8 @@ namespace BatterySensorAPI.Controllers
 
         private double VoltageToSoC(double millivolts)
         {
-            const double minVoltage = 10500.0; // Fully discharged
-            const double maxVoltage = 12700.0; //Fully charged
+            const double minVoltage = 12000.0; // Fully discharged
+            const double maxVoltage = 15000.0; //Fully charged
 
             // Clamp voltage within range
             double clampedVoltage = Math.Clamp(millivolts, minVoltage, maxVoltage);
