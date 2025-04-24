@@ -15,7 +15,7 @@
 </div>
 
 <hr />
-<br />
+
 <div align="center">
   <a href="https://en.wikipedia.org/wiki/C_(programming_language)"><img src="https://tinyurl.com/249mjzb9" alt="C"></a>
   <a href="https://www.python.org/"><img src="https://tinyurl.com/26vvmywy" alt="Python"></a>
