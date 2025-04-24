@@ -10,14 +10,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/** Maximum number of battery samples to store */
-#define MAX_BATTERY_SAMPLES 20
-
-/** Maximum number of temperature samples to store */
-#define MAX_TEMP_SAMPLES 20
-
-/** Maximum number of gyroscope samples to store */
-#define MAX_GYRO_SAMPLES 20
+/** Maximum number of sensor samples to store */
+#define MAX_BATTERY_SAMPLES 240
+#define MAX_TEMP_SAMPLES 60
+#define MAX_GYRO_SAMPLES 60
 
 /** Battery reading structure */
 typedef struct

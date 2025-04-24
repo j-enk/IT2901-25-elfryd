@@ -336,6 +336,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     int err;
     static int battery_id = 1; /* Rotate through battery IDs 1-4 */
     publish_msg_t msg;
+    bool first_run = true;  /* Flag to track the first run through the loop */
 
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
@@ -346,11 +347,19 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     /* Initialize sensors */
     sensors_init();
 
-    /* Initialize timestamps */
+    /* Initialize timestamps - set to "old" values so we don't publish immediately */
     int64_t current_time = utils_get_timestamp();
-    last_battery_publish_time = current_time;
-    last_temp_publish_time = current_time;
-    last_gyro_publish_time = current_time;
+    /* Set last publish times to an offset time to ensure we wait a full interval before first publish */
+    int battery_interval = config_get_battery_interval();
+    int temp_interval = config_get_temp_interval();
+    int gyro_interval = config_get_gyro_interval();
+    
+    /* Initialize last publish times with the appropriate offset to delay first publish */
+    last_battery_publish_time = current_time - (battery_interval > 0 ? 1 : battery_interval);
+    last_temp_publish_time = current_time - (temp_interval > 0 ? 1 : temp_interval);
+    last_gyro_publish_time = current_time - (gyro_interval > 0 ? 1 : gyro_interval);
+    
+    LOG_INF(LOG_PREFIX_SENS "Waiting for first interval before publishing data");
 
     /* Main sensor processing loop */
     while (1)
@@ -401,6 +410,8 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         /* Process immediate publish requests by sending messages to publisher thread */
         k_mutex_lock(&publish_flags_mutex, K_FOREVER);
         
+        /* Process immediate publish requests even on first run, 
+           as these are explicit user requests */
         if (battery_publish_request) {
             msg.type = PUBLISH_TYPE_BATTERY;
             msg.timestamp = current_time;
@@ -448,8 +459,30 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         
         k_mutex_unlock(&publish_flags_mutex);
 
+        /* On the first run, update the interval values and timestamps */
+        if (first_run) {
+            /* Update intervals in case they were changed during initialization */
+            battery_interval = config_get_battery_interval();
+            temp_interval = config_get_temp_interval();
+            gyro_interval = config_get_gyro_interval();
+            
+            /* Update last publish times to current time to start the interval count */
+            last_battery_publish_time = current_time;
+            last_temp_publish_time = current_time;
+            last_gyro_publish_time = current_time;
+            
+            first_run = false;
+            LOG_INF(LOG_PREFIX_SENS "First data collection complete, starting interval timers");
+            LOG_INF(LOG_PREFIX_SENS "Intervals (seconds) - Battery: %d, Temp: %d, Gyro: %d",
+                    battery_interval, temp_interval, gyro_interval);
+            
+            /* Skip interval checking on first run */
+            k_sleep(K_SECONDS(1));
+            continue;
+        }
+
         /* Check if it's time to publish battery data based on intervals */
-        int battery_interval = config_get_battery_interval();
+        battery_interval = config_get_battery_interval(); /* Refresh in case config changed */
         if (battery_interval > 0 &&
             (current_time - last_battery_publish_time) >= battery_interval)
         {
@@ -468,7 +501,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 
         /* Check if it's time to publish temperature data */
-        int temp_interval = config_get_temp_interval();
+        temp_interval = config_get_temp_interval(); /* Refresh in case config changed */
         if (temp_interval > 0 &&
             (current_time - last_temp_publish_time) >= temp_interval)
         {
@@ -487,7 +520,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 
         /* Check if it's time to publish gyroscope data */
-        int gyro_interval = config_get_gyro_interval();
+        gyro_interval = config_get_gyro_interval(); /* Refresh in case config changed */
         if (gyro_interval > 0 &&
             (current_time - last_gyro_publish_time) >= gyro_interval)
         {

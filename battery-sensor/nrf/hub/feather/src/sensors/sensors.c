@@ -105,7 +105,7 @@ int sensors_generate_battery_reading(int battery_id)
             LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", err);
             /* Fall back to sample data if I2C fails */
             reading.battery_id = battery_id;
-            reading.voltage = 7000 + (sys_rand32_get() % 6000);
+            reading.voltage = 1000 + (sys_rand32_get() % 11001);
             reading.timestamp = utils_get_timestamp();
         }
     }
@@ -113,7 +113,7 @@ int sensors_generate_battery_reading(int battery_id)
     {
         /* Generate sample battery data */
         reading.battery_id = battery_id;
-        reading.voltage = 7000 + (sys_rand32_get() % 6000);
+        reading.voltage = 1000 + (sys_rand32_get() % 11001);
         reading.timestamp = utils_get_timestamp();
     }
 
