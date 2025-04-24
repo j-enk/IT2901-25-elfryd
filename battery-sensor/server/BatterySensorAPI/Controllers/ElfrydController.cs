@@ -141,8 +141,10 @@ namespace BatterySensorAPI.Controllers
                 {
                     // Parse the JSON
                     var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
-                    var dataArray = jsonDoc.RootElement.GetProperty("data");
-
+                    var dataArray = jsonDoc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                                    jsonDoc.RootElement.TryGetProperty("data", out var dataElement)
+                        ? dataElement
+                        : jsonDoc.RootElement;
                     if (dataArray.GetArrayLength() == 0)
                     {
                         return Content(result, "application/json");
