@@ -112,16 +112,17 @@ namespace BatterySensorAPI.Tests
         public async Task GetConfigValidRequest()
         {
             // Arrange
-            bool sendAll = false;
             int limit = 10;
+            int hours = 168;
+            int time_offset = 0;
             string expectedJsonResponse = "{\"configs\":[{\"name\":\"frequency\",\"value\":60}]}";
 
             _mockElfrydClient
-                .Setup(client => client.GetConfigAsync(sendAll, limit))
+                .Setup(client => client.GetConfigAsync(limit, hours, time_offset))
                 .ReturnsAsync(expectedJsonResponse);
 
             // Act
-            var result = await _controller.GetConfig(sendAll, limit);
+            var result = await _controller.GetConfig(limit, hours, time_offset);
 
             // Assert
             var contentResult = Assert.IsType<ContentResult>(result);
@@ -134,7 +135,7 @@ namespace BatterySensorAPI.Tests
         {
             // Arrange
             _mockElfrydClient
-                .Setup(client => client.GetConfigAsync(It.IsAny<bool>(), It.IsAny<int>()))
+                .Setup(client => client.GetConfigAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>()))
                 .ThrowsAsync(new Exception("Test exception"));
 
             // Act
@@ -156,6 +157,7 @@ namespace BatterySensorAPI.Tests
             string batteryId = "2";
             int limit = 10;
             int hours = 24;
+            int time_offset = 0;
 
             // This response contains data from batteries we have not requested
             string unfilteredResponse = @"{
@@ -163,7 +165,7 @@ namespace BatterySensorAPI.Tests
                 {
                     ""id"": 1,
                     ""battery_id"": 1,
-                    ""voltage"": 3824,
+                    ""voltage"": 12524,
                     ""device_timestamp"": 1712841632
                 },
                 {
@@ -175,18 +177,18 @@ namespace BatterySensorAPI.Tests
                 {
                     ""id"": 4,
                     ""battery_id"": 3,
-                    ""voltage"": 3950,
+                    ""voltage"": 11950,
                     ""device_timestamp"": 1712861632
                 }
             ]
         }";
 
             _mockElfrydClient
-                .Setup(client => client.GetBatteryDataAsync(batteryId, limit, hours))
+                .Setup(client => client.GetBatteryDataAsync(batteryId, limit, hours, time_offset))
                 .ReturnsAsync(unfilteredResponse);
 
             // Act
-            var result = await _controller.GetBatteryData(batteryId, limit, hours);
+            var result = await _controller.GetBatteryData(batteryId, limit, hours, time_offset);
 
             // Assert
             // The controller should detect the inconsistency and return an error
@@ -202,6 +204,7 @@ namespace BatterySensorAPI.Tests
             string batteryId = "2";
             int limit = 10;
             int hours = 24;
+            int time_offset = 0;
 
             // This response contains data only for the requested battery_id
             string filteredResponse = @"{
@@ -222,11 +225,11 @@ namespace BatterySensorAPI.Tests
         }";
 
             _mockElfrydClient
-                .Setup(client => client.GetBatteryDataAsync(batteryId, limit, hours))
+                .Setup(client => client.GetBatteryDataAsync(batteryId, limit, hours, time_offset))
                 .ReturnsAsync(filteredResponse);
 
             // Act
-            var result = await _controller.GetBatteryData(batteryId, limit, hours);
+            var result = await _controller.GetBatteryData(batteryId, limit, hours, time_offset);
 
             // Assert
             var contentResult = Assert.IsType<ContentResult>(result);
