@@ -8,10 +8,12 @@
   <br />
   <h1 align="center">Elfryd Sensor Monitoring System</h1>
 
-  <p align="center" style="max-width: 500px;">
+  <p align="center">
     A comprehensive IoT solution for monitoring battery levels and environmental conditions on the Elfryd boat, featuring secure data collection, cloud storage, and real-time monitoring capabilities.
   </p>
 </div>
+
+<br />
 
 <div align="center">
   <a href="https://www.python.org/"><img src="https://tinyurl.com/26vvmywy" alt="Python"></a>
