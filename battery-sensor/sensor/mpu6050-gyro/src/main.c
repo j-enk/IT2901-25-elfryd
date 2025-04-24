@@ -26,67 +26,39 @@ static const char *now_str(void)
 
 static int process_mpu6050(const struct device *dev)
 {
-	// struct sensor_value temperature;
 	struct sensor_value accel[3];
 	struct sensor_value gyro[3];
-	int rc = sensor_sample_fetch(dev);
-
-	if (rc == 0) {
-		rc = sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ,
-					accel);
-	}
-	if (rc == 0) {
-		rc = sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ,
-					gyro);
-	}
-	// if (rc == 0) {
-	// 	rc = sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP,
-	// 				&temperature);
-	// }
-	if (rc == 0) {
-		// printf("[%s]:%g Cel\n"
-		//        "  accel %f %f %f m/s/s\n"
-		//        "  gyro  %f %f %f rad/s\n",
-		//        now_str(),
-		//        sensor_value_to_double(&temperature),
-		//        sensor_value_to_double(&accel[0]),
-		//        sensor_value_to_double(&accel[1]),
-		//        sensor_value_to_double(&accel[2]),
-		//        sensor_value_to_double(&gyro[0]),
-		//        sensor_value_to_double(&gyro[1]),
-		//        sensor_value_to_double(&gyro[2]));
-		printf("[%s]:\n"
-				"  accel %f %f %f m/s/s\n"
-				"  gyro  %f %f %f rad/s\n",
-				now_str(),
-				sensor_value_to_double(&accel[0]),
-				sensor_value_to_double(&accel[1]),
-				sensor_value_to_double(&accel[2]),
-				sensor_value_to_double(&gyro[0]),
-				sensor_value_to_double(&gyro[1]),
-				sensor_value_to_double(&gyro[2]));
-	} else {
-		printf("sample fetch/get failed: %d\n", rc);
+	int err = sensor_sample_fetch(dev);
+	if(err) {
+		printf("MPU6050: sample fetch failed: %d\n", err);
+		return err;
 	}
 
-	return rc;
+	err = sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accel);
+	if(err) {
+		printf("MPU6050: accel failed: %d\n", err);
+		return err;
+	}
+
+	err = sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro);
+	if(err) {
+		printf("MPU6050: gyro failed: %d\n", err);
+		return err;
+	}
+
+	printf("[%s]\n"
+			"  accel %f %f %f m/s/s\n"
+			"  gyro  %f %f %f rad/s\n",
+			now_str(),
+			sensor_value_to_double(&accel[0]),
+			sensor_value_to_double(&accel[1]),
+			sensor_value_to_double(&accel[2]),
+			sensor_value_to_double(&gyro[0]),
+			sensor_value_to_double(&gyro[1]),
+			sensor_value_to_double(&gyro[2]));
+
+	return 0;
 }
-
-// #ifdef CONFIG_MPU6050_TRIGGER
-// static struct sensor_trigger trigger;
-
-// static void handle_mpu6050_drdy(const struct device *dev,
-// 				const struct sensor_trigger *trig)
-// {
-// 	int rc = process_mpu6050(dev);
-
-// 	if (rc != 0) {
-// 		printf("cancelling trigger due to failure: %d\n", rc);
-// 		(void)sensor_trigger_set(dev, trig, NULL);
-// 		return;
-// 	}
-// }
-// #endif /* CONFIG_MPU6050_TRIGGER */
 
 int main(void)
 {
@@ -96,19 +68,6 @@ int main(void)
 		printf("Device %s is not ready\n", mpu6050->name);
 		return 0;
 	}
-
-// #ifdef CONFIG_MPU6050_TRIGGER
-// 	trigger = (struct sensor_trigger) {
-// 		.type = SENSOR_TRIG_DATA_READY,
-// 		.chan = SENSOR_CHAN_ALL,
-// 	};
-// 	if (sensor_trigger_set(mpu6050, &trigger,
-// 			       handle_mpu6050_drdy) < 0) {
-// 		printf("Cannot configure trigger\n");
-// 		return 0;
-// 	}
-// 	printk("Configured for triggered sampling.\n");
-// #endif
 
 	while (!IS_ENABLED(CONFIG_MPU6050_TRIGGER)) {
 		int rc = process_mpu6050(mpu6050);
