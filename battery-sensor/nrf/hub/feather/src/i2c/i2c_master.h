@@ -11,14 +11,6 @@
 #include "sensors/sensors.h"
 
 /**
- * @brief Timestamp source for I2C data
- */
-enum timestamp_source {
-    TIMESTAMP_LOCAL,  /**< Timestamp generated locally when data is received */
-    TIMESTAMP_REMOTE  /**< Timestamp included in the I2C data from remote device */
-};
-
-/**
  * @brief Initialize the I2C master interface
  *
  * @return 0 on success, negative errno otherwise
@@ -30,28 +22,25 @@ int i2c_master_init(void);
  *
  * @param battery_id ID of the battery to read (1-4)
  * @param reading Pointer to store the reading
- * @param src Source of the timestamp (local or remote)
  * @return 0 on success, negative errno otherwise
  */
-int i2c_read_battery_data(int battery_id, battery_reading_t *reading, enum timestamp_source src);
+int i2c_read_battery_data(int battery_id, battery_reading_t *reading);
 
 /**
  * @brief Read temperature data from a slave device
  *
  * @param reading Pointer to store the reading
- * @param src Source of the timestamp (local or remote)
  * @return 0 on success, negative errno otherwise
  */
-int i2c_read_temp_data(temp_reading_t *reading, enum timestamp_source src);
+int i2c_read_temp_data(temp_reading_t *reading);
 
 /**
  * @brief Read gyroscope data from a slave device
  *
  * @param reading Pointer to store the reading
- * @param src Source of the timestamp (local or remote)
  * @return 0 on success, negative errno otherwise
  */
-int i2c_read_gyro_data(gyro_reading_t *reading, enum timestamp_source src);
+int i2c_read_gyro_data(gyro_reading_t *reading);
 
 /**
  * @brief Check if the I2C system is ready to read data

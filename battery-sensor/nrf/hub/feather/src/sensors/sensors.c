@@ -52,13 +52,6 @@ int sensors_init(void)
 #ifdef CONFIG_ELFRYD_USE_I2C_SENSORS
     LOG_INF(LOG_PREFIX_I2C "Initializing I2C sensor interface");
     
-    /* Log the timestamp source */
-#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
-    LOG_INF(LOG_PREFIX_I2C "Using local timestamps for I2C sensor data");
-#else
-    LOG_INF(LOG_PREFIX_I2C "Using remote timestamps from I2C sensor data");
-#endif
-    
     err = i2c_master_init();
     if (err) {
         LOG_ERR(LOG_PREFIX_I2C "Failed to initialize I2C: %d", err);
@@ -81,7 +74,7 @@ int sensors_generate_battery_reading(int battery_id)
     int err;
     battery_reading_t reading;
 
-    if (battery_id < 1 || battery_id > 4)
+    if (battery_id < 1 || battery_id > NUM_BATTERIES)
     {
         return -EINVAL; /* Invalid battery ID */
     }
@@ -95,25 +88,18 @@ int sensors_generate_battery_reading(int battery_id)
     /* Generate battery reading either from I2C or sample data */
     if (using_i2c)
     {
-#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
-        err = i2c_read_battery_data(battery_id, &reading, TIMESTAMP_LOCAL);
-#else
-        err = i2c_read_battery_data(battery_id, &reading, TIMESTAMP_REMOTE);
-#endif
+        err = i2c_read_battery_data(battery_id, &reading);
         if (err)
         {
             LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", err);
-            /* Fall back to sample data if I2C fails */
-            reading.battery_id = battery_id;
-            reading.voltage = 12000 + (sys_rand32_get() % 15001);
-            reading.timestamp = utils_get_timestamp();
+            return err; /* Return the error from I2C reading */
         }
     }
     else
     {
         /* Generate sample battery data */
         reading.battery_id = battery_id;
-        reading.voltage = 12000 + (sys_rand32_get() % 15001);
+        reading.voltage = 12000 + (sys_rand32_get() % 3001);
         reading.timestamp = utils_get_timestamp();
     }
 
@@ -152,17 +138,11 @@ int sensors_generate_temp_reading(void)
     /* Generate temperature reading either from I2C or sample data */
     if (using_i2c)
     {
-#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
-        err = i2c_read_temp_data(&reading, TIMESTAMP_LOCAL);
-#else
-        err = i2c_read_temp_data(&reading, TIMESTAMP_REMOTE);
-#endif
+        err = i2c_read_temp_data(&reading);
         if (err)
         {
             LOG_ERR(LOG_PREFIX_I2C "Failed to read temperature data from I2C: %d", err);
-            /* Fall back to sample data if I2C fails */
-            reading.temperature = 5 + (sys_rand32_get() % 30);
-            reading.timestamp = utils_get_timestamp();
+            return err; /* Return the error from I2C reading */
         }
     }
     else
@@ -207,22 +187,11 @@ int sensors_generate_gyro_reading(void)
     /* Generate gyroscope reading either from I2C or sample data */
     if (using_i2c)
     {
-#ifdef CONFIG_ELFRYD_USE_LOCAL_TIMESTAMP
-        err = i2c_read_gyro_data(&reading, TIMESTAMP_LOCAL);
-#else
-        err = i2c_read_gyro_data(&reading, TIMESTAMP_REMOTE);
-#endif
+        err = i2c_read_gyro_data(&reading);
         if (err)
         {
             LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope data from I2C: %d", err);
-            /* Fall back to sample data if I2C fails */
-            reading.accel_x = -5000000 + (sys_rand32_get() % 10000000);
-            reading.accel_y = -5000000 + (sys_rand32_get() % 10000000);
-            reading.accel_z = -5000000 + (sys_rand32_get() % 10000000);
-            reading.gyro_x = -250000 + (sys_rand32_get() % 500000);
-            reading.gyro_y = -250000 + (sys_rand32_get() % 500000);
-            reading.gyro_z = -250000 + (sys_rand32_get() % 500000);
-            reading.timestamp = utils_get_timestamp();
+            return err; /* Return the error from I2C reading */
         }
     }
     else

@@ -10,10 +10,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/** Maximum number of sensor samples to store */
-#define MAX_BATTERY_SAMPLES 240
-#define MAX_TEMP_SAMPLES 60
-#define MAX_GYRO_SAMPLES 60
+/** Maximum number of sensor samples to store - using Kconfig values */
+#define MAX_BATTERY_SAMPLES CONFIG_ELFRYD_MAX_BATTERY_SAMPLES
+#define MAX_TEMP_SAMPLES CONFIG_ELFRYD_MAX_TEMP_SAMPLES
+#define MAX_GYRO_SAMPLES CONFIG_ELFRYD_MAX_GYRO_SAMPLES
+
+/** Number of batteries in the system */
+#define NUM_BATTERIES CONFIG_ELFRYD_NUM_BATTERIES
 
 /** Battery reading structure */
 typedef struct

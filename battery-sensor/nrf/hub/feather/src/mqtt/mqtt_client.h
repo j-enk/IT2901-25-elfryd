@@ -9,12 +9,21 @@
 #include <stdbool.h>
 #include <zephyr/net/mqtt.h>
 
-/* MQTT topic definitions */
-#define MQTT_TOPIC_BATTERY "elfryd/battery"
-#define MQTT_TOPIC_TEMP "elfryd/temp"
-#define MQTT_TOPIC_GYRO "elfryd/gyro"
-#define MQTT_TOPIC_CONFIG_SEND "elfryd/config/send"
-#define MQTT_TOPIC_CONFIG_CONFIRM "elfryd/config/confirm"
+/* MQTT topic definitions from Kconfig */
+#define MQTT_TOPIC_BATTERY CONFIG_MQTT_TOPIC_BATTERY
+#define MQTT_TOPIC_TEMP CONFIG_MQTT_TOPIC_TEMP
+#define MQTT_TOPIC_GYRO CONFIG_MQTT_TOPIC_GYRO
+#define MQTT_TOPIC_CONFIG_SEND CONFIG_MQTT_TOPIC_CONFIG_SEND
+#define MQTT_TOPIC_CONFIG_CONFIRM CONFIG_MQTT_TOPIC_CONFIG_CONFIRM
+
+/* MQTT broker details (from Kconfig) */
+#define SERVER_HOST CONFIG_MQTT_BROKER_HOSTNAME
+#define SERVER_PORT CONFIG_MQTT_BROKER_PORT
+#define MQTT_CLIENTID CONFIG_MQTT_CLIENT_ID
+#define SEC_TAG CONFIG_MQTT_TLS_SEC_TAG
+
+#define APP_MQTT_BUFFER_SIZE CONFIG_MQTT_BUFFER_SIZE
+#define APP_CONNECT_TIMEOUT_MS CONFIG_MQTT_CONNECT_TIMEOUT_MS
 
 /**
  * Initialize the MQTT client and connect to the broker

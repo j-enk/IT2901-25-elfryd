@@ -338,9 +338,7 @@ static void time_thread_fn(void *arg1, void *arg2, void *arg3)
 static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
 {
     int err;
-    static int battery_id = 1; /* Rotate through battery IDs 1-4 */
     publish_msg_t msg;
-    bool is_first_run = true;  /* Flag to track the first run through the loop */
 
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
@@ -367,27 +365,27 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     LOG_INF(LOG_PREFIX_SENS "Waiting for first interval before publishing data");
     LOG_INF(LOG_PREFIX_SENS "Intervals (seconds) - Battery: %d, Temp: %d, Gyro: %d",
             battery_interval, temp_interval, gyro_interval);
+    LOG_INF(LOG_PREFIX_SENS "System configured for %d batteries", NUM_BATTERIES);
 
     /* Main sensor processing loop */
     while (1)
     {
         current_time = utils_get_timestamp();
 
-        /* Generate new sensor data every second regardless of publishing interval */
-        err = sensors_generate_battery_reading(battery_id);
-        if (err)
-        {
-            LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading: %d", err);
+        /* Generate new sensor data every second for all configured batteries */
+        for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++) {
+            err = sensors_generate_battery_reading(battery_id);
+            if (err) {
+                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d", 
+                        battery_id, err);
+            }
         }
-        else
-        {
-            err = sensors_get_latest_battery_reading(&latest_battery_reading);
-            battery_count_cached = sensors_get_battery_reading_count();
-        }
+        
+        /* Get the latest battery reading and count for monitoring */
+        err = sensors_get_latest_battery_reading(&latest_battery_reading);
+        battery_count_cached = sensors_get_battery_reading_count();
 
-        /* Rotate through battery IDs */
-        battery_id = (battery_id % 4) + 1;
-
+        /* Generate temperature and gyro readings */
         err = sensors_generate_temp_reading();
         if (err)
         {

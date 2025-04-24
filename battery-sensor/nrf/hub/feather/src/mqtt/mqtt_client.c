@@ -18,7 +18,7 @@
 #include <modem/modem_key_mgmt.h>
 
 #include "mqtt/mqtt_client.h"
-#include "mqtt/mqtt_publishers.h"  /* Add this include for mqtt_client_publish_config_confirm */
+#include "mqtt/mqtt_publishers.h"
 #include "config/config_module.h"
 #include "certificates.h"
 
@@ -27,15 +27,6 @@ LOG_MODULE_REGISTER(mqtt_client, LOG_LEVEL_INF);
 #define LOG_PREFIX_LTE "[LTE] "
 #define LOG_PREFIX_TLS "[TLS] "
 #define LOG_PREFIX_NET "[NET] "
-
-/* MQTT broker details (from prj.conf) */
-#define SERVER_HOST CONFIG_MQTT_BROKER_HOSTNAME
-#define SERVER_PORT CONFIG_MQTT_BROKER_PORT
-#define MQTT_CLIENTID CONFIG_MQTT_CLIENT_ID
-#define SEC_TAG CONFIG_MQTT_TLS_SEC_TAG
-
-#define APP_MQTT_BUFFER_SIZE 1024
-#define APP_CONNECT_TIMEOUT_MS CONFIG_MQTT_CONNECT_TIMEOUT_MS /* Connection timeout from config */
 
 /* Buffers for MQTT client */
 static uint8_t rx_buffer[APP_MQTT_BUFFER_SIZE];

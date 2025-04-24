@@ -1,25 +1,6 @@
-# Config options for mqtt_publisher sample application
+# Config options for the Elfryd Hub MQTT Hub project
 
-# Copyright (c) 2020 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-
-mainmenu "Networking mqtt_publisher sample application"
-
-config NET_SAMPLE_APP_MAX_ITERATIONS
-	int "Number of times to Publish sample MQTT messages"
-	default 500
-	help
-	  Send sample MQTT messages this many times in a MQTT connection
-	  before exiting. A value of zero means that the messages are sent
-	  forever.
-
-config NET_SAMPLE_APP_MAX_CONNECTIONS
-	int "Number of times to connect to the MQTT server"
-	default 0
-	help
-	  Number of times to connect to the MQTT server. With each connection
-	  send NET_SAMPLE_APP_MAX_ITERATIONS amount of MQTT sample messages.
-	  A value of zero means to continue forever.
+mainmenu "Elfryd Hub MQTT Hub Configuration"
 
 # MQTT Configuration options
 config MQTT_BUFFER_SIZE
@@ -45,18 +26,6 @@ config MQTT_CONNECT_TIMEOUT_MS
     default 5000
     help
       Timeout for MQTT connection.
-
-config MQTT_SLEEP_MS
-    int "Sleep time between MQTT operations in milliseconds"
-    default 5000
-    help
-      Time to sleep between MQTT operations.
-
-config MQTT_MESSAGE_COUNT
-    int "Number of MQTT messages to send"
-    default 10
-    help
-      Number of messages to publish before disconnecting.
 
 config MQTT_CLIENT_ID
     string "MQTT client identifier"
@@ -88,24 +57,82 @@ config MQTT_TLS_SEC_TAG
     help
       Security tag for TLS credentials.
 
+# MQTT Topic Configurations
+config MQTT_TOPIC_BATTERY
+    string "Battery data topic"
+    default "elfryd/battery"
+    help
+      MQTT topic for publishing battery data.
+
+config MQTT_TOPIC_TEMP
+    string "Temperature data topic"
+    default "elfryd/temp"
+    help
+      MQTT topic for publishing temperature data.
+
+config MQTT_TOPIC_GYRO
+    string "Gyroscope data topic"
+    default "elfryd/gyro"
+    help
+      MQTT topic for publishing gyroscope data.
+
+config MQTT_TOPIC_CONFIG_SEND
+    string "Configuration command topic"
+    default "elfryd/config/send"
+    help
+      MQTT topic for receiving configuration commands.
+
+config MQTT_TOPIC_CONFIG_CONFIRM
+    string "Configuration confirmation topic"
+    default "elfryd/config/confirm"
+    help
+      MQTT topic for sending configuration confirmations.
+
 # Sensor configuration options
 menu "Sensor Configuration"
 
+config ELFRYD_NUM_BATTERIES
+    int "Number of batteries in the system"
+    range 1 16
+    default 4
+    help
+      Number of batteries expected in the system. This affects both the 
+      I2C sensor readings and the sample data generation. Typical values 
+      are 4, 6, 8 etc. depending on the physical setup.
+
+config ELFRYD_MAX_BATTERY_SAMPLES
+    int "Maximum battery samples to store"
+    default 580
+    help
+      Maximum number of battery readings to store in memory.
+
+config ELFRYD_MAX_TEMP_SAMPLES
+    int "Maximum temperature samples to store"
+    default 180
+    help
+      Maximum number of temperature readings to store in memory.
+
+config ELFRYD_MAX_GYRO_SAMPLES
+    int "Maximum gyroscope samples to store"
+    default 180
+    help
+      Maximum number of gyroscope readings to store in memory.
+
 config SENSOR_BATTERY_INTERVAL
     int "Battery sampling interval in seconds"
-    default 60
+    default 120
     help
       Interval in seconds between battery data publishing (0 = disabled).
 
 config SENSOR_TEMP_INTERVAL
     int "Temperature sampling interval in seconds"
-    default 300
+    default 120
     help
       Interval in seconds between temperature data publishing (0 = disabled).
 
 config SENSOR_GYRO_INTERVAL
     int "Gyroscope sampling interval in seconds"
-    default 600
+    default 120
     help
       Interval in seconds between gyroscope data publishing (0 = disabled).
 
@@ -116,15 +143,6 @@ config ELFRYD_USE_I2C_SENSORS
     help
       If enabled, uses I2C to communicate with external sensor devices.
       If disabled, generates sample data internally.
-
-config ELFRYD_USE_LOCAL_TIMESTAMP
-    bool "Use local timestamps for I2C sensor data"
-    default y
-    depends on ELFRYD_USE_I2C_SENSORS
-    help
-      If enabled, timestamps for I2C sensor data will be generated locally
-      when the data is received. If disabled, timestamps are expected to be
-      included in the incoming I2C data.
 
 endmenu
 

@@ -7,7 +7,6 @@
 #include <zephyr/random/rand32.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 #include <date_time.h>
 #include "utils/utils.h"
 

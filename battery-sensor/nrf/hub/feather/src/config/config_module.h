@@ -7,11 +7,12 @@
 #define CONFIG_MODULE_H
 
 #include <stdbool.h>
+#include <zephyr/kernel.h>
 
-/** Default sensor sampling intervals in seconds */
-#define DEFAULT_BATTERY_INTERVAL 120
-#define DEFAULT_TEMP_INTERVAL 120
-#define DEFAULT_GYRO_INTERVAL 120
+/** Default sensor sampling intervals in seconds from Kconfig */
+#define DEFAULT_BATTERY_INTERVAL CONFIG_SENSOR_BATTERY_INTERVAL
+#define DEFAULT_TEMP_INTERVAL CONFIG_SENSOR_TEMP_INTERVAL
+#define DEFAULT_GYRO_INTERVAL CONFIG_SENSOR_GYRO_INTERVAL
 
 /** Configuration parameter types */
 typedef enum
