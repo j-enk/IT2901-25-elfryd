@@ -7,12 +7,10 @@ namespace BatterySensorAPI.Models
     {
         public int id { get; set; }
         public int battery_id { get; set; }
-        
         public double millivoltage { get; set; }
-        
         public DateTime timestamp { get; set; }
     }
-        
+
 
     public class BatteryStats
     {

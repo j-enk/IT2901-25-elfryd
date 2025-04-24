@@ -30,44 +30,44 @@ namespace BatterySensorAPI.Controllers
             {
                 return BadRequest("Config command is required");
             }
-        
+
             string command = request.Command.Trim();
-            
+
             if (string.IsNullOrWhiteSpace(command))
             {
                 return BadRequest("Config command cannot be empty");
             }
-            
+
             // Split the commands if multiple were sent
             string[] commands = command.Split('|');
             List<string> invalidCommands = new List<string>();
-            
+
             HashSet<string> allowedCommandTypes = new HashSet<string>
             {
                 "battery", "temp", "gyro"
             };
-            
+
             foreach (string cmd in commands)
             {
                 string trimmedCmd = cmd.Trim();
                 if (string.IsNullOrWhiteSpace(trimmedCmd))
                 {
-                    invalidCommands.Add("''");  
+                    invalidCommands.Add("''");
                     continue;
                 }
-                
+
                 // Match either "command" or "command value" 
                 var match = System.Text.RegularExpressions.Regex.Match(
-                    trimmedCmd, 
+                    trimmedCmd,
                     @"^(\w+)(?:\s+(\d+))?$"
                 );
-                
+
                 if (!match.Success)
                 {
                     invalidCommands.Add(trimmedCmd);
                     continue;
                 }
-                
+
                 // Check if command type is in the allowed list
                 string commandType = match.Groups[1].Value;
                 if (!allowedCommandTypes.Contains(commandType))
@@ -75,7 +75,7 @@ namespace BatterySensorAPI.Controllers
                     invalidCommands.Add(trimmedCmd);
                 }
             }
-            
+
             if (invalidCommands.Count > 0)
             {
                 // Example of valid commands
@@ -86,13 +86,13 @@ namespace BatterySensorAPI.Controllers
                     "gyro 0",
                     "battery 10|temp 30|gyro 0"
                 };
-                
+
                 return BadRequest(
                     $"Invalid command: {string.Join(", ", invalidCommands)}. " +
                     $"Examples of valid formats:\n{string.Join("\n", examples)}"
                 );
             }
-        
+
             try
             {
                 var result = await _elfrydClient.UpdateConfigAsync(request.Command);
@@ -132,62 +132,62 @@ namespace BatterySensorAPI.Controllers
             [FromQuery] int time_offset = 0
         )
         {
-             try
-    {
-        var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
-        
-        // Verify the response matches query id
-        if (!string.IsNullOrEmpty(battery_id))
-        {
-            // Parse the JSON
-            var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
-            var dataArray = jsonDoc.RootElement.GetProperty("data");
-            
-            if (dataArray.GetArrayLength() == 0)
+            try
             {
-                return Content(result, "application/json");
-            }
-            
-            // Verify battery_id
-            bool allMatch = true;
-            int batteryIdAsInt;
-            
-            if (int.TryParse(battery_id, out batteryIdAsInt))
-            {
-                foreach (var item in dataArray.EnumerateArray())
+                var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
+
+                // Verify the response matches query id
+                if (!string.IsNullOrEmpty(battery_id))
                 {
-                    if (item.TryGetProperty("battery_id", out var batteryIdProperty))
+                    // Parse the JSON
+                    var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
+                    var dataArray = jsonDoc.RootElement.GetProperty("data");
+
+                    if (dataArray.GetArrayLength() == 0)
                     {
-                        if (batteryIdProperty.GetInt32() != batteryIdAsInt)
+                        return Content(result, "application/json");
+                    }
+
+                    // Verify battery_id
+                    bool allMatch = true;
+                    int batteryIdAsInt;
+
+                    if (int.TryParse(battery_id, out batteryIdAsInt))
+                    {
+                        foreach (var item in dataArray.EnumerateArray())
                         {
-                            allMatch = false;
-                            break;
+                            if (item.TryGetProperty("battery_id", out var batteryIdProperty))
+                            {
+                                if (batteryIdProperty.GetInt32() != batteryIdAsInt)
+                                {
+                                    allMatch = false;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                // If any item doesn't have battery_id property
+                                allMatch = false;
+                                break;
+                            }
+                        }
+
+                        if (!allMatch)
+                        {
+                            _logger.LogWarning("FastAPI returned unfiltered data despite battery_id filter");
+                            return StatusCode(500, "API returned inconsistent data that didn't match filter criteria");
                         }
                     }
-                    else
-                    {
-                        // If any item doesn't have battery_id property
-                        allMatch = false;
-                        break;
-                    }
                 }
-                
-                if (!allMatch)
-                {
-                    _logger.LogWarning("FastAPI returned unfiltered data despite battery_id filter");
-                    return StatusCode(500, "API returned inconsistent data that didn't match filter criteria");
-                }
+
+                return Content(result, "application/json");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving battery data");
+                return StatusCode(500, "Error retrieving battery data from Elfryd API");
             }
         }
-        
-        return Content(result, "application/json");
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error retrieving battery data");
-        return StatusCode(500, "Error retrieving battery data from Elfryd API");
-    }
-}
 
         [HttpGet("gyro")]
         public async Task<IActionResult> GetGyroData(
@@ -228,50 +228,50 @@ namespace BatterySensorAPI.Controllers
         }
 
         [HttpGet("battery/system/soc")]
-public async Task<IActionResult> GetSystemSocVoltage()
-{
-    var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync();
+        public async Task<IActionResult> GetSystemSocVoltage()
+        {
+            var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync();
 
-    if (!latestReadings.Any())
-        return StatusCode(500, "No battery readings available");
+            if (!latestReadings.Any())
+                return StatusCode(500, "No battery readings available");
 
-    var socValues = latestReadings
-        .Select(r => VoltageToSoC(r.millivoltage))
-        .ToList();
+            var socValues = latestReadings
+                .Select(r => VoltageToSoC(r.millivoltage))
+                .ToList();
 
-    var systemSoc = socValues.Average();
-    return Ok(Math.Round(systemSoc));
-}
+            var systemSoc = socValues.Average();
+            return Ok(Math.Round(systemSoc));
+        }
 
-    [HttpGet("battery/individual/soc")]
-    public async Task<IActionResult> GetIndividualSocVoltage(string battery_id = null)
-    {
+        [HttpGet("battery/individual/soc")]
+        public async Task<IActionResult> GetIndividualSocVoltage(string battery_id = null)
+        {
 
-        var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync(battery_id);
+            var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync(battery_id);
 
-        if (!latestReadings.Any())
-            return StatusCode(500, "No battery readings available");
+            if (!latestReadings.Any())
+                return StatusCode(500, "No battery readings available");
 
-        var socValues = latestReadings
-            .Select(r => new { r.battery_id, Soc = VoltageToSoC(r.millivoltage) })
-            .ToList();
+            var socValues = latestReadings
+                .Select(r => new { r.battery_id, Soc = VoltageToSoC(r.millivoltage) })
+                .ToList();
 
-        return Ok(socValues);
-    }
+            return Ok(socValues);
+        }
 
 
-private double VoltageToSoC(double millivolts)
-{
-    const double minVoltage = 10500.0; // Fully discharged
-    const double maxVoltage = 12700.0; //Fully charged
-    
-    // Clamp voltage within range
-    double clampedVoltage = Math.Clamp(millivolts, minVoltage, maxVoltage);
-    
-    // Calculate percentage
-    double soc = ((clampedVoltage - minVoltage) / (maxVoltage - minVoltage)) * 100.0;
-    
-    return soc;
-}
+        private double VoltageToSoC(double millivolts)
+        {
+            const double minVoltage = 10500.0; // Fully discharged
+            const double maxVoltage = 12700.0; //Fully charged
+
+            // Clamp voltage within range
+            double clampedVoltage = Math.Clamp(millivolts, minVoltage, maxVoltage);
+
+            // Calculate percentage
+            double soc = ((clampedVoltage - minVoltage) / (maxVoltage - minVoltage)) * 100.0;
+
+            return soc;
+        }
     }
 }
