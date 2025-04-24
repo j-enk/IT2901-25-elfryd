@@ -48,8 +48,7 @@ int64_t utils_get_timestamp(void)
     /* Get the current real timestamp from date_time API */
     err = date_time_now(&timestamp);
     if (err) {
-        /* Fall back to uptime-based timestamp if date_time fails */
-        return (int64_t)(k_uptime_get() / 1000) + 1680000000; /* Add Jan 1, 2023 offset for realism */
+        return 0;  /* Return 0 if unable to get the timestamp */
     }
     
     /* date_time_now returns timestamp in milliseconds, convert to seconds */

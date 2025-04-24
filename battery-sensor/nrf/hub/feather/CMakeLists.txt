@@ -45,16 +45,11 @@ file(GLOB app_sources
     src/config/*.c
     src/utils/*.c
     src/i2c/*.c
-)
-
-# Explicitly add only the mqtt files we want to avoid duplicates
-file(GLOB mqtt_sources 
-    src/mqtt/mqtt_client.c
-    src/mqtt/mqtt_publishers.c
+    src/mqtt/*.c
 )
 
 # FILE(GLOB app_sources src/main_old.c)
-target_sources(app PRIVATE ${app_sources} ${mqtt_sources})
+target_sources(app PRIVATE ${app_sources})
 
 # Add dependency to ensure certificate header is generated before building
 if(PYTHON3)
