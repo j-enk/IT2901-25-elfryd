@@ -35,7 +35,8 @@ LOG_MODULE_REGISTER(elfryd_hub, LOG_LEVEL_INF);
 #define PUBLISHER_THREAD_PRIORITY 5
 
 /* Types of data to publish */
-typedef enum {
+typedef enum
+{
     PUBLISH_TYPE_BATTERY,
     PUBLISH_TYPE_TEMP,
     PUBLISH_TYPE_GYRO,
@@ -43,7 +44,8 @@ typedef enum {
 } publish_type_t;
 
 /* Message structure for publish queue */
-typedef struct {
+typedef struct
+{
     publish_type_t type;
     int64_t timestamp;
     int count;
@@ -166,94 +168,124 @@ static void publisher_thread_fn(void *arg1, void *arg2, void *arg3)
 
     LOG_INF(LOG_PREFIX_MAIN "Publisher thread started");
 
-    while (1) {
+    while (1)
+    {
         /* Wait for a publish message */
-        if (k_msgq_get(&publish_msgq, &msg, K_SECONDS(1)) == 0) {
+        if (k_msgq_get(&publish_msgq, &msg, K_SECONDS(1)) == 0)
+        {
             /* Handle different types of publish requests */
-            switch (msg.type) {
-                case PUBLISH_TYPE_BATTERY:
-                    {
-                        LOG_INF(LOG_PREFIX_MAIN "Processing battery publish request");
-                        /* Use static buffer instead of stack allocation */
-                        int count = sensors_get_battery_readings(static_battery_readings, MAX_BATTERY_SAMPLES);
+            switch (msg.type)
+            {
+            case PUBLISH_TYPE_BATTERY:
+            {
+                LOG_INF(LOG_PREFIX_MAIN "Processing battery publish request");
+                /* Use static buffer instead of stack allocation */
+                int count = sensors_get_battery_readings(static_battery_readings, MAX_BATTERY_SAMPLES);
 
-                        if (count > 0) {
-                            if (mqtt_client_is_connected()) {
-                                err = mqtt_client_publish_battery(static_battery_readings, count);
-                                if (err) {
-                                    LOG_ERR(LOG_PREFIX_MAIN "Failed to publish battery data: %d", err);
-                                } else {
-                                    LOG_INF(LOG_PREFIX_MAIN "Published %d battery readings", count);
-                                    sensors_clear_battery_readings();
-                                }
-                            } else {
-                                LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, skipping battery publish");
-                            }
-                        } else {
-                            LOG_WRN(LOG_PREFIX_MAIN "No battery readings to publish");
+                if (count > 0)
+                {
+                    if (mqtt_client_is_connected())
+                    {
+                        err = mqtt_client_publish_battery(static_battery_readings, count);
+                        if (err)
+                        {
+                            LOG_ERR(LOG_PREFIX_MAIN "Failed to publish battery data: %d", err);
+                        }
+                        else
+                        {
+                            LOG_INF(LOG_PREFIX_MAIN "Published %d battery readings", count);
+                            sensors_clear_battery_readings();
                         }
                     }
-                    break;
-
-                case PUBLISH_TYPE_TEMP:
+                    else
                     {
-                        LOG_INF(LOG_PREFIX_MAIN "Processing temperature publish request");
-                        /* Use static buffer instead of stack allocation */
-                        int count = sensors_get_temp_readings(static_temp_readings, MAX_TEMP_SAMPLES);
+                        LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, skipping battery publish");
+                    }
+                }
+                else
+                {
+                    LOG_WRN(LOG_PREFIX_MAIN "No battery readings to publish");
+                }
+            }
+            break;
 
-                        if (count > 0) {
-                            if (mqtt_client_is_connected()) {
-                                err = mqtt_client_publish_temp(static_temp_readings, count);
-                                if (err) {
-                                    LOG_ERR(LOG_PREFIX_MAIN "Failed to publish temperature data: %d", err);
-                                } else {
-                                    LOG_INF(LOG_PREFIX_MAIN "Published %d temperature readings", count);
-                                    sensors_clear_temp_readings();
-                                }
-                            } else {
-                                LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, skipping temperature publish");
-                            }
-                        } else {
-                            LOG_WRN(LOG_PREFIX_MAIN "No temperature readings to publish");
+            case PUBLISH_TYPE_TEMP:
+            {
+                LOG_INF(LOG_PREFIX_MAIN "Processing temperature publish request");
+                /* Use static buffer instead of stack allocation */
+                int count = sensors_get_temp_readings(static_temp_readings, MAX_TEMP_SAMPLES);
+
+                if (count > 0)
+                {
+                    if (mqtt_client_is_connected())
+                    {
+                        err = mqtt_client_publish_temp(static_temp_readings, count);
+                        if (err)
+                        {
+                            LOG_ERR(LOG_PREFIX_MAIN "Failed to publish temperature data: %d", err);
+                        }
+                        else
+                        {
+                            LOG_INF(LOG_PREFIX_MAIN "Published %d temperature readings", count);
+                            sensors_clear_temp_readings();
                         }
                     }
-                    break;
-
-                case PUBLISH_TYPE_GYRO:
+                    else
                     {
-                        LOG_INF(LOG_PREFIX_MAIN "Processing gyroscope publish request");
-                        /* Use static buffer instead of stack allocation */
-                        int count = sensors_get_gyro_readings(static_gyro_readings, MAX_GYRO_SAMPLES);
+                        LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, skipping temperature publish");
+                    }
+                }
+                else
+                {
+                    LOG_WRN(LOG_PREFIX_MAIN "No temperature readings to publish");
+                }
+            }
+            break;
 
-                        if (count > 0) {
-                            if (mqtt_client_is_connected()) {
-                                err = mqtt_client_publish_gyro(static_gyro_readings, count);
-                                if (err) {
-                                    LOG_ERR(LOG_PREFIX_MAIN "Failed to publish gyroscope data: %d", err);
-                                } else {
-                                    LOG_INF(LOG_PREFIX_MAIN "Published %d gyroscope readings", count);
-                                    sensors_clear_gyro_readings();
-                                }
-                            } else {
-                                LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, skipping gyroscope publish");
-                            }
-                        } else {
-                            LOG_WRN(LOG_PREFIX_MAIN "No gyroscope readings to publish");
+            case PUBLISH_TYPE_GYRO:
+            {
+                LOG_INF(LOG_PREFIX_MAIN "Processing gyroscope publish request");
+                /* Use static buffer instead of stack allocation */
+                int count = sensors_get_gyro_readings(static_gyro_readings, MAX_GYRO_SAMPLES);
+
+                if (count > 0)
+                {
+                    if (mqtt_client_is_connected())
+                    {
+                        err = mqtt_client_publish_gyro(static_gyro_readings, count);
+                        if (err)
+                        {
+                            LOG_ERR(LOG_PREFIX_MAIN "Failed to publish gyroscope data: %d", err);
+                        }
+                        else
+                        {
+                            LOG_INF(LOG_PREFIX_MAIN "Published %d gyroscope readings", count);
+                            sensors_clear_gyro_readings();
                         }
                     }
-                    break;
+                    else
+                    {
+                        LOG_WRN(LOG_PREFIX_MAIN "MQTT not connected, skipping gyroscope publish");
+                    }
+                }
+                else
+                {
+                    LOG_WRN(LOG_PREFIX_MAIN "No gyroscope readings to publish");
+                }
+            }
+            break;
 
-                case PUBLISH_TYPE_CONFIG:
-                    /* Handle config publish requests */
-                    /* This would handle publishing config confirmations */
-                    break;
+            case PUBLISH_TYPE_CONFIG:
+                /* Handle config publish requests */
+                /* This would handle publishing config confirmations */
+                break;
 
-                default:
-                    LOG_WRN(LOG_PREFIX_MAIN "Unknown publish type: %d", msg.type);
-                    break;
+            default:
+                LOG_WRN(LOG_PREFIX_MAIN "Unknown publish type: %d", msg.type);
+                break;
             }
         }
-        
+
         /* Sleep a short while if no messages to process */
         k_sleep(K_MSEC(100));
     }
@@ -262,7 +294,8 @@ static void publisher_thread_fn(void *arg1, void *arg2, void *arg3)
 /* Date time event handler */
 static void date_time_event_handler(const struct date_time_evt *evt)
 {
-    switch (evt->type) {
+    switch (evt->type)
+    {
     case DATE_TIME_OBTAINED_MODEM:
         LOG_INF(LOG_PREFIX_TIME "Date & time obtained from modem");
         k_sem_give(&date_time_ready);
@@ -288,49 +321,54 @@ static void time_thread_fn(void *arg1, void *arg2, void *arg3)
 {
     int err;
     uint64_t ts = 0;
-    
+
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
     LOG_INF(LOG_PREFIX_TIME "Time synchronization thread started");
-    
+
     /* Force time update */
     LOG_INF(LOG_PREFIX_TIME "Requesting time update");
     err = date_time_update_async(date_time_event_handler);
-    if (err) {
+    if (err)
+    {
         LOG_ERR(LOG_PREFIX_TIME "Failed to request time update: %d", err);
         return;
     }
-    
+
     /* Wait for time synchronization */
     LOG_INF(LOG_PREFIX_TIME "Waiting for time synchronization");
     k_sem_take(&date_time_ready, K_FOREVER);
-    
+
     /* Notify the system that time is now synchronized */
     utils_notify_time_synchronized();
-    
+
     LOG_INF(LOG_PREFIX_TIME "Time sync complete, entering time tracking loop");
 
     /* Main time tracking loop */
-    while (1) {
+    while (1)
+    {
         /* Get the current time */
         err = date_time_now(&ts);
-        if (err) {
+        if (err)
+        {
             LOG_ERR(LOG_PREFIX_TIME "Unable to get date & time: %d", err);
-        } else {
+        }
+        else
+        {
             /* Convert to seconds and log */
             ts = ts / 1000;
             LOG_INF(LOG_PREFIX_TIME "UTC Unix Epoch: %lld", ts);
         }
-        
+
         /* Time updates are handled automatically by date_time library according to:
          * - TIME_AUTO_UPDATE setting
          * - TIME_UPDATE_INTERVAL_SECONDS for regular updates
          * - TIME_TOO_OLD_SECONDS for staleness checks
          */
-        
-        k_sleep(K_SECONDS(5));  /* Update time display every 5 seconds */
+
+        k_sleep(K_SECONDS(5)); /* Update time display every 5 seconds */
     }
 }
 
@@ -351,7 +389,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
 
     /* Get the current time */
     int64_t current_time = utils_get_timestamp();
-    
+
     /* Get intervals */
     int battery_interval = config_get_battery_interval();
     int temp_interval = config_get_temp_interval();
@@ -361,7 +399,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     last_battery_publish_time = current_time;
     last_temp_publish_time = current_time;
     last_gyro_publish_time = current_time;
-    
+
     LOG_INF(LOG_PREFIX_SENS "Waiting for first interval before publishing data");
     LOG_INF(LOG_PREFIX_SENS "Intervals (seconds) - Battery: %d, Temp: %d, Gyro: %d",
             battery_interval, temp_interval, gyro_interval);
@@ -373,14 +411,16 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         current_time = utils_get_timestamp();
 
         /* Generate new sensor data every second for all configured batteries */
-        for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++) {
+        for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++)
+        {
             err = sensors_generate_battery_reading(battery_id);
-            if (err) {
-                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d", 
+            if (err)
+            {
+                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d",
                         battery_id, err);
             }
         }
-        
+
         /* Get the latest battery reading and count for monitoring */
         err = sensors_get_latest_battery_reading(&latest_battery_reading);
         battery_count_cached = sensors_get_battery_reading_count();
@@ -411,57 +451,69 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         /* Print monitoring information for debugging */
         LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d, Temp: %d, Gyro: %d",
                 battery_count_cached, temp_count_cached, gyro_count_cached);
-        
+
         /* Process immediate publish requests by sending messages to publisher thread */
         k_mutex_lock(&publish_flags_mutex, K_FOREVER);
-        
-        /* Process immediate publish requests even on first run, 
+
+        /* Process immediate publish requests even on first run,
            as these are explicit user requests */
-        if (battery_publish_request) {
+        if (battery_publish_request)
+        {
             msg.type = PUBLISH_TYPE_BATTERY;
             msg.timestamp = current_time;
             msg.count = battery_count_cached;
-            
+
             /* Try to send the message without blocking */
             err = k_msgq_put(&publish_msgq, &msg, K_NO_WAIT);
-            if (err) {
+            if (err)
+            {
                 LOG_WRN(LOG_PREFIX_SENS "Failed to queue battery publish request: %d", err);
-            } else {
+            }
+            else
+            {
                 LOG_INF(LOG_PREFIX_SENS "Queued immediate battery publish request");
                 battery_publish_request = false;
             }
         }
-        
-        if (temp_publish_request) {
+
+        if (temp_publish_request)
+        {
             msg.type = PUBLISH_TYPE_TEMP;
             msg.timestamp = current_time;
             msg.count = temp_count_cached;
-            
+
             /* Try to send the message without blocking */
             err = k_msgq_put(&publish_msgq, &msg, K_NO_WAIT);
-            if (err) {
+            if (err)
+            {
                 LOG_WRN(LOG_PREFIX_SENS "Failed to queue temperature publish request: %d", err);
-            } else {
+            }
+            else
+            {
                 LOG_INF(LOG_PREFIX_SENS "Queued immediate temperature publish request");
                 temp_publish_request = false;
             }
         }
-        
-        if (gyro_publish_request) {
+
+        if (gyro_publish_request)
+        {
             msg.type = PUBLISH_TYPE_GYRO;
             msg.timestamp = current_time;
             msg.count = gyro_count_cached;
-            
+
             /* Try to send the message without blocking */
             err = k_msgq_put(&publish_msgq, &msg, K_NO_WAIT);
-            if (err) {
+            if (err)
+            {
                 LOG_WRN(LOG_PREFIX_SENS "Failed to queue gyroscope publish request: %d", err);
-            } else {
+            }
+            else
+            {
                 LOG_INF(LOG_PREFIX_SENS "Queued immediate gyroscope publish request");
                 gyro_publish_request = false;
             }
         }
-        
+
         k_mutex_unlock(&publish_flags_mutex);
 
         /* Refresh the interval values (in case config changed) */
@@ -477,11 +529,14 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
             msg.type = PUBLISH_TYPE_BATTERY;
             msg.timestamp = current_time;
             msg.count = battery_count_cached;
-            
+
             err = k_msgq_put(&publish_msgq, &msg, K_NO_WAIT);
-            if (err) {
+            if (err)
+            {
                 LOG_WRN(LOG_PREFIX_SENS "Failed to queue battery interval publish: %d", err);
-            } else {
+            }
+            else
+            {
                 LOG_INF(LOG_PREFIX_SENS "Queued battery interval publish request");
                 last_battery_publish_time = current_time;
             }
@@ -495,11 +550,14 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
             msg.type = PUBLISH_TYPE_TEMP;
             msg.timestamp = current_time;
             msg.count = temp_count_cached;
-            
+
             err = k_msgq_put(&publish_msgq, &msg, K_NO_WAIT);
-            if (err) {
+            if (err)
+            {
                 LOG_WRN(LOG_PREFIX_SENS "Failed to queue temperature interval publish: %d", err);
-            } else {
+            }
+            else
+            {
                 LOG_INF(LOG_PREFIX_SENS "Queued temperature interval publish request");
                 last_temp_publish_time = current_time;
             }
@@ -513,11 +571,14 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
             msg.type = PUBLISH_TYPE_GYRO;
             msg.timestamp = current_time;
             msg.count = gyro_count_cached;
-            
+
             err = k_msgq_put(&publish_msgq, &msg, K_NO_WAIT);
-            if (err) {
+            if (err)
+            {
                 LOG_WRN(LOG_PREFIX_SENS "Failed to queue gyroscope interval publish: %d", err);
-            } else {
+            }
+            else
+            {
                 LOG_INF(LOG_PREFIX_SENS "Queued gyroscope interval publish request");
                 last_gyro_publish_time = current_time;
             }
@@ -540,16 +601,17 @@ int main(void)
         LOG_ERR(LOG_PREFIX_MAIN "Failed to initialize configuration: %d", err);
         return -1;
     }
-    
+
     /* We'll initialize only the modem library but not the LTE connection
      * This allows the MQTT thread to set up the LTE connection with its specific settings
      */
     err = nrf_modem_lib_init();
-    if (err) {
+    if (err)
+    {
         LOG_ERR(LOG_PREFIX_MAIN "Failed to initialize modem library: %d", err);
         return -1;
     }
-    
+
     LOG_INF(LOG_PREFIX_MAIN "Modem library initialized");
 
     /* Start time synchronization thread */

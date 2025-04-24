@@ -1,6 +1,6 @@
 # Building and Flashing the Elfryd Hub
 
-This guide provides detailed instructions for setting up the development environment and flashing the Elfryd Hub firmware to the nRF9160 Feather board by CircuitDojo. 
+This guide provides detailed instructions for setting up the development environment and flashing the Elfryd Hub firmware to the nRF9160 Feather board by CircuitDojo.
 
 We recommend using a Linux or macOS system for this process, as Windows may require additional configuration with drivers. See the [CircuitDojo documentation](https://docs.circuitdojo.com/nrf9160-feather/sdk-setup-windows.html) for more information on debugging on Windows, we will not cover that here.
 
@@ -13,11 +13,13 @@ Before working with the `feather` project code, you need to aquire the necessary
 3. Install required dependencies:
 
    **macOS**:
+
    ```sh
    brew install git python3 ninja ccache
    ```
 
    **Linux**:
+
    ```sh
    sudo apt-get install git python3 cmake ninja-build ccache
    ```
@@ -105,6 +107,7 @@ Before flashing the firmware, connect the nRF9160 Feather board to your computer
 ### Unable to Connect to Device
 
 If you cannot connect to the device:
+
 - Make sure the board is in bootloader mode (blue LED on)
 - Try using a different USB cable
 - Check if you have the correct serial port selected
@@ -113,6 +116,7 @@ If you cannot connect to the device:
 ### Build Errors
 
 If you encounter build errors:
+
 - Verify you have all dependencies installed
 - Check that the `ca.crt` file is in the correct format
 - Ensure the board selection is correct (`circuitdojo_nrf9160_feather_ns`)
@@ -120,6 +124,7 @@ If you encounter build errors:
 ### MQTT Connection Issues
 
 If the device cannot connect to MQTT:
+
 - Verify the MQTT broker settings in `prj.conf`
 - Check that the certificate is correct and matches the broker's CA
 - Ensure the device has cellular coverage

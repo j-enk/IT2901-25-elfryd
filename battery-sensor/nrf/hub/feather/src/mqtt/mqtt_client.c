@@ -55,7 +55,7 @@ static K_SEM_DEFINE(lte_connected, 0, 1);
 
 /* Forward declarations */
 static void mqtt_evt_handler(struct mqtt_client *const client,
-                              const struct mqtt_evt *evt);
+                             const struct mqtt_evt *evt);
 static int get_mqtt_broker_addrinfo(void);
 static int setup_certificates(void);
 
@@ -78,24 +78,24 @@ static void lte_handler(const struct lte_lc_evt *const evt)
         break;
     case LTE_LC_EVT_PSM_UPDATE:
         LOG_INF(LOG_PREFIX_LTE "PSM parameter update: TAU: %d, Active time: %d",
-               evt->psm_cfg.tau, evt->psm_cfg.active_time);
+                evt->psm_cfg.tau, evt->psm_cfg.active_time);
         break;
     case LTE_LC_EVT_EDRX_UPDATE:
         LOG_INF(LOG_PREFIX_LTE "eDRX parameter update: eDRX: %f, PTW: %f",
-               evt->edrx_cfg.edrx, evt->edrx_cfg.ptw);
+                evt->edrx_cfg.edrx, evt->edrx_cfg.ptw);
         break;
     case LTE_LC_EVT_RRC_UPDATE:
         LOG_INF(LOG_PREFIX_LTE "RRC mode: %s", evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ? "Connected" : "Idle");
         break;
     case LTE_LC_EVT_CELL_UPDATE:
         LOG_INF(LOG_PREFIX_LTE "LTE cell changed: Cell ID: %d, Tracking area: %d",
-               evt->cell.id, evt->cell.tac);
+                evt->cell.id, evt->cell.tac);
         break;
     case LTE_LC_EVT_LTE_MODE_UPDATE:
         LOG_INF(LOG_PREFIX_LTE "Active LTE mode changed: %s",
-               evt->lte_mode == LTE_LC_LTE_MODE_NONE ? "None" : evt->lte_mode == LTE_LC_LTE_MODE_LTEM ? "LTE-M"
-                                                            : evt->lte_mode == LTE_LC_LTE_MODE_NBIOT  ? "NB-IoT"
-                                                                                                      : "Unknown");
+                evt->lte_mode == LTE_LC_LTE_MODE_NONE ? "None" : evt->lte_mode == LTE_LC_LTE_MODE_LTEM ? "LTE-M"
+                                                             : evt->lte_mode == LTE_LC_LTE_MODE_NBIOT  ? "NB-IoT"
+                                                                                                       : "Unknown");
         break;
     default:
         break;
@@ -340,7 +340,7 @@ void mqtt_evt_handler(struct mqtt_client *const client,
             .topic = {
                 .utf8 = (uint8_t *)MQTT_TOPIC_CONFIG_SEND,
                 .size = strlen(MQTT_TOPIC_CONFIG_SEND)},
-            .qos = MQTT_QOS_1_AT_LEAST_ONCE};  /* Changed from QoS 2 to QoS 1 */
+            .qos = MQTT_QOS_1_AT_LEAST_ONCE}; /* Changed from QoS 2 to QoS 1 */
 
         const struct mqtt_subscription_list subscription_list = {
             .list = &subscribe_topic,
@@ -351,7 +351,7 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         if (err)
         {
             LOG_ERR(LOG_PREFIX_MQTT "Failed to subscribe to %s topic (err %d)",
-                   MQTT_TOPIC_CONFIG_SEND, err);
+                    MQTT_TOPIC_CONFIG_SEND, err);
         }
         else
         {
@@ -369,96 +369,113 @@ void mqtt_evt_handler(struct mqtt_client *const client,
     case MQTT_EVT_PUBLISH:
     {
         LOG_INF(LOG_PREFIX_MQTT "MQTT_EVT_PUBLISH received");
-        
+
         const struct mqtt_publish_param *pub = &evt->param.publish;
-        
+
         /* Print topic and payload information */
-        if (pub->message.topic.topic.utf8 && pub->message.topic.topic.size > 0) {
+        if (pub->message.topic.topic.utf8 && pub->message.topic.topic.size > 0)
+        {
             LOG_INF(LOG_PREFIX_MQTT "Topic: %.*s", pub->message.topic.topic.size, pub->message.topic.topic.utf8);
         }
-        
+
         LOG_INF(LOG_PREFIX_MQTT "Payload length: %d", pub->message.payload.len);
-        
+
         /* Check if this is a configuration message */
         bool is_config_message = false;
         if (pub->message.topic.topic.size == strlen(MQTT_TOPIC_CONFIG_SEND) &&
             strncmp((char *)pub->message.topic.topic.utf8, MQTT_TOPIC_CONFIG_SEND,
-                   pub->message.topic.topic.size) == 0) {
+                    pub->message.topic.topic.size) == 0)
+        {
             is_config_message = true;
         }
-        
+
         /* Handle configuration messages */
-        if (is_config_message && pub->message.payload.len > 0) {
+        if (is_config_message && pub->message.payload.len > 0)
+        {
             LOG_INF(LOG_PREFIX_MQTT "Config message detected, reading payload");
-            
+
             /* Create buffer for payload */
             uint8_t payload_buf[256] = {0};
             int bytes_read;
-            
+
             /* Use mqtt_read_publish_payload to read the payload data */
-            bytes_read = mqtt_read_publish_payload(client, payload_buf, 
-                         pub->message.payload.len < sizeof(payload_buf) - 1 ? 
-                         pub->message.payload.len : sizeof(payload_buf) - 1);
-            
-            if (bytes_read > 0) {
+            bytes_read = mqtt_read_publish_payload(client, payload_buf,
+                                                   pub->message.payload.len < sizeof(payload_buf) - 1 ? pub->message.payload.len : sizeof(payload_buf) - 1);
+
+            if (bytes_read > 0)
+            {
                 /* Ensure NULL termination */
                 payload_buf[bytes_read] = '\0';
                 LOG_INF(LOG_PREFIX_MQTT "Read %d bytes of payload: '%s'", bytes_read, payload_buf);
-                
+
                 /* Process the command */
                 err = config_process_command((char *)payload_buf);
-                if (err == 0) {
+                if (err == 0)
+                {
                     LOG_INF(LOG_PREFIX_MQTT "Command processed successfully");
-                    
+
                     /* Get confirmation message */
                     char confirm_buf[256];
                     int confirm_len = config_get_confirmation(confirm_buf, sizeof(confirm_buf));
-                    
-                    if (confirm_len > 0) {
+
+                    if (confirm_len > 0)
+                    {
                         LOG_INF(LOG_PREFIX_MQTT "Sending confirmation: %s", confirm_buf);
                         err = mqtt_client_publish_config_confirm(confirm_buf);
-                        if (err) {
+                        if (err)
+                        {
                             LOG_ERR(LOG_PREFIX_MQTT "Failed to publish confirmation: %d", err);
-                        } else {
+                        }
+                        else
+                        {
                             LOG_INF(LOG_PREFIX_MQTT "Confirmation published");
                         }
-                    } else {
+                    }
+                    else
+                    {
                         LOG_ERR(LOG_PREFIX_MQTT "No confirmation message available: %d", confirm_len);
                     }
-                } else {
+                }
+                else
+                {
                     LOG_ERR(LOG_PREFIX_MQTT "Failed to process configuration command: %d", err);
-                    
+
                     /* Send error message - using a safer format with limited length */
                     char error_msg[128];
                     snprintf(error_msg, sizeof(error_msg), "Error processing command: %.80s", payload_buf);
                     err = mqtt_client_publish_config_confirm(error_msg);
                 }
-            } else {
+            }
+            else
+            {
                 LOG_ERR(LOG_PREFIX_MQTT "Failed to read payload: %d", bytes_read);
-                
+
                 /* Send error message */
                 const char *error_msg = "Error: Failed to read command payload";
                 err = mqtt_client_publish_config_confirm(error_msg);
             }
         }
-        
+
         /* Send acknowledgment for QoS 1 messages */
-        if (pub->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE) {
+        if (pub->message.topic.qos == MQTT_QOS_1_AT_LEAST_ONCE)
+        {
             const struct mqtt_puback_param puback = {
-                .message_id = pub->message_id
-            };
-            
+                .message_id = pub->message_id};
+
             err = mqtt_publish_qos1_ack(client, &puback);
-            if (err) {
+            if (err)
+            {
                 LOG_ERR(LOG_PREFIX_MQTT "Failed to send PUBACK: %d", err);
             }
-        } else if (pub->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE) {
+        }
+        else if (pub->message.topic.qos == MQTT_QOS_2_EXACTLY_ONCE)
+        {
             const struct mqtt_pubrec_param pubrec = {
-                .message_id = pub->message_id
-            };
-            
+                .message_id = pub->message_id};
+
             err = mqtt_publish_qos2_receive(client, &pubrec);
-            if (err) {
+            if (err)
+            {
                 LOG_ERR(LOG_PREFIX_MQTT "Failed to send PUBREC: %d", err);
             }
         }
@@ -466,19 +483,19 @@ void mqtt_evt_handler(struct mqtt_client *const client,
     break;
 
     case MQTT_EVT_PUBREC:
-        LOG_INF(LOG_PREFIX_MQTT "PUBREC event received - id: %u, result: %d", 
-               evt->param.pubrec.message_id, evt->result);
-        
+        LOG_INF(LOG_PREFIX_MQTT "PUBREC event received - id: %u, result: %d",
+                evt->param.pubrec.message_id, evt->result);
+
         if (evt->result != 0)
         {
             LOG_ERR(LOG_PREFIX_MQTT "MQTT PUBREC error %d", evt->result);
             break;
         }
-        
+
         /* For QoS 2, we need to send a PUBREL */
         const struct mqtt_pubrel_param rel_param = {
             .message_id = evt->param.pubrec.message_id};
-        
+
         LOG_INF(LOG_PREFIX_MQTT "Sending PUBREL for message id: %u", rel_param.message_id);
         err = mqtt_publish_qos2_release(client, &rel_param);
         if (err)
@@ -489,18 +506,18 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 
     case MQTT_EVT_PUBREL:
         LOG_INF(LOG_PREFIX_MQTT "PUBREL event received - id: %u, result: %d",
-               evt->param.pubrel.message_id, evt->result);
-               
+                evt->param.pubrel.message_id, evt->result);
+
         if (evt->result != 0)
         {
             LOG_ERR(LOG_PREFIX_MQTT "MQTT PUBREL error %d", evt->result);
             break;
         }
-        
+
         /* Send PUBCOMP in response to PUBREL */
         const struct mqtt_pubcomp_param comp_param = {
             .message_id = evt->param.pubrel.message_id};
-            
+
         LOG_INF(LOG_PREFIX_MQTT "Sending PUBCOMP for message id: %u", comp_param.message_id);
         err = mqtt_publish_qos2_complete(client, &comp_param);
         if (err)
@@ -510,9 +527,9 @@ void mqtt_evt_handler(struct mqtt_client *const client,
         break;
 
     case MQTT_EVT_PUBCOMP:
-        LOG_INF(LOG_PREFIX_MQTT "PUBCOMP event received - id: %u, result: %d", 
-               evt->param.pubcomp.message_id, evt->result);
-               
+        LOG_INF(LOG_PREFIX_MQTT "PUBCOMP event received - id: %u, result: %d",
+                evt->param.pubcomp.message_id, evt->result);
+
         if (evt->result != 0)
         {
             LOG_ERR(LOG_PREFIX_MQTT "MQTT PUBCOMP error %d", evt->result);
@@ -624,7 +641,7 @@ int mqtt_client_connect(void)
     while (retry_count < max_retries && !mqtt_connected)
     {
         LOG_INF(LOG_PREFIX_MQTT "Attempting to connect to MQTT broker: %s:%d... (attempt %d/%d)",
-               SERVER_HOST, SERVER_PORT, retry_count + 1, max_retries);
+                SERVER_HOST, SERVER_PORT, retry_count + 1, max_retries);
 
         err = mqtt_connect(&client_ctx);
         if (err)

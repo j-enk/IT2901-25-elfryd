@@ -39,7 +39,7 @@ int sensors_init(void)
 #ifdef CONFIG_ELFRYD_USE_I2C_SENSORS
     int err;
 #endif
-    
+
     /* Initialize the arrays with empty data */
     battery_count = 0;
     temp_count = 0;
@@ -51,13 +51,16 @@ int sensors_init(void)
     /* Check if we should use I2C sensors */
 #ifdef CONFIG_ELFRYD_USE_I2C_SENSORS
     LOG_INF(LOG_PREFIX_I2C "Initializing I2C sensor interface");
-    
+
     err = i2c_master_init();
-    if (err) {
+    if (err)
+    {
         LOG_ERR(LOG_PREFIX_I2C "Failed to initialize I2C: %d", err);
         LOG_WRN(LOG_PREFIX_I2C "Falling back to sample data generation");
         using_i2c = false;
-    } else {
+    }
+    else
+    {
         LOG_INF(LOG_PREFIX_I2C "Using I2C for sensor data collection");
         using_i2c = true;
     }
@@ -80,9 +83,10 @@ int sensors_generate_battery_reading(int battery_id)
     }
 
     /* Check if time is synchronized before collecting data */
-    if (!utils_is_time_synchronized()) {
+    if (!utils_is_time_synchronized())
+    {
         LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping battery reading");
-        return 0;  /* Skip data collection but don't report as error */
+        return 0; /* Skip data collection but don't report as error */
     }
 
     /* Generate battery reading either from I2C or sample data */
@@ -130,9 +134,10 @@ int sensors_generate_temp_reading(void)
     temp_reading_t reading;
 
     /* Check if time is synchronized before collecting data */
-    if (!utils_is_time_synchronized()) {
+    if (!utils_is_time_synchronized())
+    {
         LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping temperature reading");
-        return 0;  /* Skip data collection but don't report as error */
+        return 0; /* Skip data collection but don't report as error */
     }
 
     /* Generate temperature reading either from I2C or sample data */
@@ -179,9 +184,10 @@ int sensors_generate_gyro_reading(void)
     gyro_reading_t reading;
 
     /* Check if time is synchronized before collecting data */
-    if (!utils_is_time_synchronized()) {
+    if (!utils_is_time_synchronized())
+    {
         LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping gyroscope reading");
-        return 0;  /* Skip data collection but don't report as error */
+        return 0; /* Skip data collection but don't report as error */
     }
 
     /* Generate gyroscope reading either from I2C or sample data */

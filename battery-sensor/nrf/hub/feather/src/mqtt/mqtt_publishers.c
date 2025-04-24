@@ -73,9 +73,12 @@ int mqtt_client_publish_battery(battery_reading_t *readings, int count)
     {
         /* Publish the message with QoS 2 */
         err = mqtt_client_publish(MQTT_TOPIC_BATTERY, message, MQTT_QOS_2_EXACTLY_ONCE);
-        if (err) {
+        if (err)
+        {
             LOG_ERR(LOG_PREFIX_PUB "Failed to publish battery data: %d", err);
-        } else {
+        }
+        else
+        {
             LOG_INF(LOG_PREFIX_PUB "Published battery data: %d readings", count);
         }
     }
@@ -139,9 +142,12 @@ int mqtt_client_publish_temp(temp_reading_t *readings, int count)
     {
         /* Publish the message with QoS 2 */
         err = mqtt_client_publish(MQTT_TOPIC_TEMP, message, MQTT_QOS_2_EXACTLY_ONCE);
-        if (err) {
+        if (err)
+        {
             LOG_ERR(LOG_PREFIX_PUB "Failed to publish temperature data: %d", err);
-        } else {
+        }
+        else
+        {
             LOG_INF(LOG_PREFIX_PUB "Published temperature data: %d readings", count);
         }
     }
@@ -210,9 +216,12 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count)
     {
         /* Publish the message with QoS 2 */
         err = mqtt_client_publish(MQTT_TOPIC_GYRO, message, MQTT_QOS_2_EXACTLY_ONCE);
-        if (err) {
+        if (err)
+        {
             LOG_ERR(LOG_PREFIX_PUB "Failed to publish gyroscope data: %d", err);
-        } else {
+        }
+        else
+        {
             LOG_INF(LOG_PREFIX_PUB "Published gyroscope data: %d readings", count);
         }
     }
@@ -227,5 +236,5 @@ int mqtt_client_publish_gyro(gyro_reading_t *readings, int count)
 
 int mqtt_client_publish_config_confirm(const char *confirmation)
 {
-        return mqtt_client_publish(MQTT_TOPIC_CONFIG_CONFIRM, confirmation, MQTT_QOS_2_EXACTLY_ONCE);
+    return mqtt_client_publish(MQTT_TOPIC_CONFIG_CONFIRM, confirmation, MQTT_QOS_2_EXACTLY_ONCE);
 }

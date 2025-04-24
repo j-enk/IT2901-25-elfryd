@@ -156,7 +156,7 @@ int config_process_command(const char *command)
     if (cmd_len >= sizeof(cmd_copy))
     {
         LOG_ERR(LOG_PREFIX_CONFIG "Command too long (%u bytes, max %u)",
-               (unsigned int)cmd_len, (unsigned int)(sizeof(cmd_copy) - 1));
+                (unsigned int)cmd_len, (unsigned int)(sizeof(cmd_copy) - 1));
         return -EINVAL;
     }
 
@@ -189,7 +189,7 @@ int config_process_command(const char *command)
             snprintf(last_command, sizeof(last_command), "battery");
             has_new_command = true;
             k_mutex_unlock(&config_mutex);
-            
+
             /* Set the flag to publish battery data immediately */
             k_mutex_lock(&publish_flags_mutex, K_FOREVER);
             battery_publish_request = true;
@@ -206,7 +206,7 @@ int config_process_command(const char *command)
             snprintf(last_command, sizeof(last_command), "temp");
             has_new_command = true;
             k_mutex_unlock(&config_mutex);
-            
+
             /* Set the flag to publish temperature data immediately */
             k_mutex_lock(&publish_flags_mutex, K_FOREVER);
             temp_publish_request = true;
@@ -223,7 +223,7 @@ int config_process_command(const char *command)
             snprintf(last_command, sizeof(last_command), "gyro");
             has_new_command = true;
             k_mutex_unlock(&config_mutex);
-            
+
             /* Set the flag to publish gyro data immediately */
             k_mutex_lock(&publish_flags_mutex, K_FOREVER);
             gyro_publish_request = true;
