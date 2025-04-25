@@ -322,16 +322,16 @@ int baut_mpu_read(double values[6]) {
 	values[4] = sensor_value_to_double(&gyro[1]);
 	values[5] = sensor_value_to_double(&gyro[2]);
 
-	printf(//"[%s]\n"
-			"  accel %f %f %f m/s/s\n"
-			"  gyro  %f %f %f rad/s\n",
-			// now_str(),
-			values[0],
-			values[1],
-			values[2],
-			values[3],
-			values[4],
-			values[5]);
+	// printf(//"[%s]\n"
+	// 		"  accel %f %f %f m/s/s\n"
+	// 		"  gyro  %f %f %f rad/s\n",
+	// 		// now_str(),
+	// 		values[0],
+	// 		values[1],
+	// 		values[2],
+	// 		values[3],
+	// 		values[4],
+	// 		values[5]);
 
 	return 0;
 }
@@ -342,10 +342,10 @@ static ssize_t mpu_read_function(struct bt_conn *conn, const struct bt_gatt_attr
 
 	double values[6];
 	if(baut_mpu_read(values) == 0) {
-		printk("read successfully");
+		printk("MPU: read successfully\n");
 		// printk("celcius = %d\n", celcius);
 	} else {
-		printk("celcius failed\n");
+		printk("MPU: read failed\n");
 		// celcius = -1;
 		// return;
 	}
