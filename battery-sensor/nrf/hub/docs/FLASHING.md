@@ -62,7 +62,7 @@ Before working with the `feather` project code, you need to aquire the necessary
 
 The Elfryd Hub requires TLS certificates for secure MQTT communication:
 
-1. Obtain the CA certificate for your MQTT broker (refer to the [Broker Documentation](../../broker/docs/vm_setup.md))
+1. Obtain the CA certificate for your MQTT broker (refer to the [Broker Documentation](../../../broker/docs/vm_setup.md))
 2. Place the certificate as `ca.crt` in the `certs` directory
 3. During the build process, this will be converted to a C header file automatically
 
