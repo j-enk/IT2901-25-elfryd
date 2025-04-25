@@ -3,9 +3,11 @@ import { ref, onMounted, computed } from 'vue'
 import type { RadioGroupItem, RadioGroupValue } from '@nuxt/ui'
 
 import { useElfrydBatteryData } from '~/composables/useElfrydBatteryData'
+import { useElfrydGyroData } from '~/composables/useElfrydGyroData'
 import { useElfrydConfig } from '~/composables/useElfrydConfig'
 import { useElfrydFrequency } from '~/composables/useElfrydFrequency'
 import BatteryLineChart from '../components/charts/BatteryLineChart.vue'
+import BoatMotionChart from '../components/charts/BoatMotionChart.vue'
 
 // UI states
 const configFreq = ref<RadioGroupItem[]>(['10', '60', '120'])
@@ -17,6 +19,7 @@ const battery_id = ref<string>('')
 const limit = ref<number>(50)
 
 const { batteryData, isLoading, error, fetchBatteryData } = useElfrydBatteryData()
+const { gyroData, isLoading: gyroLoading, error: gyroError, fetchGyroData } = useElfrydGyroData()
 
 const { configData, configLoading, fetchConfig } = useElfrydConfig()
 
@@ -39,10 +42,22 @@ const handleUpdateFrequency = () => {
 const retrieveFromSensor = () => {
   console.log('Retrieve data from sensor:', sendFromSensorVal.value)
   // Add sensor-specific logic here
+  switch (sendFromSensorVal.value) {
+    case 'Gyro':
+      fetchGyroData(limit.value)
+      break
+    case 'Battery':
+      fetchBatteryData(battery_id.value, limit.value)
+      break
+    
+    default:
+      console.warn('No handler for', sendFromSensorVal.value)
+  }
 }
 
 onMounted(() => {
   fetchBatteryData(battery_id.value, limit.value);
+  fetchGyroData(limit.value);
 })
 </script>
 
@@ -97,6 +112,15 @@ onMounted(() => {
             aria-label="Raw JSON data">{{ JSON.stringify(batteryData, null, 2) }}</pre>
 
           <BatteryLineChart :data="processedData" />
+        </div>
+
+        <div v-if="gyroData" class="mt-10" aria-label="Boat motion data">
+          <h2 class="text-xl font-bold mb-2">Boat Motion (roll | pitch | yaw-rate | heave)</h2>
+          <pre
+            class="text-base-content text-sm border-1 border-neutral font-mono bg-base-300 p-4 rounded-lg overflow-auto max-h-[500px]"
+            aria-label="Raw JSON gyro data">{{ JSON.stringify(gyroData, null, 2) }}</pre>
+
+          <BoatMotionChart :data="gyroData" />
         </div>
       </section>
 
