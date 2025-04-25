@@ -21,12 +21,20 @@
 #include <math.h>
 #include <zephyr/kernel.h>
 
+// i made this up
+#define BT_UUID_MPU BT_UUID_DECLARE_16(0x2f01)
+
 #define BAUT_VOLTAGE
 #define BAUT_TEMPERATURE
+#define BAUT_MPU
 
 #ifdef BAUT_TEMPERATURE
 const struct device *bme280_dev = DEVICE_DT_GET_ANY(bosch_bme280);
 static struct sensor_value temperature;
+#endif
+
+#ifdef BAUT_MPU
+const struct device *const mpu6050 = DEVICE_DT_GET_ONE(invensense_mpu6050);
 #endif
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
@@ -270,6 +278,81 @@ static ssize_t temp_read_function(struct bt_conn *conn, const struct bt_gatt_att
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &celcius, sizeof(celcius));
 }
 
+int baut_mpu_init() {
+    if(mpu6050 == NULL) {
+        printk("MPU is missing!\n");
+        return -1;
+    }
+
+    if (!device_is_ready(mpu6050)) {
+        printk("MPU is not ready\n");
+        return -1;
+    }
+
+	return 0;
+}
+
+// accel[3] + gyro[3]
+int baut_mpu_read(double values[6]) {
+	struct sensor_value accel[3];
+	struct sensor_value gyro[3];
+
+	int err = sensor_sample_fetch(mpu6050);
+	if(err) {
+		printf("MPU6050: sample fetch failed: %d\n", err);
+		return err;
+	}
+
+	err = sensor_channel_get(mpu6050, SENSOR_CHAN_ACCEL_XYZ, accel);
+	if(err) {
+		printf("MPU6050: accel failed: %d\n", err);
+		return err;
+	}
+
+	err = sensor_channel_get(mpu6050, SENSOR_CHAN_GYRO_XYZ, gyro);
+	if(err) {
+		printf("MPU6050: gyro failed: %d\n", err);
+		return err;
+	}
+
+	values[0] = sensor_value_to_double(&accel[0]);
+	values[1] = sensor_value_to_double(&accel[1]);
+	values[2] = sensor_value_to_double(&accel[2]);
+	values[3] = sensor_value_to_double(&gyro[0]);
+	values[4] = sensor_value_to_double(&gyro[1]);
+	values[5] = sensor_value_to_double(&gyro[2]);
+
+	printf(//"[%s]\n"
+			"  accel %f %f %f m/s/s\n"
+			"  gyro  %f %f %f rad/s\n",
+			// now_str(),
+			values[0],
+			values[1],
+			values[2],
+			values[3],
+			values[4],
+			values[5]);
+
+	return 0;
+}
+
+static ssize_t mpu_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
+				  uint16_t len, uint16_t offset)
+{
+
+	double values[6];
+	if(baut_mpu_read(values) == 0) {
+		printk("read successfully");
+		// printk("celcius = %d\n", celcius);
+	} else {
+		printk("celcius failed\n");
+		// celcius = -1;
+		// return;
+	}
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &values, sizeof(values));
+}
+
 #ifdef BAUT_VOLTAGE
 BT_GATT_SERVICE_DEFINE(vol_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_GATT_V),
 		       BT_GATT_CHARACTERISTIC(BT_UUID_GATT_V, BT_GATT_CHRC_READ, BT_GATT_PERM_READ,
@@ -280,6 +363,12 @@ BT_GATT_SERVICE_DEFINE(vol_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_GATT_V),
 BT_GATT_SERVICE_DEFINE(tmp_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_TEMPERATURE),
 		       BT_GATT_CHARACTERISTIC(BT_UUID_TEMPERATURE, BT_GATT_CHRC_READ,
 					      BT_GATT_PERM_READ, temp_read_function, NULL, NULL), );
+#endif
+
+#ifdef BAUT_MPU
+BT_GATT_SERVICE_DEFINE(mpu_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_MPU),
+		       BT_GATT_CHARACTERISTIC(BT_UUID_MPU, BT_GATT_CHRC_READ,
+					      BT_GATT_PERM_READ, mpu_read_function, NULL, NULL), );
 #endif
 
 int main(void)
@@ -299,6 +388,10 @@ int main(void)
 
 #ifdef BAUT_TEMPERATURE
 	baut_bme_init();
+#endif
+
+#ifdef BAUT_MPU
+	baut_mpu_init();
 #endif
 
 	printk("Bluetooth initialized\n");
