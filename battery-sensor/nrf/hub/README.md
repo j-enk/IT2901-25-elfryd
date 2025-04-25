@@ -7,7 +7,7 @@ This repository contains the firmware for the Elfryd boat monitoring system's ce
 The Elfryd Hub is part of a larger IoT system for monitoring battery and environmental conditions on boats. The complete data flow is:
 
 ```
-Sensor Peripherals → nRF52840 BLE Central → nRF9160 Hub (this project) → MQTT Broker → Database → Backend → Frontend
+Sensor Peripherals → BLE Central → nRF9160 Hub (this project) → MQTT Broker → Database → Backend → Frontend
 ```
 
 This component (the nRF9160 Hub) receives sensor data via I2C from an nRF52840 board that acts as a BLE central node collecting data from various sensors. The hub then processes, buffers, and transmits this data to a VM-based MQTT broker over LTE.
@@ -76,7 +76,7 @@ The application publishes to the VM broker using the following MQTT topics:
 | `elfryd/temp`    | `{temperature}/{timestamp}`                                            | Temperature readings     |
 | `elfryd/gyro`    | `{accel_x},{accel_y},{accel_z}/{gyro_x},{gyro_y},{gyro_z}/{timestamp}` | Gyroscope readings       |
 
-The hub supports batch publishing of multiple readings in a single message using the pipe (`|`) character as a separator. See the [Bridge Documentation](../broker/docs/bridge.md) for more details on message formats.
+The hub supports batch publishing of multiple readings in a single message using the pipe (`|`) character as a separator. See the [Bridge Documentation](../../broker/docs/bridge.md) for more details on message formats.
 
 ### Configuration Commands
 
@@ -85,7 +85,7 @@ The application subscribes to the `elfryd/config/send` topic, where it can recei
 1. **Publish Commands**: Commands that trigger data publishing for specific sensor types
 2. **Interval Commands**: Commands that change the configuration of data transmission intervals
 
-For example, the command `temp` would request the hub to publish all available temperature data immediately, while the command `battery 10` would set the battery data publish interval to 10 seconds. More information on the available commands can be found in the [Bridge Documentation](../broker/docs/bridge.md).
+For example, the command `temp` would request the hub to publish all available temperature data immediately, while the command `battery 10` would set the battery data publish interval to 10 seconds. More information on the available commands can be found in the [Bridge Documentation](../../broker/docs/bridge.md).
 
 Whenever a command is received and processed, the hub will publish a confirmation message back to the broker on the `elfryd/config/confirmation` topic. The message format will be the same as the received command, but since the topic is different it will not trigger the same command again.
 
@@ -105,9 +105,9 @@ For instructions on building and flashing the firmware to the CircuitDojo nRF916
 ## Documentation
 
 - [Flashing Instructions](./docs/FLASHING.md): How to build and deploy the firmware
-- [Broker Documentation](../broker/README.md): Details of the MQTT broker system
-- [API Documentation](../broker/docs/api.md): REST API for accessing the data
-- [Bridge Documentation](../broker/docs/bridge.md): MQTT bridge that processes the messages
+- [Broker Documentation](../../broker/README.md): Details of the MQTT broker system
+- [API Documentation](../../broker/docs/api.md): REST API for accessing the data
+- [Bridge Documentation](../../broker/docs/bridge.md): MQTT bridge that processes the messages
 
 ## Support and Contribution
 
