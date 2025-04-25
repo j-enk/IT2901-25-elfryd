@@ -17,17 +17,15 @@ SPECIAL_TOPICS = {
 }
 
 
-@router.get(
-    "/messages", response_model=List[StoredMessage], summary="Get stored messages"
-)
+@router.get("/messages", response_model=List[StoredMessage], summary="Get stored messages")
 def get_messages(
     topic: str = Query(..., description="Filter by topic (partial match)"),
     limit: int = Query(
-        100, ge=1, le=1000, description="Maximum number of records to return"
+        100, ge=0, le=10000, description="Maximum number of records to return (0 for no limit)"
     ),
     offset: int = Query(0, ge=0, description="Number of records to skip"),
     hours: Optional[float] = Query(
-        24, ge=0, description="Get messages from the last X hours"
+        24, ge=0, description="Get data from the last X hours"
     ),
     time_offset: Optional[float] = Query(
         None,
@@ -37,31 +35,27 @@ def get_messages(
     _: str = Depends(get_api_key),
 ):
     """
-    Retrieve general MQTT messages filtered by topic.
+    Retrieve stored MQTT messages filtered by topic.
 
-    This endpoint returns MQTT messages that don't fit into specialized categories
-    (like battery, temperature, etc). A topic filter is required.
+    Get messages from the database that match the specified topic pattern.
+    Results can be paginated using the limit and offset parameters.
+    Time filtering can be applied using hours and time_offset.
 
     ## Parameters
-    - **topic**: Filter by topic name (required, partial matching supported)
-    - **limit**: Maximum number of records to return (default: 100, max: 1000)
-    - **offset**: Number of records to skip, useful for pagination (default: 0)
+    - **topic**: Filter by topic (partial match)
+    - **limit**: Maximum number of records to return (default: 100, max: 10000). When used with the hours parameter, 
+      data points will be evenly distributed across the time range instead of just returning the newest records.
+      Set to 0 to disable limiting and return all data points in the time range.
+    - **offset**: Number of records to skip (for pagination)
     - **hours**: Get data from the last X hours (default: 24)
     - **time_offset**: Offset in hours from current time (e.g., 336 = start from 2 weeks ago)
 
-    ## Special Topics
-    For specialized data topics, please use their dedicated endpoints:
-    - For battery data: `/battery`
-    - For temperature data: `/temperature`
-    - For gyroscope data: `/gyro`
-    - For configuration data: `/config`
-
     ## Response
     Returns an array of message records, each containing:
-    - **id**: Unique record identifier
-    - **topic**: The MQTT topic the message was sent to
-    - **message**: The content of the message
-    - **timestamp**: When the message was received
+    - **id**: Unique message identifier
+    - **topic**: The MQTT topic
+    - **message**: The message content (as string)
+    - **timestamp**: Timestamp when the message was received
 
     ## Authentication
     Requires API key in the X-API-Key header

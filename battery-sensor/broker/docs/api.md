@@ -60,11 +60,13 @@ These interfaces provide a complete reference of all endpoints, parameters, requ
 
 Most data retrieval endpoints support these common parameters:
 
-- `limit`: Maximum number of records to return
+- `limit`: Maximum number of records to return. When used with `hours`, the API applies intelligent time-based sampling to ensure datapoints are uniformly distributed across the specified time range rather than just returning the newest records.
 - `hours`: Get data from the last X hours
 - `time_offset`: Offset in hours from current time
 
 These parameters can be combined to create specific time windows. For example, setting `hours=24` and `time_offset=336` would retrieve data from exactly 2 weeks ago for a 24-hour period.
+
+When requesting data over long time periods (like a week), using `limit` is recommended to avoid extracting millions of datapoints while still maintaining a representative sample of the data for visualization purposes.
 
 ## Endpoint Details
 

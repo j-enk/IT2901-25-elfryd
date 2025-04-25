@@ -16,7 +16,7 @@ router = APIRouter(tags=["Configuration"])
 )
 def get_config_data(
     limit: int = Query(
-        20, ge=1, le=1000, description="Maximum number of records to return"
+        20, ge=0, le=10000, description="Maximum number of records to return (0 for no limit)"
     ),
     hours: Optional[float] = Query(
         168, ge=0, description="Get data from the last X hours"
@@ -31,17 +31,22 @@ def get_config_data(
     """
     Retrieve configuration commands sent to devices.
 
+    This endpoint returns config commands that have been sent to devices
+    in the Elfryd system.
+
     ## Parameters
-    - **limit**: Maximum number of records to return (default: 20, max: 1000)
+    - **limit**: Maximum number of records to return (default: 20, max: 10000). When used with the hours parameter, 
+      data points will be evenly distributed across the time range instead of just returning the newest records.
+      Set to 0 to disable limiting and return all data points in the time range.
     - **hours**: Get data from the last X hours (default: 168)
     - **time_offset**: Offset in hours from current time (e.g., 336 = start from 2 weeks ago)
 
     ## Response
-    Returns an array of configuration records, each containing:
+    Returns an array of config command records, each containing:
     - **id**: Unique record identifier
-    - **command**: Configuration command sent
-    - **topic**: Topic the command was sent to
-    - **timestamp**: Server timestamp of when the command was processed
+    - **command**: The configuration command that was sent
+    - **topic**: The MQTT topic the command was sent to
+    - **timestamp**: Timestamp when the command was sent
 
     ## Authentication
     Requires API key in the X-API-Key header
