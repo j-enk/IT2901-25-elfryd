@@ -1,7 +1,0 @@
-backend/bin
-backend/obj
-backend/mqtt/bin
-backend/mqtt/obj
-.env
-**/bin/
-**/obj/
