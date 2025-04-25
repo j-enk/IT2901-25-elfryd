@@ -108,3 +108,9 @@ For instructions on building and flashing the firmware to the CircuitDojo nRF916
 - [Broker Documentation](../broker/README.md): Details of the MQTT broker system
 - [API Documentation](../broker/docs/api.md): REST API for accessing the data
 - [Bridge Documentation](../broker/docs/bridge.md): MQTT bridge that processes the messages
+
+## Support and Contribution
+
+For questions or issues, please contact the contributors of the hub system:
+
+- Martin Vågseter Jakobsen (developer)
