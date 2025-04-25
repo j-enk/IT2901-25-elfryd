@@ -84,7 +84,7 @@ Collects data from physical sensors on the boat, including:
 - Temperature sensors
 - Gyroscope/accelerometer for motion detection
 
-[Sensor Documentation →](/battery-sensor/sensor/README.md)
+[Sensor Documentation →](/battery-sensor/nrf/sensor/README.md)
 
 ### 2. BLE Communication Layer
 
@@ -93,8 +93,7 @@ Enables energy-efficient local communication between sensors through Bluetooth L
 - **BLE Peripheral**: Sensor nodes that collect and transmit data
 - **BLE Central**: Central node that processes incoming data from peripherals and forwards it to the nRF9160 Feather Hub
 
-[BLE Central Documentation →](/battery-sensor/nrf/ble/central/README.md)
-[BLE Peripheral Documentation →](/battery-sensor/nrf/ble/peripheral/README.md)
+[BLE Documentation →](/battery-sensor/nrf/ble/README.md)
 
 ### 3. nRF9160 Feather Hub
 
@@ -108,29 +107,36 @@ The central communication hub that:
 - Uses TLS for secure communication
 
 [Hub Documentation →](/battery-sensor/nrf/hub/README.md)
-[Flashing Instructions →](/battery-sensor/nrf/hub/docs/FLASHING.md)
 
 ### 4. MQTT Broker System
 
 Azure VM-based message broker system that:
 
 - Secures communications with TLS encryption
-- Processes and stores incoming sensor data
-- Provides a REST API for data access
+- Processes and stores incoming sensor data over MQTT
+- Provides a REST API for data access over HTTPS
 - Enables configuration commands to be sent to the boat
 
 [Broker Documentation →](/battery-sensor/broker/README.md)
-[API Documentation →](/battery-sensor/broker/docs/api.md)
-[Bridge Documentation →](/battery-sensor/broker/docs/bridge.md)
 
-### 5. Backend & Frontend (Coming Soon)
+### 5. Backend (Coming Soon)
 
-The user interface components (in development):
+The .NET-based backend that:
+- Calculates state of charge (SoC) for batteries
+- Calculates pitch/roll/yaw from gyroscope data
+- Provides a REST API for frontend access
 
-- **.NET Backend**: Processes and analyzes sensor data
-- **Nuxt (Vue.js) Frontend**: Provides an intuitive dashboard for monitoring
+[Backend Documentation →](/battery-sensor/backend/README.md)
 
-*Note: These components are currently being developed and will be added to the project soon.*
+### 6. Frontend (Coming Soon)
+
+The Nuxt/Vue.js-based frontend that:
+- Displays real-time and historical data
+- Provides a user-friendly dashboard for monitoring
+- Allows users to configure monitoring parameters
+- Allows users to send commands to the boat
+
+[Frontend Documentation →](/battery-sensor/frontend/README.md)
 
 ## Data Flow
 
@@ -172,6 +178,13 @@ For detailed setup instructions, visit the specific component documentation link
 
 ## Development Team
 
-This project is developed as part of IT2901 Information Technology Project II at NTNU. Our team is focused on creating a reliable IoT monitoring solution for the Elfryd boat.
+This project is developed as part of IT2901 Information Technology Project II at NTNU. Our team is focused on creating a reliable IoT monitoring solution for the Elfryd boat:
+
+- Martin Vågseter Jakobsen 
+- Magnus Hansen Åsheim
+- Leif Eggenfellner
+- David Salguero Spilde
+- Jonas Elvedal Hole
+- Sigve Fehn Kulsrud
 
 <p align="right">(<a href="#top">back to top</a>)</p>
