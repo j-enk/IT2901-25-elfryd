@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://www.kystlaget-trh.no/">
-    <img src="images/logo.jpg" alt="Logo" width="120" height="120">
+    <img src="docs/images/logo.jpg" alt="Logo" width="120" height="120">
   </a>
 
   <br />
