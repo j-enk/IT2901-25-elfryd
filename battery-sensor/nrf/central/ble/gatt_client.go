@@ -1,35 +1,42 @@
 package ble
 
 import (
+	"encoding/binary"
 	"fmt"
-	"log"
 	"time"
+
+	"tinygo.org/x/bluetooth"
 ) 
 
-func InitGATT(){
-	for _, dev := conns {
-		findSrvcChars(dev)
+func InitGATT() error{
+	for _, dev := range conns { // Use 'range' to iterate over the slice
+		return findSrvcChars(dev)
 	}
+	return nil
 }
 
 func RunGATTClient() error{
 	ticker:= time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	for tick := range ticker.C{
-		for _, dev := conns {
+	for tick := range ticker.C {
+		_ = tick
+		for _, dev := range conns {
+			buf := make([]byte, 4)
 			n,err := dev.Services["Battery"].Chars[voltageUUID].Read(buf[:4])
 			if err != nil{
 				return err
 			}
-			val := int32(binary.LittleEndian.Uint32(buf[:nyu]))
+			val := int32(binary.LittleEndian.Uint32(buf[:n]))
 			fmt.Println("value =", val)
 		}
 	}
+	return nil
 }
 
-func findSrvcChars(profile GATTProfile) error{
-	srvcs, err := profile.Device.DiscoverServices(voltageUUID)
+func findSrvcChars(profile *GATTProfile) error{
+	batteryUUID := []bluetooth.UUID{voltageUUID}
+	srvcs, err := profile.Device.DiscoverServices(batteryUUID)
 	if err != nil{
 		return err
 	}
@@ -39,11 +46,11 @@ func findSrvcChars(profile GATTProfile) error{
 	}
 	
 	profile.Services["Battery"] = &ServiceClient{
-		UUID:	voltageUUID
-		Chars:	make(map[bluetooth.UUID]bluetooth.DeviceCharacteristic)
+		UUID:	voltageUUID,
+		Chars:	make(map[bluetooth.UUID]bluetooth.DeviceCharacteristic),
 	}
 
-	chars, err := srvcs[0].DiscoverCharacteristics([]bluetooth.UUID{voltageUUID})
+	chars, err := srvcs[0].DiscoverCharacteristics(batteryUUID)
 	if err != nil{
 		return err
 	}
@@ -51,6 +58,7 @@ func findSrvcChars(profile GATTProfile) error{
 		return err
 	}
 	for _, char := range chars{
-	profile.Services["Battery"].Chars[char.UUID()] = char
+		profile.Services["Battery"].Chars[char.UUID()] = char
 	}
+	return nil
 }

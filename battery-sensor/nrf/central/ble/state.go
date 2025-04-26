@@ -2,12 +2,11 @@ package ble
 
 import (
 	"tinygo.org/x/bluetooth"
-	"sync"
 )
 
+var Adapter 	= bluetooth.DefaultAdapter
+
 var(
-	adapter 	= bluetooth.DefaultAdapter
-	mu			= sync.Mutex
 	conns		= make(map[bluetooth.Address]*GATTProfile)
 	uuidFilter	= 	[16]byte{
 						0xCD, 0xEE, 0x3D, 0x67,

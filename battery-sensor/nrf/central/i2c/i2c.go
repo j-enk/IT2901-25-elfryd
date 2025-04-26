@@ -3,12 +3,13 @@ package i2c_target
 import (
 	"fmt"
 	"machine"
-	"time"
 )
 
-func InitI2C() error{
+var i2c = machine.I2C0
 
-	i2c := machine.I2C0
+func InitI2C() error {
+
+	fmt.Println("heloooooo")
 	config := machine.I2CConfig{
 		Frequency: machine.KHz * 100,
 		SDA:       machine.SDA_PIN,
@@ -19,27 +20,25 @@ func InitI2C() error{
 	if err := i2c.Configure(config); err != nil {
 		return err
 	}
-
+	return nil
 }
 
-func ConfigI2C(address []byte){
-	err:=i2c.Listen(address)
-	if err!=nil{
+func ConfigI2C(address uint8) {
+	err := i2c.Listen(address)
+	if err != nil {
 		panic(err)
 	}
-	
 
 }
 
-
-func PassiveListening() {
+func PassiveListening() error{
 	for {
 		register := 0
 		buf := make([]byte, 64)
 		fmt.Printf("Waiting for I2C event...\n")
 		evt, n, err := i2c.WaitForEvent(buf)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		switch evt {
 		case machine.I2CReceive:
