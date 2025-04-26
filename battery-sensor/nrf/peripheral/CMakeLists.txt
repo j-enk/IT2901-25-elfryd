@@ -6,6 +6,8 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(peripheral_hr)
 
 FILE(GLOB app_sources src/*.c)
+FILE(GLOB app_headers include/*.h)
+
 target_sources(app PRIVATE
   ${app_sources}
   )
