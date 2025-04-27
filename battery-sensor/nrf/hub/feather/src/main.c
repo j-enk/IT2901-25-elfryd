@@ -24,6 +24,24 @@ LOG_MODULE_REGISTER(elfryd_hub, LOG_LEVEL_INF);
 #include "mqtt/mqtt_publishers.h"
 #include "utils/utils.h"
 
+#ifdef CONFIG_TESTING
+
+int main(void){
+    k_mspleep(3000);
+    struct i2c_msg msg;
+
+	msg.buf = buf;
+	msg.len = num_bytes;
+	msg.flags = I2C_MSG_READ | I2C_MSG_STOP;
+
+	i2c_transfer(dev, &msg, 1, addr);
+    LOG_INF(LOG_PREFIX_SENS "Data read from I2C device: %02X, %02X, %02X, %02X, %02X", buf[0], buf[1], buf[2], buf[3], buf[4]);
+    return 0;
+}
+
+#else
+
+
 /* Configuration for sensor data generation */
 #define MAIN_LOOP_INTERVAL_MS 1000
 
@@ -652,3 +670,4 @@ int main(void)
 
     return 0; /* Never reached, but needed for correct return type */
 }
+#endif

@@ -156,15 +156,6 @@
      int err;
      
      bt_addr_le_t addr;
-     err = bt_addr_le_from_str("FF:EE:DD:CC:BB:AA", "random", &addr);
-     if (err) {
-         printk("Invalid BT address (err %d)\n", err);
-     }
- 
-     err = bt_id_create(&addr, NULL);
-     if (err < 0) {
-         printk("Creating new ID failed (err %d)\n", err);
-     }
      err = bt_enable(NULL);
      if (err) {
          printk("Bluetooth init failed (err %d)\n", err);
