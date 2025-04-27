@@ -3,9 +3,11 @@ package main
 import (
 	i2c_target "Kystlaget_central/I2C"
 	"Kystlaget_central/ble"
-	"log"
+	"fmt"
 	"time"
 )
+
+var messageBus = make(chan ble.Message, 4)
 
 func main() {
 	time.Sleep(3 * time.Second)
@@ -14,25 +16,20 @@ func main() {
 	must("Init BLE", ble.InitBLE())
 	must("Init I2C", i2c_target.InitI2C())
 
-	go func() {
-		time.Sleep(1 * time.Minute)
-		ble.Adapter.StopScan()
-	}()
-
-	// must("Scanning", ble.ScanStart())
-
-	// must("Init Gatt client", ble.InitGATT())
-
-	// go must("Runtime Gatt client", ble.RunGATTClient())
+	must("Scanning", ble.ScanStart())
+	fmt.Println("Finished scanning")
+	must("Init Gatt client", ble.InitGATT())
+	//i2c go rutine must go first i think🤷‍♂️
 	go func() {
 		i2c_target.ConfigI2C(0x69)
-		must("Runtime I2C", i2c_target.PassiveListening())
+		must("Runtime I2C", i2c_target.PassiveListening(messageBus))
 	}()
+	go must("Runtime Gatt client", ble.RunGATTClient())
 	select {}
 }
 
 func must(action string, err error) {
 	if err != nil {
-		log.Printf("%s failed: %v", action, err)
+		fmt.Printf("%s failed: %v", action, err)
 	}
 }

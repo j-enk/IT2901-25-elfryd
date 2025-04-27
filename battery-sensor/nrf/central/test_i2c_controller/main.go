@@ -35,12 +35,13 @@ func main() {
 		}
 
 		// Step 2: Read response from target
-		buf := make([]byte, 4)
+		buf := make([]byte, 5)
 		err = i2c.Tx(targetAddr, nil, buf)
 		if err != nil {
 			fmt.Println("Error reading response:", err)
 		} else {
-			fmt.Printf("Received response: %v\n", buf)
+			fmt.Printf("Received ID: %v\n", buf[0])
+			fmt.Printf("Recieved Payload %v\n\n",buf[1:])
 		}
 
 		time.Sleep(2 * time.Second)

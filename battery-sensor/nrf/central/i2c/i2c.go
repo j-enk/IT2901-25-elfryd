@@ -1,6 +1,8 @@
 package i2c_target
 
 import (
+	"Kystlaget_central/ble"
+	"encoding/binary"
 	"fmt"
 	"machine"
 )
@@ -28,10 +30,9 @@ func ConfigI2C(address uint8) {
 	if err != nil {
 		panic(err)
 	}
-
 }
 
-func PassiveListening() error{
+func PassiveListening(in <-chan ble.Message) error{
 	for {
 		register := 0
 		buf := make([]byte, 64)
@@ -48,7 +49,11 @@ func PassiveListening() error{
 				continue
 			}
 		case machine.I2CRequest:
-			machine.I2C0.Reply([]byte{1, 2, 3, 4})
+			msg := <-in
+			data := make([]byte, 5)
+			data[0] = byte(msg.ID)
+			binary.LittleEndian.PutUint32(data[1:], uint32(msg.Payload))
+			machine.I2C0.Reply(data)
 		}
 	}
 }
