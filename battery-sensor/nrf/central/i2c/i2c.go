@@ -32,28 +32,54 @@ func ConfigI2C(address uint8) {
 	}
 }
 
-func PassiveListening(in <-chan ble.Message) error{
-	for {
-		register := 0
-		buf := make([]byte, 64)
-		fmt.Printf("Waiting for I2C event...\n")
-		evt, n, err := i2c.WaitForEvent(buf)
-		if err != nil {
-			return err
-		}
-		switch evt {
-		case machine.I2CReceive:
-			if n == 1 {
-				register = int(buf[0])
-				fmt.Printf("Received register address: %d\n", register)
-				continue
-			}
-		case machine.I2CRequest:
-			msg := <-in
-			data := make([]byte, 5)
-			data[0] = byte(msg.ID)
-			binary.LittleEndian.PutUint32(data[1:], uint32(msg.Payload))
-			machine.I2C0.Reply(data)
-		}
-	}
+func PassiveListening() error {
+    for {
+        // 1) Wait for an I2C event
+        register := 0
+        buf := make([]byte, 64)
+        fmt.Println("[I2C] Waiting for I2C event...")
+        evt, n, err := i2c.WaitForEvent(buf)
+        if err != nil {
+            fmt.Printf("[I2C] WaitForEvent error: %v\n", err)
+            return err
+        }
+
+        // 2) Handle the event type
+        switch evt {
+        case machine.I2CReceive:
+            fmt.Printf("[I2C] Event: Receive (%d bytes)\n", n)
+            if n == 1 {
+                register = int(buf[0])
+                fmt.Printf("[I2C] Received register address: %d\n", register)
+            } else {
+                fmt.Printf("[I2C] Unexpected receive length %d (want 1)\n", n)
+            }
+
+        case machine.I2CRequest:
+            fmt.Println("[I2C] Event: Request from master")
+            select {
+            case msg := <-ble.MessageBus:
+                fmt.Printf("[I2C] Got message from BLE: ID=%d, Payload=%d\n", msg.ID, msg.Payload)
+
+                // Build the 5-byte reply
+                data := make([]byte, 5)
+                data[0] = byte(msg.ID)
+                binary.LittleEndian.PutUint32(data[1:], uint32(msg.Payload))
+                fmt.Printf("[I2C] Replying with bytes: %v\n", data)
+
+                machine.I2C0.Reply(data)
+                fmt.Println("[I2C] Reply sent")
+
+            default:
+                // No BLE data available
+                fmt.Println("[I2C] No message in channel; sending zero response")
+                zero := make([]byte, 5)
+                fmt.Printf("[I2C] Replying with zeros: %v\n", zero)
+                machine.I2C0.Reply(zero)
+            }
+
+        default:
+            fmt.Printf("[I2C] Unknown event type: %v\n", evt)
+        }
+    }
 }

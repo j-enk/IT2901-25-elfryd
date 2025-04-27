@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-var messageBus = make(chan ble.Message, 4)
-
 func main() {
 	time.Sleep(3 * time.Second)
 
@@ -22,7 +20,7 @@ func main() {
 	//i2c go rutine must go first i think🤷‍♂️
 	go func() {
 		i2c_target.ConfigI2C(0x69)
-		must("Runtime I2C", i2c_target.PassiveListening(messageBus))
+		must("Runtime I2C", i2c_target.PassiveListening())
 	}()
 	go must("Runtime Gatt client", ble.RunGATTClient())
 	select {}

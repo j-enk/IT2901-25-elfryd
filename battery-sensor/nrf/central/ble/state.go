@@ -22,12 +22,14 @@ var(
 						0x5F, 0x9B, 0x34, 0xFB,
 					})
 	ScanStop =		false
+	MessageBus = make(chan Message, 4)
 	//Not implemented yet
 	// idUUID		=	
 )
 
 type GATTProfile struct{
 	Device			bluetooth.Device
+	Active			bool
 	// ID				int8
 	Services		map[string]*ServiceClient
 }

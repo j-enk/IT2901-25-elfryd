@@ -20,7 +20,7 @@ func ScanStart() error{
 	uniqueAddress := make(map[bluetooth.Address]bool)
 	err := Adapter.Scan(func(a *bluetooth.Adapter, device_found bluetooth.ScanResult){
 		//Får ikke skanne etter at den har connected?
-		if time.Since(scanStartTime) > 20*time.Second {
+		if time.Since(scanStartTime) > 5*time.Second {
 			Adapter.StopScan()
 			return
 		}
@@ -54,9 +54,11 @@ func ScanStart() error{
 		}
 		conns[addr] = &GATTProfile{
 			Device: 	dev,
+			Active: 	true,	
 			// ID:			0,
 			Services: 	make(map[string]*ServiceClient),
 		}
 	}
+	fmt.Printf("Devices connected: %d\n", len(conns))
 	return nil
 }

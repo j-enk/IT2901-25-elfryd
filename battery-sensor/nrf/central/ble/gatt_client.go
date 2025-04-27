@@ -4,9 +4,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"time"
+	"sync"
 
 	"tinygo.org/x/bluetooth"
 )
+
+var mu sync.Mutex
 
 var devices_connected = 0
 
@@ -38,6 +41,7 @@ func RunGATTClient() error {
 	for tick := range ticker.C {
 		_ = tick
 		for addr, dev := range conns {
+		if dev.Active {
 			fmt.Printf("[RunGATTClient] Reading characteristic from device %s...\n", addr.String())
 
 			buf := make([]byte, 4)
@@ -53,6 +57,10 @@ func RunGATTClient() error {
 
 			val := int32(binary.LittleEndian.Uint32(buf[:n]))
 			fmt.Printf("[RunGATTClient] Device %s voltage value = %d\n", addr.String(), val)
+			MessageBus <- Message{ID: 1, Payload: val}
+		} else {
+			continue
+		}
 		}
 	}
 	return nil
@@ -65,11 +73,13 @@ func findSrvcChars(profile *GATTProfile) error {
 	srvcs, err := profile.Device.DiscoverServices(batteryUUID)
 	if err != nil {
 		fmt.Printf("[findSrvcChars] Failed to discover services: %v\n", err)
+		profile.Active = false
 		return nil
 	}
 	if len(srvcs) == 0 {
 		fmt.Println("[findSrvcChars] No services found!")
-		return fmt.Errorf("no services found")
+		profile.Active = false
+		return nil
 	}
 	fmt.Printf("[findSrvcChars] Found %d service(s)\n", len(srvcs))
 
