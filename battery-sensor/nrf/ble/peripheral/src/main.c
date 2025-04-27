@@ -353,6 +353,14 @@ static ssize_t mpu_read_function(struct bt_conn *conn, const struct bt_gatt_attr
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, &values, sizeof(values));
 }
 
+static ssize_t sensor_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
+				     uint16_t len, uint16_t offset)
+{
+	uint8_t sensor_id = SENSOR_ID;
+
+	return bt_gatt_attr_read(conn, attr, buf, len, offset, &sensor_id, sizeof(sensor_id));
+}
+
 #ifdef BAUT_VOLTAGE
 BT_GATT_SERVICE_DEFINE(vol_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_GATT_V),
 		       BT_GATT_CHARACTERISTIC(BT_UUID_GATT_V, BT_GATT_CHRC_READ, BT_GATT_PERM_READ,
@@ -369,6 +377,16 @@ BT_GATT_SERVICE_DEFINE(tmp_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_TEMPERATURE),
 BT_GATT_SERVICE_DEFINE(mpu_svc, BT_GATT_PRIMARY_SERVICE(BT_UUID_MPU),
 		       BT_GATT_CHARACTERISTIC(BT_UUID_MPU, BT_GATT_CHRC_READ,
 					      BT_GATT_PERM_READ, mpu_read_function, NULL, NULL), );
+#endif
+
+#ifdef UUID_FOR_SENSOR
+BT_GATT_SERVICE_DEFINE(sensor_svc,
+	BT_GATT_PRIMARY_SERVICE(BT_UUID_SENSOR),
+	BT_GATT_CHARACTERISTIC(BT_UUID_SENSOR,
+		BT_GATT_CHRC_READ,
+		BT_GATT_PERM_READ,
+		sensor_read_function, NULL, NULL),
+);
 #endif
 
 int main(void)
