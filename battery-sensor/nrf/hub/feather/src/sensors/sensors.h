@@ -21,8 +21,8 @@
 /** Battery reading structure */
 typedef struct
 {
-    int8_t battery_id;    /**< Battery identifier */
-    int32_t voltage;       /**< Voltage in millivolts */
+    int battery_id;    /**< Battery identifier */
+    int voltage;       /**< Voltage in millivolts */
     int64_t timestamp; /**< Unix timestamp in seconds */
 } battery_reading_t;
 

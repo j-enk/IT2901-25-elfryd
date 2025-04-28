@@ -89,7 +89,8 @@ static int read_i2c_16bit(uint8_t dev_addr, uint8_t reg_addr, int16_t *value)
 int i2c_read_battery_data(int battery_id, battery_reading_t *reading)
 {
     int ret;
-    int32_t voltage_raw;
+    int16_t voltage_raw;
+
     if (!i2c_ready)
     {
         LOG_WRN(LOG_PREFIX_I2C "I2C not ready for battery reading");
@@ -105,12 +106,8 @@ int i2c_read_battery_data(int battery_id, battery_reading_t *reading)
     uint8_t dev_addr = I2C_ADDR_BATTERY_BASE + (battery_id - 1);
 
     /* Read just the voltage value */
-    // ret = read_i2c_16bit(dev_addr, REG_BATTERY_VOLTAGE, &voltage_raw);
-
-    // [ID: 1byte, Payload: 4bytes]
-    uint8_t data[5];
-    ret = i2c_write_read(i2c_dev, dev_addr, &REG_BATTERY_VOLTAGE, 1, data, sizeof(data));
-    if (ret < 0||data[0] != battery_id)
+    ret = read_i2c_16bit(dev_addr, REG_BATTERY_VOLTAGE, &voltage_raw);
+    if (ret < 0)
     {
         LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", ret);
         return ret;
@@ -118,7 +115,7 @@ int i2c_read_battery_data(int battery_id, battery_reading_t *reading)
 
     /* Fill in the battery reading structure with local timestamp */
     reading->battery_id = battery_id;
-    reading->voltage = ((int32_t)data[1]) | ((int32_t)data[2] << 8) | ((int32_t)data[3] << 16) | ((int32_t)data[4] << 24);
+    reading->voltage = voltage_raw;
     reading->timestamp = utils_get_timestamp();
 
     LOG_DBG(LOG_PREFIX_I2C "Read battery data: id=%d, voltage=%d mV, timestamp=%lld",
