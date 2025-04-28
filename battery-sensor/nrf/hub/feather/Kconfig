@@ -144,6 +144,13 @@ config ELFRYD_USE_I2C_SENSORS
       If enabled, uses I2C to communicate with external sensor devices.
       If disabled, generates sample data internally.
 
+config TESTING
+    bool "Enable testing mode"
+    default n
+    help
+      If enabled, some stuff happens. This is a placeholder for future
+      testing features.
+
 endmenu
 
 source "Kconfig.zephyr"
