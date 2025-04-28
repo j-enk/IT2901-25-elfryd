@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using BatterySensorAPI.Services;
 using BatterySensorAPI.Models;
+using System.Text.Json;
 
 namespace BatterySensorAPI.Controllers
 {
@@ -108,10 +109,12 @@ namespace BatterySensorAPI.Controllers
         [HttpGet("config")]
         public async Task<IActionResult> GetConfig(
         [FromQuery] int limit = 20,
-        [FromQuery] int hours = 168,
-        [FromQuery] int time_offset = 0
+        [FromQuery] double hours = 168,
+        [FromQuery] double time_offset = 0
         )
         {
+            var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
             try
             {
                 var config = await _elfrydClient.GetConfigAsync(limit, hours, time_offset);
@@ -124,80 +127,89 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
-        [HttpGet("battery")]
-        public async Task<IActionResult> GetBatteryData(
-            [FromQuery] string battery_id = null,
-            [FromQuery] int limit = 20,
-            [FromQuery] int hours = 24,
-            [FromQuery] int time_offset = 0
-        )
+[HttpGet("battery", Order = 0)]
+public async Task<IActionResult> GetBatteryData(
+    [FromQuery] int battery_id = 0,
+    [FromQuery] int limit = 20,
+    [FromQuery] double hours = 24,
+    [FromQuery] double time_offset = 0
+)
+{
+    try
+    {
+        // This guarantees that the doubles are parsed as dot (.).
+        var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+        System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+        
+        try
         {
-            try
+            if (battery_id != 0)
             {
+                // For a specific battery, just return the result as is
                 var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
-
-                // Verify the response matches query id
-                if (!string.IsNullOrEmpty(battery_id))
-                {
-                    // Parse the JSON
-                    var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
-                    var dataArray = jsonDoc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
-                                    jsonDoc.RootElement.TryGetProperty("data", out var dataElement)
-                        ? dataElement
-                        : jsonDoc.RootElement;
-                    if (dataArray.GetArrayLength() == 0)
-                    {
-                        return Content(result, "application/json");
-                    }
-
-                    // Verify battery_id
-                    bool allMatch = true;
-                    int batteryIdAsInt;
-
-                    if (int.TryParse(battery_id, out batteryIdAsInt))
-                    {
-                        foreach (var item in dataArray.EnumerateArray())
-                        {
-                            if (item.TryGetProperty("battery_id", out var batteryIdProperty))
-                            {
-                                if (batteryIdProperty.GetInt32() != batteryIdAsInt)
-                                {
-                                    allMatch = false;
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                // If any item doesn't have battery_id property
-                                allMatch = false;
-                                break;
-                            }
-                        }
-
-                        if (!allMatch)
-                        {
-                            _logger.LogWarning("FastAPI returned unfiltered data despite battery_id filter");
-                            return StatusCode(500, "API returned inconsistent data that didn't match filter criteria");
-                        }
-                    }
-                }
-
+                
                 return Content(result, "application/json");
             }
-            catch (Exception ex)
+            
+            // Collect all data points for batteries 1-8
+            var allEntries = new List<(int batteryId, long timestamp, JsonElement raw)>();
+
+            for (int id = 1; id <= 8; id++)
             {
-                _logger.LogError(ex, "Error retrieving battery data");
-                return StatusCode(500, "Error retrieving battery data from Elfryd API");
+                var result = await _elfrydClient.GetBatteryDataAsync(id, limit, hours, time_offset);
+
+                var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
+                var dataArray = jsonDoc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                                jsonDoc.RootElement.TryGetProperty("data", out var dataElement)
+                    ? dataElement
+                    : jsonDoc.RootElement;
+
+                foreach (var item in dataArray.EnumerateArray())
+                {
+                    if (item.TryGetProperty("device_timestamp", out var timestampProp) &&
+                        timestampProp.TryGetInt64(out var timestamp))
+                    {
+                        allEntries.Add((id, timestamp, item));
+                    }
+                }
             }
+
+            if (allEntries.Count == 0)
+            {
+                return new JsonResult(new object[0]);
+            }
+
+            // Sort all entries by timestamp ascending (oldest first)
+            var sortedData = allEntries
+                .OrderBy(e => e.timestamp)
+                .Select(e => e.raw)
+                .ToList();
+
+            // Return the array directly without wrapping it in a "data" object
+            return new JsonResult(sortedData);
         }
+        finally
+        {
+            // Restore the original culture
+            System.Threading.Thread.CurrentThread.CurrentCulture = previousCulture;
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error retrieving battery data: {ErrorMessage}", ex.ToString());
+        return StatusCode(500, "Error retrieving battery data from Elfryd API");
+    }
+}
 
         [HttpGet("gyro")]
         public async Task<IActionResult> GetGyroData(
             [FromQuery] int limit = 20,
-            [FromQuery] int hours = 24,
-            [FromQuery] int time_offset = 0
+            [FromQuery] double hours = 24,
+            [FromQuery] double time_offset = 0
         )
         {
+            var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
             try
             {
                 var result = await _elfrydClient.GetGyroDataAsync(limit, hours, time_offset);
@@ -213,10 +225,12 @@ namespace BatterySensorAPI.Controllers
         [HttpGet("temp")]
         public async Task<IActionResult> GetTempData(
             [FromQuery] int limit = 20,
-            [FromQuery] int hours = 24,
-            [FromQuery] int time_offset = 0
+            [FromQuery] double hours = 24,
+            [FromQuery] double time_offset = 0
         )
         {
+            var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
             try
             {
                 var result = await _elfrydClient.GetTempDataAsync(limit, hours, time_offset);
@@ -229,7 +243,7 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
-        [HttpGet("battery/system/soc")]
+        [HttpGet("battery/system/soc", Order = 1)]
         public async Task<IActionResult> GetSystemSocVoltage()
         {
             var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync();
@@ -245,8 +259,8 @@ namespace BatterySensorAPI.Controllers
             return Ok(Math.Round(systemSoc));
         }
 
-        [HttpGet("battery/individual/soc")]
-        public async Task<IActionResult> GetIndividualSocVoltage(string battery_id = null)
+        [HttpGet("battery/individual/soc", Order = 1)]
+        public async Task<IActionResult> GetIndividualSocVoltage(int battery_id = 0)
         {
 
             var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync(battery_id);

@@ -38,7 +38,7 @@ namespace BatterySensorAPI.Services
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string> GetConfigAsync(int limit = 20, int hours = 168, int time_offset = 0)
+        public async Task<string> GetConfigAsync(int limit = 20, double hours = 168, double time_offset = 0)
         {
 
             var requestUri = $"config?limit={limit}";
@@ -54,18 +54,18 @@ namespace BatterySensorAPI.Services
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string> GetBatteryDataAsync(string battery_id = null, int limit = 20, int hours = 24, int time_offset = 0)
+        public async Task<string> GetBatteryDataAsync(int battery_id = 0, int limit = 20, double hours = 24, double time_offset = 0)
         {
             var requestUri = $"battery?limit={limit}";
             requestUri += $"&hours={hours}";
             requestUri += $"&time_offset={time_offset}";
 
-            if (!string.IsNullOrEmpty(battery_id))
+            if (battery_id!=0)
             {
-                requestUri += $"&battery_id={Uri.EscapeDataString(battery_id)}";
+                requestUri += $"&battery_id={battery_id}";
             }
 
-
+            Console.WriteLine("Request URI: {0}", requestUri);
             var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
             request.Headers.Add("X-API-Key", _apiKey);
 
@@ -75,7 +75,7 @@ namespace BatterySensorAPI.Services
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string> GetTempDataAsync(int limit = 20, int hours = 168, int time_offset = 0)
+        public async Task<string> GetTempDataAsync(int limit = 20, double hours = 168, double time_offset = 0)
         {
             var requestUri = $"temperature?limit={limit}";
             requestUri += $"&hours={hours}";
@@ -89,7 +89,7 @@ namespace BatterySensorAPI.Services
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string> GetGyroDataAsync(int limit = 20, int hours = 168, int time_offset = 0)
+        public async Task<string> GetGyroDataAsync(int limit = 20, double hours = 168, double time_offset = 0)
         {
             var requestUri = $"gyro?limit={limit}";
             requestUri += $"&hours={hours}";
@@ -103,7 +103,7 @@ namespace BatterySensorAPI.Services
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<List<BatteryReading>> GetLatestPerBatteryAsync(string battery_id = null)
+        public async Task<List<BatteryReading>> GetLatestPerBatteryAsync(int battery_id = 0)
         {
             var json = await this.GetBatteryDataAsync(
                 battery_id: battery_id,
