@@ -193,6 +193,9 @@ int baut_adc_read(int32_t * mv) {
 	}
 	// printk(" = %d mV\n", val_mv);
 
+	// calibrated for first perfboard test
+	val_mv *= 6.23;
+
 	*mv = val_mv;
 	return 0;
 }
