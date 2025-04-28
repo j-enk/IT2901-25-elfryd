@@ -22,7 +22,6 @@ static const struct device *i2c_dev;
 static K_MUTEX_DEFINE(i2c_mutex);
 
 /* Default I2C addresses for sensors */
-/* TODO?: Kunne legge til ekstra addresser?*/
 #define I2C_ADDR_BATTERY_BASE 0x10 /* Base address for batteries (0x10-0x13) */
 #define I2C_ADDR_TEMP 0x20         /* Temperature sensor address */
 #define I2C_ADDR_GYRO 0x30         /* Gyroscope sensor address */
