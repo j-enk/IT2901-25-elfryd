@@ -27,6 +27,15 @@ int i2c_master_init(void);
 int i2c_read_battery_data(int battery_id, battery_reading_t *reading);
 
 /**
+ * @brief Read all battery data from the slave device in a single transaction
+ *
+ * @param readings Array to store the readings
+ * @param max_readings Maximum number of readings to process
+ * @return Number of valid readings on success, negative errno otherwise
+ */
+int i2c_read_all_battery_data(battery_reading_t *readings, int max_readings);
+
+/**
  * @brief Read temperature data from a slave device
  *
  * @param reading Pointer to store the reading

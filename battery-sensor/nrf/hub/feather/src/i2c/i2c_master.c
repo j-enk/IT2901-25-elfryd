@@ -21,20 +21,20 @@ static const struct device *i2c_dev;
 /* Mutex for protecting I2C operations */
 static K_MUTEX_DEFINE(i2c_mutex);
 
-/* Default I2C addresses for sensors */
-#define I2C_ADDR_BATTERY_BASE 0x10 /* Base address for batteries (0x10-0x13) */
+/* I2C addresses for sensors - all battery data comes from the same address */
+#define I2C_ADDR_BATTERY 0x10      /* Battery sensor address */
 #define I2C_ADDR_TEMP 0x20         /* Temperature sensor address */
 #define I2C_ADDR_GYRO 0x30         /* Gyroscope sensor address */
 
-/* Register addresses - only need data registers for local timestamp mode */
-#define REG_BATTERY_VOLTAGE 0x01
-#define REG_TEMP_VALUE 0x01
-#define REG_GYRO_ACCEL_X 0x01
-#define REG_GYRO_ACCEL_Y 0x03
-#define REG_GYRO_ACCEL_Z 0x05
-#define REG_GYRO_GYRO_X 0x07
-#define REG_GYRO_GYRO_Y 0x09
-#define REG_GYRO_GYRO_Z 0x0B
+/* Register addresses for sensors */
+#define REG_BATTERY_DATA 0x01      /* Register containing all battery data */
+#define REG_TEMP_DATA 0x02         /* Register containing temperature data */
+#define REG_GYRO_DATA 0x03         /* Register containing gyroscope data */
+
+/* Data formats */
+#define BATTERY_BYTES_PER_READING 4    /* 1 byte new flag + 1 byte ID + 2 bytes voltage */
+#define TEMP_DATA_SIZE 3               /* 1 byte new flag + 2 bytes temperature */
+#define GYRO_DATA_SIZE 25              /* 1 byte new flag + 6 x 4 bytes for accel/gyro values */
 
 /* Flag to track if I2C is ready */
 static bool i2c_ready = false;
@@ -60,28 +60,83 @@ bool i2c_is_ready(void)
     return i2c_ready;
 }
 
-/* Helper function to read a 16-bit value from an I2C device */
-static int read_i2c_16bit(uint8_t dev_addr, uint8_t reg_addr, int16_t *value)
+/* Helper function to read all battery data from central device */
+static int read_battery_data_block(uint8_t *data, size_t size)
 {
-    uint8_t data[2];
+    uint8_t reg = REG_BATTERY_DATA;
     int ret;
+
+    if (!data || size == 0)
+    {
+        return -EINVAL;
+    }
 
     k_mutex_lock(&i2c_mutex, K_FOREVER);
 
-    /* Read the data from the specified register */
-    ret = i2c_write_read(i2c_dev, dev_addr, &reg_addr, 1, data, 2);
+    /* Read the data from the battery register */
+    ret = i2c_write_read(i2c_dev, I2C_ADDR_BATTERY, &reg, 1, data, size);
 
     k_mutex_unlock(&i2c_mutex);
 
     if (ret < 0)
     {
-        LOG_ERR(LOG_PREFIX_HW "Failed to read from I2C device 0x%02x (reg 0x%02x): %d",
-                dev_addr, reg_addr, ret);
+        LOG_ERR(LOG_PREFIX_HW "Failed to read battery data from I2C: %d", ret);
         return ret;
     }
 
-    /* Combine the two bytes into a 16-bit value */
-    *value = (int16_t)((data[0] << 8) | data[1]);
+    return 0;
+}
+
+/* Helper function to read temperature data from central device */
+static int read_temp_data_block(uint8_t *data, size_t size)
+{
+    uint8_t reg = REG_TEMP_DATA;
+    int ret;
+
+    if (!data || size == 0)
+    {
+        return -EINVAL;
+    }
+
+    k_mutex_lock(&i2c_mutex, K_FOREVER);
+
+    /* Read the data from the temperature register */
+    ret = i2c_write_read(i2c_dev, I2C_ADDR_TEMP, &reg, 1, data, size);
+
+    k_mutex_unlock(&i2c_mutex);
+
+    if (ret < 0)
+    {
+        LOG_ERR(LOG_PREFIX_HW "Failed to read temperature data from I2C: %d", ret);
+        return ret;
+    }
+
+    return 0;
+}
+
+/* Helper function to read gyroscope data from central device */
+static int read_gyro_data_block(uint8_t *data, size_t size)
+{
+    uint8_t reg = REG_GYRO_DATA;
+    int ret;
+
+    if (!data || size == 0)
+    {
+        return -EINVAL;
+    }
+
+    k_mutex_lock(&i2c_mutex, K_FOREVER);
+
+    /* Read the data from the gyroscope register */
+    ret = i2c_write_read(i2c_dev, I2C_ADDR_GYRO, &reg, 1, data, size);
+
+    k_mutex_unlock(&i2c_mutex);
+
+    if (ret < 0)
+    {
+        LOG_ERR(LOG_PREFIX_HW "Failed to read gyroscope data from I2C: %d", ret);
+        return ret;
+    }
 
     return 0;
 }
@@ -89,7 +144,8 @@ static int read_i2c_16bit(uint8_t dev_addr, uint8_t reg_addr, int16_t *value)
 int i2c_read_battery_data(int battery_id, battery_reading_t *reading)
 {
     int ret;
-    int16_t voltage_raw;
+    /* Buffer for all batteries - max 4 batteries with 4 bytes each */
+    uint8_t data[NUM_BATTERIES * BATTERY_BYTES_PER_READING];
 
     if (!i2c_ready)
     {
@@ -97,25 +153,49 @@ int i2c_read_battery_data(int battery_id, battery_reading_t *reading)
         return -ENODEV;
     }
 
-    if (battery_id < 1 || battery_id > 4 || !reading)
+    if (battery_id < 1 || battery_id > NUM_BATTERIES || !reading)
     {
         return -EINVAL;
     }
 
-    /* Calculate the I2C address for this battery_id */
-    uint8_t dev_addr = I2C_ADDR_BATTERY_BASE + (battery_id - 1);
-
-    /* Read just the voltage value */
-    ret = read_i2c_16bit(dev_addr, REG_BATTERY_VOLTAGE, &voltage_raw);
+    /* Read all battery data from the register */
+    ret = read_battery_data_block(data, sizeof(data));
     if (ret < 0)
     {
         LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", ret);
         return ret;
     }
 
+    /* Calculate offset for this battery ID (0-based index in the array) */
+    int offset = (battery_id - 1) * BATTERY_BYTES_PER_READING;
+    
+    /* Check if we have new data (first byte is the 'new' flag) */
+    bool is_new = (data[offset] != 0);
+    
+    if (!is_new)
+    {
+        /* Skip this reading if there's no new data */
+        LOG_DBG(LOG_PREFIX_I2C "No new data for battery %d", battery_id);
+        return -EAGAIN;
+    }
+
+    /* Extract battery ID from data (second byte) */
+    uint8_t id_from_data = data[offset + 1];
+    
+    /* Sanity check that IDs match */
+    if (id_from_data != battery_id)
+    {
+        LOG_WRN(LOG_PREFIX_I2C "Battery ID mismatch: expected %d, got %d", 
+                battery_id, id_from_data);
+    }
+    
+    /* Extract voltage from data (third and fourth bytes - int16_t) */
+    int16_t voltage;
+    memcpy(&voltage, &data[offset + 2], sizeof(int16_t));
+
     /* Fill in the battery reading structure with local timestamp */
     reading->battery_id = battery_id;
-    reading->voltage = voltage_raw;
+    reading->voltage = voltage;
     reading->timestamp = utils_get_timestamp();
 
     LOG_DBG(LOG_PREFIX_I2C "Read battery data: id=%d, voltage=%d mV, timestamp=%lld",
@@ -124,10 +204,83 @@ int i2c_read_battery_data(int battery_id, battery_reading_t *reading)
     return 0;
 }
 
+int i2c_read_all_battery_data(battery_reading_t *readings, int max_readings)
+{
+    int ret;
+    /* Buffer for all batteries - max NUM_BATTERIES with BATTERY_BYTES_PER_READING bytes each */
+    uint8_t data[NUM_BATTERIES * BATTERY_BYTES_PER_READING];
+    int valid_readings = 0;
+
+    if (!i2c_ready)
+    {
+        LOG_WRN(LOG_PREFIX_I2C "I2C not ready for battery reading");
+        return -ENODEV;
+    }
+
+    if (!readings || max_readings <= 0)
+    {
+        return -EINVAL;
+    }
+
+    /* Read all battery data from the register */
+    ret = read_battery_data_block(data, sizeof(data));
+    if (ret < 0)
+    {
+        LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", ret);
+        return ret;
+    }
+
+    /* Process each battery entry in the data block */
+    for (int i = 0; i < NUM_BATTERIES && i < max_readings; i++)
+    {
+        /* Calculate offset for this battery */
+        int offset = i * BATTERY_BYTES_PER_READING;
+        
+        /* Check if we have new data (first byte is the 'new' flag) */
+        bool is_new = (data[offset] != 0);
+        
+        if (!is_new)
+        {
+            /* Skip this reading if there's no new data */
+            LOG_DBG(LOG_PREFIX_I2C "No new data for battery %d", i + 1);
+            continue;
+        }
+
+        /* Extract battery ID from data (second byte) */
+        uint8_t id_from_data = data[offset + 1];
+        
+        /* Sanity check that IDs match expected pattern */
+        if (id_from_data < 1 || id_from_data > NUM_BATTERIES)
+        {
+            LOG_WRN(LOG_PREFIX_I2C "Invalid battery ID in data: %d", id_from_data);
+            continue;
+        }
+        
+        /* Extract voltage from data (third and fourth bytes - int16_t) */
+        int16_t voltage;
+        memcpy(&voltage, &data[offset + 2], sizeof(int16_t));
+
+        /* Fill in the battery reading structure with local timestamp */
+        readings[valid_readings].battery_id = id_from_data;
+        readings[valid_readings].voltage = voltage;
+        readings[valid_readings].timestamp = utils_get_timestamp();
+
+        LOG_DBG(LOG_PREFIX_I2C "Read battery data: id=%d, voltage=%d mV, timestamp=%lld",
+                readings[valid_readings].battery_id, 
+                readings[valid_readings].voltage, 
+                readings[valid_readings].timestamp);
+
+        valid_readings++;
+    }
+
+    LOG_INF(LOG_PREFIX_I2C "Read %d valid battery readings from I2C", valid_readings);
+    return valid_readings;
+}
+
 int i2c_read_temp_data(temp_reading_t *reading)
 {
     int ret;
-    int16_t temp_raw;
+    uint8_t data[TEMP_DATA_SIZE];
 
     if (!i2c_ready)
     {
@@ -140,16 +293,30 @@ int i2c_read_temp_data(temp_reading_t *reading)
         return -EINVAL;
     }
 
-    /* Read just the temperature value */
-    ret = read_i2c_16bit(I2C_ADDR_TEMP, REG_TEMP_VALUE, &temp_raw);
+    /* Read temperature data block from the register */
+    ret = read_temp_data_block(data, sizeof(data));
     if (ret < 0)
     {
         LOG_ERR(LOG_PREFIX_I2C "Failed to read temperature data from I2C: %d", ret);
         return ret;
     }
 
+    /* Check if we have new data (first byte is the 'new' flag) */
+    bool is_new = (data[0] != 0);
+    
+    if (!is_new)
+    {
+        /* Skip this reading if there's no new data */
+        LOG_DBG(LOG_PREFIX_I2C "No new temperature data");
+        return -EAGAIN;
+    }
+    
+    /* Extract temperature value from data (second and third bytes - int16_t) */
+    int16_t temperature;
+    memcpy(&temperature, &data[1], sizeof(int16_t));
+
     /* Fill in the temperature reading structure with local timestamp */
-    reading->temperature = temp_raw;
+    reading->temperature = temperature;
     reading->timestamp = utils_get_timestamp();
 
     LOG_DBG(LOG_PREFIX_I2C "Read temperature data: %d °C, timestamp=%lld",
@@ -161,7 +328,7 @@ int i2c_read_temp_data(temp_reading_t *reading)
 int i2c_read_gyro_data(gyro_reading_t *reading)
 {
     int ret;
-    int16_t value;
+    uint8_t data[GYRO_DATA_SIZE];
 
     if (!i2c_ready)
     {
@@ -174,61 +341,35 @@ int i2c_read_gyro_data(gyro_reading_t *reading)
         return -EINVAL;
     }
 
-    /* Read accelerometer X-axis */
-    ret = read_i2c_16bit(I2C_ADDR_GYRO, REG_GYRO_ACCEL_X, &value);
+    /* Read gyroscope data block from the register */
+    ret = read_gyro_data_block(data, sizeof(data));
     if (ret < 0)
     {
-        LOG_ERR(LOG_PREFIX_I2C "Failed to read accelerometer X data: %d", ret);
+        LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope data from I2C: %d", ret);
         return ret;
     }
-    reading->accel_x = value;
 
-    /* Read accelerometer Y-axis */
-    ret = read_i2c_16bit(I2C_ADDR_GYRO, REG_GYRO_ACCEL_Y, &value);
-    if (ret < 0)
+    /* Check if we have new data (first byte is the 'new' flag) */
+    bool is_new = (data[0] != 0);
+    
+    if (!is_new)
     {
-        LOG_ERR(LOG_PREFIX_I2C "Failed to read accelerometer Y data: %d", ret);
-        return ret;
+        /* Skip this reading if there's no new data */
+        LOG_DBG(LOG_PREFIX_I2C "No new gyroscope data");
+        return -EAGAIN;
     }
-    reading->accel_y = value;
 
-    /* Read accelerometer Z-axis */
-    ret = read_i2c_16bit(I2C_ADDR_GYRO, REG_GYRO_ACCEL_Z, &value);
-    if (ret < 0)
-    {
-        LOG_ERR(LOG_PREFIX_I2C "Failed to read accelerometer Z data: %d", ret);
-        return ret;
-    }
-    reading->accel_z = value;
-
-    /* Read gyroscope X-axis */
-    ret = read_i2c_16bit(I2C_ADDR_GYRO, REG_GYRO_GYRO_X, &value);
-    if (ret < 0)
-    {
-        LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope X data: %d", ret);
-        return ret;
-    }
-    reading->gyro_x = value;
-
-    /* Read gyroscope Y-axis */
-    ret = read_i2c_16bit(I2C_ADDR_GYRO, REG_GYRO_GYRO_Y, &value);
-    if (ret < 0)
-    {
-        LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope Y data: %d", ret);
-        return ret;
-    }
-    reading->gyro_y = value;
-
-    /* Read gyroscope Z-axis */
-    ret = read_i2c_16bit(I2C_ADDR_GYRO, REG_GYRO_GYRO_Z, &value);
-    if (ret < 0)
-    {
-        LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope Z data: %d", ret);
-        return ret;
-    }
-    reading->gyro_z = value;
-
-    /* Set local timestamp */
+    /* Extract accelerometer and gyroscope values (int32_t values after the new flag) */
+    int32_t values[6];
+    memcpy(values, &data[1], 6 * sizeof(int32_t));
+    
+    /* Fill in the gyroscope reading structure with local timestamp */
+    reading->accel_x = values[0];
+    reading->accel_y = values[1];
+    reading->accel_z = values[2];
+    reading->gyro_x = values[3];
+    reading->gyro_y = values[4];
+    reading->gyro_z = values[5];
     reading->timestamp = utils_get_timestamp();
 
     LOG_DBG(LOG_PREFIX_I2C "Read gyro data: accel_x=%d, accel_y=%d, accel_z=%d, gyro_x=%d, gyro_y=%d, gyro_z=%d, timestamp=%lld",
