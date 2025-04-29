@@ -131,7 +131,7 @@ namespace BatterySensorAPI.Controllers
 public async Task<IActionResult> GetBatteryData(
     [FromQuery] int battery_id = 0,
     [FromQuery] int limit = 20,
-    [FromQuery] double hours = 24,
+    [FromQuery] double hours = 168,
     [FromQuery] double time_offset = 0
 )
 {
@@ -204,7 +204,7 @@ public async Task<IActionResult> GetBatteryData(
         [HttpGet("gyro")]
         public async Task<IActionResult> GetGyroData(
             [FromQuery] int limit = 20,
-            [FromQuery] double hours = 24,
+            [FromQuery] double hours = 168,
             [FromQuery] double time_offset = 0
         )
         {
@@ -225,7 +225,7 @@ public async Task<IActionResult> GetBatteryData(
         [HttpGet("temp")]
         public async Task<IActionResult> GetTempData(
             [FromQuery] int limit = 20,
-            [FromQuery] double hours = 24,
+            [FromQuery] double hours = 168,
             [FromQuery] double time_offset = 0
         )
         {
