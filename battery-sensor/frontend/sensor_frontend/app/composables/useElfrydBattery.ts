@@ -17,13 +17,27 @@ export const useElfrydBattery = () => {
   const fetchBattery = async ({
     batteryId = 0,
     limit = 20,
-    hours = 168,
+    hours = 24,
     timeOffset = 0,
   }: FetchBatteryOptions) => {
     isLoading.value = true;
     error.value = null;
 
     try {
+      // Validation checks
+      if (batteryId < 0 || batteryId > 8) {
+        throw new Error("batteryId must be between 0 and 8.");
+      }
+      if (hours < 1 || hours > 1_000_000) {
+        throw new Error("hours must be between 1 and 1,000,000.");
+      }
+      if (limit < 0 || limit > 1_000_000) {
+        throw new Error("limit must be between 0 and 1,000,000.");
+      }
+      if (timeOffset < 0 || timeOffset > 1_000_000) {
+        throw new Error("timeOffset must be between 0 and 1,000,000.");
+      }
+
       const params = {
         battery_id: batteryId,
         limit,

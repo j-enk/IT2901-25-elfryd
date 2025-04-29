@@ -3,33 +3,46 @@ import { ref } from 'vue'
 import BatteryLineChart from '~/components/charts/BatteryLineChart.vue'
 import type { BatteryData } from '~/types/elfryd'
 
-const props = defineProps<{
-    batteryData: BatteryData[] | null
-    batteryLoading: boolean
-    batteryError: string | null
-    fetchBattery: (params: { batteryId: number, limit: number, hours: number, timeOffset: number }) => Promise<void>
-}>()
+import { useElfrydBattery } from '~/composables/useElfrydBattery'
 
-const battery_id = ref(0)
-const limit = ref(20)
-const hours = ref(168)
+const { batteryData, isLoading, error, fetchBattery } = useElfrydBattery();
+
+const batteryId = ref(0)
+const limit = ref(1000)
+const hours = ref(24)
 const timeOffset = ref(0)
 
-const handleFetchBattery = (e: Event) => {
+const handleFetchBattery = async (e: Event) => {
     e.preventDefault()
-    props.fetchBattery({
-        batteryId: isNaN(battery_id.value) ? 0 : battery_id.value,
+
+    try {
+        await fetchBattery({
+            batteryId: batteryId.value,
+            limit: limit.value,
+            hours: hours.value,
+            timeOffset: timeOffset.value
+        })
+    } catch (err) {
+        console.error('Error fetching battery data:', err)
+        // Optionally, set an error state to display in the UI
+    }
+}
+
+
+onMounted(() => {
+    fetchBattery({
+        batteryId: batteryId.value,
         limit: limit.value,
         hours: hours.value,
         timeOffset: timeOffset.value
     })
-}
+})
 </script>
 
 <template>
     <section class="w-full max-w-7xl rounded-lg mx-auto mt-4" aria-labelledby="data-section-title">
-        <div v-if="batteryError" class="bg-error/20 border border-error p-4 rounded mb-4">
-            Error: {{ batteryError }}
+        <div v-if="error" class="bg-error/20 border border-error p-4 rounded mb-4">
+            Error: {{ error }}
         </div>
 
         <div class="flex flex-wrap md:flex-nowrap gap-6">
@@ -40,14 +53,14 @@ const handleFetchBattery = (e: Event) => {
                 <form class="bg-base-300 border-1 border-success rounded-lg p-4 flex flex-col gap-4"
                     @submit="handleFetchBattery">
                     <div class="flex flex-wrap gap-4 w-full">
-                        <!-- battery_id -->
+                        <!-- batteryId -->
                         <div class="flex-1 min-w-[200px]">
-                            <label for="battery_id" class="label">Battery ID</label>
-                            <input id="battery_id" :value="battery_id"
-                                @input="battery_id = Number(($event.target as HTMLInputElement).value)" type="number"
+                            <label for="batteryId" class="label">Battery ID</label>
+                            <input id="batteryId" :value="batteryId"
+                                @input="batteryId = Number(($event.target as HTMLInputElement).value)" type="number"
                                 class="w-full rounded-md input input-md input-success" min="0" max="8"
                                 title="Must be between 0 and 8" />
-                            <small id="battery_idHelp" class="validator-hint label">Set to 0 to fetch all
+                            <small id="batteryIdHelp" class="validator-hint label">Set to 0 to fetch all
                                 entries</small>
                         </div>
 
@@ -78,9 +91,8 @@ const handleFetchBattery = (e: Event) => {
                         </div>
                     </div>
 
-                    <button type="submit" :disabled="batteryLoading"
-                        class="btn btn-outline btn-success rounded-md mt-6">
-                        {{ batteryLoading ? 'Loading...' : 'Fetch Data' }}
+                    <button type="submit" :disabled="isLoading" class="btn btn-outline btn-success rounded-md mt-6">
+                        {{ isLoading ? 'Loading...' : 'Fetch Data' }}
                     </button>
                 </form>
 
