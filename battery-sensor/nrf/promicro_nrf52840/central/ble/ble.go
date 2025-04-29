@@ -12,12 +12,21 @@ func InitBLE() error{
 	return Adapter.Enable()
 }
 
-func ScanStart() error{
+func ScanStart(sensorType string) error{
 
 	scanStartTime := time.Now()
 
 	foundDevices := make(chan bluetooth.ScanResult, 8)
 	uniqueAddress := make(map[bluetooth.Address]bool)
+	var uuidFilter [16]byte
+	switch sensorType {
+	case "Battery":
+		uuidFilter = voltageUUID
+	case "Temperature":
+		uuidFilter = tempUUID
+	case "Gyro":
+		uuidFilter = gyroUUID
+	}
 	err := Adapter.Scan(func(a *bluetooth.Adapter, device_found bluetooth.ScanResult){
 		//Får ikke skanne etter at den har connected?
 		if time.Since(scanStartTime) > 5*time.Second {
