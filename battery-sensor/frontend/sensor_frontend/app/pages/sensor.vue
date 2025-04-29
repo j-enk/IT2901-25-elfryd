@@ -14,7 +14,7 @@ const error = ref<string | null>(null);
 // const currentVoltage = computed(() => {
 //   // Check if array has elements before accessing the last one
 //   if (!voltageData.value || voltageData.value.length === 0) return 'N/A';
-  
+
 //   const lastValue = voltageData.value[voltageData.value.length - 1];
 //   // Make sure the value is a number before using toFixed
 //   return typeof lastValue === 'number' ? lastValue.toFixed(2) : 'N/A';
@@ -53,11 +53,11 @@ const batteryStatusClass = computed(() => {
 // const averageVoltage = computed(() => {
 //   // Check if array has elements before calculating average
 //   if (!voltageData.value || voltageData.value.length === 0) return 'N/A';
-  
+
 //   const sum = voltageData.value.reduce((a, b) => {
 //     return a + (typeof b === 'number' ? b : 0);
 //   }, 0);
-  
+
 //   return (sum / voltageData.value.length).toFixed(2);
 // });
 
@@ -65,7 +65,7 @@ const batteryStatusClass = computed(() => {
 const initChart = () => {
   const ctx = document.getElementById('voltageChart') as HTMLCanvasElement;
   if (!ctx) return;
-  
+
   chartInstance.value = new Chart(ctx, {
     type: 'line',
     data: {
@@ -100,8 +100,8 @@ const initChart = () => {
       scales: {
         y: {
           beginAtZero: false,
-          min: 12.0, 
-          max: 20.0, 
+          min: 12.0,
+          max: 20.0,
           title: {
             display: true,
             text: 'Voltage (V)'
@@ -138,29 +138,29 @@ const fetchVoltageData = async () => {
     console.log('Skipping fetch - too soon since last fetch');
     return;
   }
-  
+
   lastFetchTime = now;
-  
+
   try {
     if (!voltageData.value.length) {
       isLoading.value = true;
     }
     error.value = null;
-    
+
     console.log('Fetching data from API...');
     const response = await fetch('http://localhost:5196/api/BatterySensor/recent');
-    
+
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log(`Received ${data.length} readings from API`);
-    
+
     // Update data arrays
     voltageData.value = data.map((item: any) => item.voltage);
     timestamps.value = data.map((item: any) => new Date(item.timestamp).toLocaleTimeString());
-    
+
     updateChart();
   } catch (err) {
     console.error('Error fetching voltage data:', err);
@@ -175,10 +175,10 @@ let dataInterval: number | null = null;
 onMounted(() => {
   // Fetch initial data from the backend
   fetchVoltageData();
-  
+
   // Initialize chart after DOM is loaded
   setTimeout(initChart, 100);
-  
+
   // Set up interval for polling the backend API
   dataInterval = window.setInterval(fetchVoltageData, 5000);
 });
@@ -188,7 +188,7 @@ onBeforeUnmount(() => {
   if (dataInterval !== null) {
     clearInterval(dataInterval);
   }
-  
+
   // Clean up chart instance
   if (chartInstance.value) {
     chartInstance.value.destroy();
@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="container">
     <h1>Battery Voltage Monitor</h1>
-    
+
     <div class="chart-container">
       <div v-if="isLoading && !voltageData.length" class="loading-overlay">
         <p>Loading battery data...</p>
@@ -209,26 +209,26 @@ onBeforeUnmount(() => {
       </div>
       <canvas id="voltageChart"></canvas>
     </div>
-    
+
     <div class="data-summary">
       <div class="data-card" v-if="voltageData.length > 0">
         <h3>Current Voltage</h3>
         <p class="value">{{ formattedVoltage }} V</p>
         <div class="battery-indicator" :style="{
-    width: currentVoltage.value !== null
-      ? `${Math.max(0, Math.min(100, ((currentVoltage.value - 3.2) / (4.2 - 3.2) * 100)))}%`
-      : '0%'
-  }"></div>
+          width: currentVoltage.value !== null
+            ? `${Math.max(0, Math.min(100, ((currentVoltage.value - 3.2) / (4.2 - 3.2) * 100)))}%`
+            : '0%'
+        }"></div>
       </div>
-      
+
       <div class="data-card" v-if="voltageData.length > 0">
         <h3>Average Voltage</h3>
         <p class="value">{{ formattedAverageVoltage }} V</p>
       </div>
-      
+
       <div class="data-card" v-if="voltageData.length > 0">
         <h3>Battery Status</h3>
-        <p class="status" :class="{batteryStatusClass}">{{ batteryStatus }}</p>
+        <p class="status" :class="{ batteryStatusClass }">{{ batteryStatus }}</p>
       </div>
     </div>
   </div>

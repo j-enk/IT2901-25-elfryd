@@ -1,24 +1,67 @@
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
 
-# testing
-/coverage
+# .NET build artifacts
+bin/
+obj/
+out/
+[Bb]uild/
+[Ll]og/
+Generated\ Files/
 
-# next.js
-/.next/
-/out/
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# production
-/build
+# Rider project files
+.idea/
+*.sln.iml
 
-# misc
-.DS_Store
-.fleet
-.idea
-.DS_Store
-*.pem
+# VS Code settings
+.vscode/
+
+# Visual Studio for Mac
+.vscode/
+*.userprefs
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Publish output
+publish/
+*.publish.xml
+
+# .NET Core Dependency stores
+.vscode-test/
+global.json
+
+# Others
+*.dbmdl
+*.bak
+*.backup
+*.mdf
+*.ldf
+
+# Azure
+.azure/
+
+# Entity Framework Migrations
+Migrations/
+
+# local secrets
+secrets.json
+
+# dotCover
+.idea/.dotCover
+*.dotCover
+
+# Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# SonarQube
+.sonar/
 
 # local env files
 .env
@@ -28,16 +71,4 @@
 .env.development.local
 .env.test.local
 .env.production.local
-
-# vercel
-.vercel
-
-# Node dependencies
-node_modules
-pnpm-lock.yaml
-package-lock.json
-
-# Logs
-logs
-*.log
 
