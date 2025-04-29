@@ -4,12 +4,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"time"
-	"sync"
 
 	"tinygo.org/x/bluetooth"
 )
-
-var mu sync.Mutex
 
 var devices_connected = 0
 
@@ -57,7 +54,11 @@ func RunGATTClient() error {
 
 			val := int32(binary.LittleEndian.Uint32(buf[:n]))
 			fmt.Printf("[RunGATTClient] Device %s voltage value = %d\n", addr.String(), val)
-			MessageBus <- Message{ID: 1, Payload: val}
+			SetBatteryEntry(addr,&BatteryMessage{
+				New: 1,
+				ID: 1,
+				Payload: val
+			})
 		} else {
 			continue
 		}
