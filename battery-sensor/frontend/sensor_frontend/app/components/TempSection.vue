@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { BatteryData } from '~/types/elfryd'
-import { defineProps } from 'vue'
 
 defineProps<{
     batteryData: BatteryData[]

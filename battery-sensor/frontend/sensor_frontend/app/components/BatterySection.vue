@@ -109,7 +109,7 @@ onMounted(() => {
                 class="w-full md:w-1/3 bg-base-300 p-4 border-1 border-success rounded-lg overflow-auto h-fit max-h-[750px]">
                 <h2 class="text-lg font-semibold mb-2">Raw Battery Data</h2>
 
-                <div v-if="batteryData">
+                <div v-if="batteryData.length">
                     <pre class="text-xs font-mono bg-base-100 p-4 rounded-lg overflow-auto max-h-[600px]">
 {{ JSON.stringify(batteryData, null, 2) }}
                     </pre>

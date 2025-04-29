@@ -8,32 +8,32 @@ import type {
 
 export function useElfrydConfig() {
   const configEntries = ref<ConfigEntry[]>([]);
-  const loading = ref(false);
-  const error = ref<Error | null>(null);
+  const fetchLoading = ref(false);
+  const fetchError = ref<Error | null>(null);
 
   const sendLoading = ref(false);
   const sendError = ref<Error | null>(null);
-  const lastCommandResult = ref<ParsedCommandResult | null>(null);
+  const commandResult = ref<ParsedCommandResult | null>(null);
 
   const fetchConfig = async (params: FetchConfigParams = {}) => {
-    loading.value = true;
-    error.value = null;
+    fetchLoading.value = true;
+    fetchError.value = null;
     try {
       const response = await axios.get<ConfigEntry[]>(
         "http://localhost:5196/api/Elfryd/config",
         {
           params: {
             limit: params.limit ?? 0,
-            hours: params.hours ?? 168,
+            hours: params.hours ?? 0.5,
             time_offset: params.time_offset ?? 0,
           },
         }
       );
       configEntries.value = response.data.reverse();
     } catch (err) {
-      error.value = err as Error;
+      fetchError.value = err as Error;
     } finally {
-      loading.value = false;
+      fetchLoading.value = false;
     }
   };
 
@@ -41,7 +41,6 @@ export function useElfrydConfig() {
     sendLoading.value = true;
     sendError.value = null;
     command = command.trim().toLowerCase();
-    console.log("Sending command:", command);
 
     try {
       const response = await axios.post(
@@ -50,10 +49,10 @@ export function useElfrydConfig() {
       );
 
       const parsed: ParsedCommandResult = JSON.parse(response.data.result);
-      lastCommandResult.value = parsed;
+      commandResult.value = parsed;
     } catch (err) {
       sendError.value = err as Error;
-      lastCommandResult.value = null;
+      commandResult.value = null;
     } finally {
       sendLoading.value = false;
       await fetchConfig();
@@ -62,12 +61,12 @@ export function useElfrydConfig() {
 
   return {
     configEntries,
-    loading,
-    error,
+    fetchLoading,
+    fetchError,
     fetchConfig,
-    sendConfigCommand,
-    lastCommandResult,
+    commandResult,
     sendLoading,
     sendError,
+    sendConfigCommand,
   };
 }

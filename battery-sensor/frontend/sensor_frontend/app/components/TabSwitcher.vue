@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
 import type { BatteryData, ConfigEntry, ParsedCommandResult } from '~/types/elfryd'
 import { Tab } from '~/types/enums/Tab'
 
