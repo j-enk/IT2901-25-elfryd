@@ -15,13 +15,12 @@ import ConfigSection from '~/components/ConfigSection.vue'
 
 const activeTab = ref<Tab>(Tab.Battery)
 
-// Composables
 const { batteryData, isLoading: batteryLoading, error: batteryError, fetchBattery } = useElfrydBattery()
 const { gyroData, isLoading: gyroLoading, error: gyroError, fetchGyroData } = useElfrydGyroData()
 const { configEntries, loading: configFetchLoading, fetchConfig, sendConfigCommand, lastCommandResult, sendLoading, sendError } = useElfrydConfig()
 
 onMounted(() => {
-    fetchBattery({ batteryId: '', limit: 20, hours: 168, timeOffset: 0 })
+    fetchBattery({ batteryId: 0, limit: 20, hours: 168, timeOffset: 0 })
 })
 </script>
 

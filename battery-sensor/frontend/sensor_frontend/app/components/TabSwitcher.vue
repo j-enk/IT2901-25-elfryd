@@ -14,7 +14,7 @@ const props = defineProps<{
     batteryData: BatteryData[] | null
     batteryLoading: boolean
     batteryError: string | null
-    fetchBattery: (params: { batteryId: string, limit: number, hours: number, timeOffset: number }) => Promise<void>
+    fetchBattery: (params: { batteryId: number, limit: number, hours: number, timeOffset: number }) => Promise<void>
 
     // Gyro data
     gyroData: any

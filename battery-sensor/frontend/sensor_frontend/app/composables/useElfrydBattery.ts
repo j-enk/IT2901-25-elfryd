@@ -3,7 +3,7 @@ import axios from "axios";
 import type { BatteryData } from "~/types/elfryd";
 
 interface FetchBatteryOptions {
-  batteryId: string;
+  batteryId: number;
   limit?: number;
   hours?: number;
   timeOffset?: number;
@@ -15,7 +15,7 @@ export const useElfrydBattery = () => {
   const error = ref<string | null>(null);
 
   const fetchBattery = async ({
-    batteryId,
+    batteryId = 0,
     limit = 20,
     hours = 168,
     timeOffset = 0,
