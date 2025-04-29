@@ -410,14 +410,25 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     {
         current_time = utils_get_timestamp();
 
-        /* Generate new sensor data every second for all configured batteries */
-        for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++)
-        {
-            err = sensors_generate_battery_reading(battery_id);
-            if (err)
+        /* Generate new sensor data every second */
+        if (sensors_using_i2c()) {
+            /* More efficient approach - read all battery data at once when using I2C */
+            err = sensors_generate_all_battery_readings();
+            if (err < 0 && err != -EAGAIN) {
+                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery readings: %d", err);
+            } else if (err > 0) {
+                LOG_INF(LOG_PREFIX_SENS "Generated %d battery readings in a batch", err);
+            }
+        } else {
+            /* When not using I2C, use the individual approach to ensure consistent behavior */
+            for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++)
             {
-                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d",
-                        battery_id, err);
+                err = sensors_generate_battery_reading(battery_id);
+                if (err)
+                {
+                    LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d",
+                            battery_id, err);
+                }
             }
         }
 
