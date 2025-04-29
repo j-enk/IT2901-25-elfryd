@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import type { RadioGroupItem, RadioGroupValue } from '@nuxt/ui'
 
-import { useElfrydMessages } from '~/composables/useElfrydBatteryData'
+import { useElfrydMessages } from '~/composables/useElfrydBattery'
 import { useElfrydConfig } from '~/composables/useElfrydConfig'
 import { useElfrydFrequency } from '~/composables/useElfrydFrequency'
 
