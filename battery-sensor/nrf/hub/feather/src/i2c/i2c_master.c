@@ -28,8 +28,8 @@ static K_MUTEX_DEFINE(i2c_mutex);
 
 /* Register addresses for sensors */
 #define REG_BATTERY_DATA 0x01      /* Register containing all battery data */
-#define REG_TEMP_DATA 0x02         /* Register containing temperature data */
-#define REG_GYRO_DATA 0x03         /* Register containing gyroscope data */
+#define REG_TEMP_DATA 0x01         /* Register containing temperature data */
+#define REG_GYRO_DATA 0x01         /* Register containing gyroscope data */
 
 /* Data formats */
 #define BATTERY_BYTES_PER_READING 4    /* 1 byte new flag + 1 byte ID + 2 bytes voltage */
