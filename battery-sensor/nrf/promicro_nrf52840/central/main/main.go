@@ -18,8 +18,8 @@ func main() {
 	fmt.Println("Finished scanning")
 	must("Init Gatt client", ble.InitGATT())
 	//i2c go rutine must go first i think🤷‍♂️
+	i2c_target.ConfigI2C(0x10)
 	go func() {
-		i2c_target.ConfigI2C(0x69)
 		must("Runtime I2C", i2c_target.PassiveListening())
 	}()
 	go must("Runtime Gatt client", ble.RunGATTClient())
