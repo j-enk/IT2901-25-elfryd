@@ -1,6 +1,6 @@
 ## System Overview
 
-The **Zephyr‑nRF Sensor Suite** is a collection of lightweight Zephyr applications that demonstrate how to interface common I²C sensors with Nordic nRF52/53 devices. Each application lives in its own directory (`battery/`, `temp/`, `gyro/`) and exposes a common sample interface so they can be reused or composed into larger projects.
+The Sensor project is a collection of lightweight Zephyr applications that demonstrate how to interface common I²C sensors with Nordic nRF52 devices. Each application lives in its own directory (`saadc_battery_monitor/`, `bme280_temp/`, `mpu6050_gyro/`) and exposes a common sample interface so they can be reused or composed into larger projects.
 
 Key design goals:
 
@@ -9,11 +9,11 @@ Key design goals:
 
 ## Project Structure
 
-| Directory  | Target Sensor                            
-| ---------- | -------------------------------------------
-| `battery/` | ???             
-| `temp/`    | BME280 temperature sensor                  
-| `gyro/`    | MPU6050 3‑axis gyroscope and accelerometer
+| Directory                | Sensor/ Measure method                            
+| ------------------------ | -------------------------------------------
+| `saadc_battery_monitor/` | ADC battery monitor      
+| `bme280_temp/`           | BME280 temperature sensor                  
+| `mpu6050_gyro/`          | MPU6050 3‑axis gyroscope and accelerometer
 
 Additional top‑level folders:
 
@@ -24,9 +24,11 @@ Additional top‑level folders:
 ### Prerequisites
 
 - **Zephyr SDK 0.16+**
-- **west 1.2+** – Zephyr meta‑tool
-- **nRF Command Line Tools** – `nrfjprog` for flashing/debug
-- **Python 3.8+** (for helper scripts)
+- **west 1.2+**
+- **nRF Command Line Tools**
+- **Python 3.10+**
+- **CMake 3.20.5+**
+- **Devicetree compiler 1.4.6+**
 
 You can get started through this guide: https://docs.zephyrproject.org/latest/develop/getting_started/index.html
 
@@ -36,7 +38,10 @@ You can get started through this guide: https://docs.zephyrproject.org/latest/de
 eval $(zephyr-env.sh)
 west build -b your battery your_pathing/bme_temp
 west flash
-Optional: west flash --runner nrfjprog
+```
+Optional if west flash doesn't work:
+```sh
+west flash --runner nrfjprog
 ```
 
 Pass `-t run` to open a serial console automatically, or use `west build -t menuconfig` to tweak sampling rate and transports.
