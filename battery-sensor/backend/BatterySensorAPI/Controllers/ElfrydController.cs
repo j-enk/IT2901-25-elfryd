@@ -369,7 +369,7 @@ namespace BatterySensorAPI.Controllers
 
                     return new MotionRow
                     {
-                        t = DateTimeOffset.FromUnixTimeSeconds(r.device_timestamp).UtcDateTime,
+                        device_timestamp = r.device_timestamp,
                         ax = ax,
                         ay = ay,
                         az = az,
