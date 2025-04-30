@@ -69,7 +69,7 @@ func RunGATTClient() error {
 
 	case "Gyro":
 		readUUID = bluetooth.NewUUID(gyroUUID)
-		bytes = 18
+		bytes = 22
 		buf = make([]byte, bytes)
 	}
 
