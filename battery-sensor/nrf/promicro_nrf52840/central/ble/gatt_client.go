@@ -162,6 +162,7 @@ func findSrvcChars(profile *GATTProfile) error {
 		return nil
 	}
 	fmt.Printf("[findSrvcChars] Found %d service(s)\n", len(srvcs))
+	
 
 	profile.Services[sensorType] = &ServiceClient{
 		UUID:  gattUUID,
@@ -181,6 +182,9 @@ func findSrvcChars(profile *GATTProfile) error {
 	for _, char := range chars {
 		fmt.Printf("[findSrvcChars] Found characteristic: %s\n", char.UUID().String())
 		profile.Services[sensorType].Chars[char.UUID()] = char
+		mtu, _ := char.GetMTU()
+
+		fmt.Println("AAAAAAAAAAAAAAA%d", mtu)
 	}
 
 	return nil
