@@ -2,32 +2,32 @@
 
 The Elfryd Battery Sensor API is a .NET-based REST API that provides a simplified interface for accessing the Elfryd MQTT broker data. It serves as a middleware layer between client applications and the underlying MQTT data infrastructure, providing well-defined endpoints for battery voltage, temperature, gyroscope, and system configuration.
 
-## Table of Contents
-
-- [Elfryd Battery Sensor API](#elfryd-battery-sensor-api)
-  - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [System Architecture](#system-architecture)
-  - [Getting Started](#getting-started)
-    - [Prerequisites](#prerequisites)
-    - [Environment Setup](#environment-setup)
-    - [Building and Running](#building-and-running)
-  - [API Documentation](#api-documentation)
-    - [Battery Endpoints](#battery-endpoints)
-      - [Get Battery Data](#get-battery-data)
-      - [Get System State of Charge](#get-system-state-of-charge)
-      - [Get Individual Battery State of Charge](#get-individual-battery-state-of-charge)
-    - [Temperature Endpoints](#temperature-endpoints)
-      - [Get Temperature Data](#get-temperature-data)
-    - [Gyroscope Endpoints](#gyroscope-endpoints)
-      - [Get Gyroscope Data](#get-gyroscope-data)
-    - [Configuration Endpoints](#configuration-endpoints)
-      - [Get Configuration Data](#get-configuration-data)
-      - [Send Configuration Command](#send-configuration-command)
-  - [Authentication](#authentication)
-  - [Error Handling](#error-handling)
-  - [Testing](#testing)
-  - [Support and Contribution](#support-and-contribution)
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#system-architecture">System Architecture</a></li>
+    <li><a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#environment-setup">Environment Setup</a></li>
+        <li><a href="#building-and-running">Building and Running</a></li>
+      </ul>
+    </li>
+    <li><a href="#api-documentation">API Documentation</a>
+      <ul>
+        <li><a href="#battery-endpoints">Battery Endpoints</a></li>
+        <li><a href="#temperature-endpoints">Temperature Endpoints</a></li>
+        <li><a href="#gyroscope-endpoints">Gyroscope Endpoints</a></li>
+        <li><a href="#configuration-endpoints">Configuration Endpoints</a></li>
+      </ul>
+    </li>
+    <li><a href="#authentication">Authentication</a></li>
+    <li><a href="#error-handling">Error Handling</a></li>
+    <li><a href="#testing">Testing</a></li>
+    <li><a href="#support-and-contribution">Support and Contribution</a></li>
+  </ol>
+</details>
 
 ## Overview
 
