@@ -50,14 +50,13 @@ Pass `-t run` to open a serial console automatically, or use `west build -t menu
 
 | Component     | Status         |
 | ------------- | -------------- |
-| Battery       | ✅ Complete     |
-| Temperature   | ✅ Complete     |
-| Gyroscope     | ✅ Complete  |
+| Battery       | ✅ Complete    |
+| Temperature   | ✅ Complete    |
+| Gyroscope     | ✅ Complete    |
 
-## Development Team
+## Support and Contribution
 
 For questions or issues, please contact the contributors of the sensor project:
 
 - Leif Eggenfellner
 - Sigve Fehn Kulsrud
-
