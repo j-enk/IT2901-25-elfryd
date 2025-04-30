@@ -39,15 +39,17 @@ const struct device *const mpu6050 = DEVICE_DT_GET_ONE(invensense_mpu6050);
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
-// First filtering on central
+// VOLTAGE
 static const uint8_t custom_uuid[] = {
-    0x00, 0x00, 0x2A, 0x6E,
+    0x00, 0x00, 0x2B, 0x18,
     0x00, 0x00,
     0x10, 0x00,
     0x80, 0x00,
     0x00, 0x80,
     0x5F, 0x9B, 0x34, 0xFB,
 };
+
+#define BAUT_SENSOR_ID 1
 
 static const struct bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -218,6 +220,7 @@ static ssize_t vol_read_function(struct bt_conn *conn, const struct bt_gatt_attr
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &mv, sizeof(mv));
 }
 
+#ifdef BAUT_TEMPERATURE
 int baut_bme_init() {
     if(bme280_dev == NULL) {
         printk("BME is missing!\n");
@@ -282,7 +285,9 @@ static ssize_t temp_read_function(struct bt_conn *conn, const struct bt_gatt_att
 
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &celcius, sizeof(celcius));
 }
+#endif
 
+#ifdef BAUT_MPU
 int baut_mpu_init() {
     if(mpu6050 == NULL) {
         printk("MPU is missing!\n");
@@ -344,40 +349,41 @@ int baut_mpu_read(double values[6]) {
 static ssize_t mpu_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
     uint16_t len, uint16_t offset)
 {
-static uint8_t packed[18]; // Static to handle GATT offset correctly
-double values[6];
-const size_t total_len = sizeof(packed);
+    static uint8_t packed[18]; // Static to handle GATT offset correctly
+    double values[6];
+    const size_t total_len = sizeof(packed);
 
-if (offset >= total_len) {
-return 0; // Nothing more to read
+    if (offset >= total_len) {
+        return 0; // Nothing more to read
+    }
+
+    // Only fetch and convert data on first call (offset == 0)
+    if (offset == 0) {
+        if (baut_mpu_read(values) != 0) {
+            printk("MPU: read failed\n");
+            return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
+        }
+
+        printk("MPU: read successfully\n");
+
+        for (int i = 0; i < 6; ++i) {
+            int32_t fixed_val = (int32_t)(values[i] * 10000.0); // 5 decimal places
+
+            // Pack as big-endian 24-bit signed int
+            packed[i * 3 + 0] = (fixed_val >> 16) & 0xFF;
+            packed[i * 3 + 1] = (fixed_val >> 8) & 0xFF;
+            packed[i * 3 + 2] = fixed_val & 0xFF;
+        }
+    }
+
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, packed, total_len);
 }
-
-// Only fetch and convert data on first call (offset == 0)
-if (offset == 0) {
-if (baut_mpu_read(values) != 0) {
-printk("MPU: read failed\n");
-return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
-}
-
-printk("MPU: read successfully\n");
-
-for (int i = 0; i < 6; ++i) {
-int32_t fixed_val = (int32_t)(values[i] * 10000.0); // 5 decimal places
-
-// Pack as big-endian 24-bit signed int
-packed[i * 3 + 0] = (fixed_val >> 16) & 0xFF;
-packed[i * 3 + 1] = (fixed_val >> 8) & 0xFF;
-packed[i * 3 + 2] = fixed_val & 0xFF;
-}
-}
-
-return bt_gatt_attr_read(conn, attr, buf, len, offset, packed, total_len);
-}
+#endif
 
 static ssize_t id_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
                      uint16_t len, uint16_t offset)
 {
-    uint8_t sensor_id = 1;
+    uint8_t sensor_id = BAUT_SENSOR_ID;
 
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &sensor_id, sizeof(sensor_id));
 }
