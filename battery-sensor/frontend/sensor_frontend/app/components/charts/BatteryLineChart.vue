@@ -15,10 +15,8 @@ import {
 import "chartjs-adapter-date-fns";
 import type { BatteryData } from "~/types/elfryd";
 
-import {
-  chartColors,
-  chartOptions,
-} from "~/components/charts/config/chartConfig";
+import { batteryChartOptions } from "~/components/charts/config/chartBatteryOptions";
+import { baseChartColors } from "./config/chartBaseConfig";
 
 ChartJS.register(
   Title,
@@ -52,8 +50,8 @@ const chartData = computed(() => {
         x: e.device_timestamp * 1000,
         y: e.voltage,
       })),
-      borderColor: chartColors[index % chartColors.length],
-      backgroundColor: chartColors[index % chartColors.length],
+      borderColor: baseChartColors[index % baseChartColors.length],
+      backgroundColor: baseChartColors[index % baseChartColors.length],
       borderWidth: 2,
       fill: false,
       tension: 0.4,
@@ -66,7 +64,7 @@ const chartData = computed(() => {
 
 <template>
   <div class="chart-container">
-    <Line :data="chartData" :options="chartOptions" />
+    <Line :data="chartData" :options="batteryChartOptions" />
   </div>
 </template>
 

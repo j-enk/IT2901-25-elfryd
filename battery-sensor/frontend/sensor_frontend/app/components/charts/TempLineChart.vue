@@ -15,10 +15,8 @@ import {
 import "chartjs-adapter-date-fns";
 
 import type { TempData } from "~/types/elfryd";
-import {
-  chartColors,
-  chartOptions,
-} from "~/components/charts/config/chartConfig";
+import { baseChartColors } from "./config/chartBaseConfig";
+import { tempChartOptions } from "./config/chartTempOptions";
 
 ChartJS.register(
   Title,
@@ -43,11 +41,11 @@ const chartData = computed(() => {
       {
         label: "Temperature",
         data: sortedData.map((entry) => ({
-          x: entry.device_timestamp * 1000, // Convert seconds to ms for JS Date
+          x: entry.device_timestamp * 1000,
           y: entry.temperature,
         })),
-        borderColor: chartColors[0],
-        backgroundColor: chartColors[0],
+        borderColor: baseChartColors[0],
+        backgroundColor: baseChartColors[0],
         borderWidth: 2,
         fill: false,
         tension: 0.4,
@@ -61,7 +59,7 @@ const chartData = computed(() => {
 
 <template>
   <div class="chart-container">
-    <Line :data="chartData" :options="chartOptions" />
+    <Line :data="chartData" :options="tempChartOptions" />
   </div>
 </template>
 
