@@ -119,7 +119,7 @@ Azure VM-based message broker system that:
 
 [Broker Documentation →](/battery-sensor/broker/README.md)
 
-### 5. Backend (Coming Soon)
+### 5. Backend
 
 The .NET-based backend that:
 - Calculates state of charge (SoC) for batteries
@@ -128,7 +128,7 @@ The .NET-based backend that:
 
 [Backend Documentation →](/battery-sensor/backend/README.md)
 
-### 6. Frontend (Coming Soon)
+### 6. Frontend
 
 The Nuxt/Vue.js-based frontend that:
 - Displays real-time and historical data
@@ -170,11 +170,18 @@ For detailed setup instructions, visit the specific component documentation link
 
 - ✅ Sensor Components
 - ✅ BLE Communication
-- 🔄 I2C transmission - In Progress
+- ✅ I2C transmission
 - ✅ nRF9160 Hub
+- ✅ MQTT transmission
 - ✅ MQTT Broker & Database
-- 🔄 Backend (.NET) - In Progress
-- 🔄 Frontend (Nuxt/Vue.js) - In Progress
+- ✅ HTTPS transmission
+- ✅ Backend (.NET)
+- ✅ Frontend (Nuxt/Vue.js)
+
+## Future Work
+- Make the process of adding new sensors more dynamic (updates needed for all nrf components)
+- Improve the backend to support more complex calculations
+- Integrate some backend endpoints with the LockBox project frontend
 
 ## Development Team
 

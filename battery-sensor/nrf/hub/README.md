@@ -142,4 +142,4 @@ For instructions on building and flashing the firmware to the CircuitDojo nRF916
 
 For questions or issues, please contact the contributors of the hub system:
 
-- Martin Vågseter Jakobsen (developer)
+- Martin Vågseter Jakobsen (sole developer)
