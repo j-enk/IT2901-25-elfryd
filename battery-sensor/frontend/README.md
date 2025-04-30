@@ -112,13 +112,11 @@ The Elfryd Frontend is a Nuxt.js-based web application that provides a dashboard
 
 ## Development Team
 
-This project is developed as part of IT2901 Information Technology Project II at NTNU. Our team is focused on creating a reliable IoT monitoring solution for the Elfryd boat:
+For questions or issues, please contact the contributors of the frontend project:
 
 - Martin Vågseter Jakobsen 
 - Magnus Hansen Åsheim
 - Leif Eggenfellner
-- David Salguero Spilde
-- Jonas Elvedal Hole
 - Sigve Fehn Kulsrud
 
 <p align="right">(<a href="#top">back to top</a>)</p>
