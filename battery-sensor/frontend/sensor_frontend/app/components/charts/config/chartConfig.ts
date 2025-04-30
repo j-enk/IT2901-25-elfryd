@@ -1,12 +1,17 @@
-import type { ChartOptions } from 'chart.js'
+export const chartColors = [
+  "#3ABFF8", // info (blue)
+  "#36D399", // success (green)
+  "#FBBD23", // warning (yellow)
+  "#F87272", // error (red)
+  "#C084FC", // accent (purple)
+  "#818CF8", // primary (blue-violet)
+  "#F472B6", // secondary (pink)
+  "#60A5FA", // light blue
+  "#34D399", // teal
+  "#F87171", // soft red
+];
 
-export const batteryChartColors = [
-  "#3ABFF8", "#36D399", "#FBBD23", "#F87272",
-  "#C084FC", "#818CF8", "#F472B6", "#60A5FA",
-  "#34D399", "#F87171",
-]
-
-export const batteryChartOptions: ChartOptions<'line'> = {
+export const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   parsing: false,
@@ -54,4 +59,4 @@ export const batteryChartOptions: ChartOptions<'line'> = {
       borderWidth: 1,
     },
   },
-}
+};

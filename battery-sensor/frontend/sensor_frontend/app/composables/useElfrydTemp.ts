@@ -1,33 +1,21 @@
 import { ref } from "vue";
 import axios from "axios";
-import type { BatteryData } from "~/types/elfryd";
+import type { TempData, FetchTempOptions } from "~/types/elfryd";
 
-interface FetchBatteryOptions {
-  batteryId: number;
-  limit?: number;
-  hours?: number;
-  timeOffset?: number;
-}
-
-export const useElfrydBattery = () => {
-  const batteryData = ref<BatteryData[]>([]);
+export const useElfrydTemp = () => {
+  const tempData = ref<TempData[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  const fetchBattery = async ({
-    batteryId = 0,
+  const fetchTemp = async ({
     limit = 100,
     hours = 24,
     timeOffset = 0,
-  }: FetchBatteryOptions) => {
+  }: FetchTempOptions = {}) => {
     isLoading.value = true;
     error.value = null;
 
     try {
-      // Validation checks
-      if (batteryId < 0 || batteryId > 8) {
-        throw new Error("batteryId must be between 0 and 8.");
-      }
       if (hours < 1 || hours > 1_000_000) {
         throw new Error("hours must be between 1 and 1,000,000.");
       }
@@ -39,14 +27,13 @@ export const useElfrydBattery = () => {
       }
 
       const params = {
-        battery_id: batteryId,
         limit,
         hours,
         time_offset: timeOffset,
       };
 
-      const response = await axios.get<BatteryData[]>(
-        "http://localhost:5196/api/Elfryd/battery",
+      const response = await axios.get<TempData[]>(
+        "http://localhost:5196/api/Elfryd/temp",
         {
           params,
           headers: {
@@ -55,7 +42,7 @@ export const useElfrydBattery = () => {
         }
       );
 
-      batteryData.value = response.data;
+      tempData.value = response.data;
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         error.value =
@@ -71,9 +58,9 @@ export const useElfrydBattery = () => {
   };
 
   return {
-    batteryData,
+    tempData,
     isLoading,
     error,
-    fetchBattery,
+    fetchTemp,
   };
 };
