@@ -20,7 +20,7 @@ The application uses a multi-threaded architecture to handle different tasks ind
 
 1. **MQTT Thread**: Handles LTE connection, MQTT connectivity, and message events
 2. **Publisher Thread**: Manages the publishing queue and sends data to MQTT broker
-3. **Sensor Thread**: Collects data from sensors and queues it for publication
+3. **Sensor Thread**: Collects sensor data from centrals and queues it for publication
 4. **Time Thread**: Synchronizes time with network for accurate timestamping
 
 ### Core Features
