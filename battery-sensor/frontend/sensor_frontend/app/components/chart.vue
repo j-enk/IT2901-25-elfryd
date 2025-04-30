@@ -73,14 +73,21 @@ const initChart = () => {
 watch(
   () => [props.voltageData, props.timestamps],
   () => {
-    if (chartInstance.value) {
-      chartInstance.value.data.labels = [...props.timestamps];
-      chartInstance.value.data.datasets[0].data = [...props.voltageData];
-      chartInstance.value.update();
-    }
+    const ci = chartInstance.value
+    if (!ci) return
+
+    // guard that data & datasets exist
+    const d = ci.data
+    if (!d.datasets?.[0]) return
+
+    // now we can safely assign
+    d.labels = [...props.timestamps]
+    d.datasets[0].data = [...props.voltageData]
+    ci.update()
   },
   { deep: true }
-);
+)
+
 
 onMounted(() => {
   // Initialize chart after DOM is loaded

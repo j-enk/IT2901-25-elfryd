@@ -11,6 +11,12 @@ export interface FetchConfigParams {
   time_offset?: number;
 }
 
+interface FetchTempOptions {
+  limit?: number;
+  hours?: number;
+  timeOffset?: number;
+}
+
 export interface SendConfigResponse {
   success: boolean;
   result: string; // JSON string, need to parse
@@ -27,5 +33,11 @@ export interface BatteryData {
   id: number;
   battery_id: number;
   voltage: number;
+  device_timestamp: number;
+}
+
+export interface TempData {
+  id: number;
+  temperature: number;
   device_timestamp: number;
 }

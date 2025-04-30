@@ -1,4 +1,4 @@
-export const batteryChartColors = [
+export const chartColors = [
   "#3ABFF8", // info (blue)
   "#36D399", // success (green)
   "#FBBD23", // warning (yellow)
@@ -11,7 +11,7 @@ export const batteryChartColors = [
   "#F87171", // soft red
 ];
 
-export const batteryChartOptions = {
+export const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   parsing: false,
@@ -26,43 +26,29 @@ export const batteryChartOptions = {
         tooltipFormat: "PPpp",
         unit: "hour",
       },
-      ticks: {
-        color: "#d1d5db",
-      },
-      grid: {
-        color: "rgba(255, 255, 255, 0.1)",
-      },
+      ticks: { color: "#d1d5db" },
+      grid: { color: "rgba(255, 255, 255, 0.1)" },
       title: {
         display: true,
         text: "Timestamp",
         color: "#e5e7eb",
-        font: {
-          weight: "bold",
-        },
+        font: { weight: "bold" },
       },
     },
     y: {
-      ticks: {
-        color: "#d1d5db",
-      },
-      grid: {
-        color: "rgba(255, 255, 255, 0.1)",
-      },
+      ticks: { color: "#d1d5db" },
+      grid: { color: "rgba(255, 255, 255, 0.1)" },
       title: {
         display: true,
         text: "Voltage (mV)",
         color: "#e5e7eb",
-        font: {
-          weight: "bold",
-        },
+        font: { weight: "bold" },
       },
     },
   },
   plugins: {
     legend: {
-      labels: {
-        color: "#e5e7eb",
-      },
+      labels: { color: "#e5e7eb" },
       position: "bottom",
     },
     tooltip: {

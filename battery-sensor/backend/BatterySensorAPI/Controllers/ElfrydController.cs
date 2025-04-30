@@ -320,17 +320,65 @@ public async Task<IActionResult> GetBatteryData(
             [FromQuery] double time_offset = 0
         )
         {
-            var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
-            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+            var prevCulture = Thread.CurrentThread.CurrentCulture;
+            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+
             try
             {
-                var result = await _elfrydClient.GetGyroDataAsync(limit, hours, time_offset);
-                return Content(result, "application/json");
+                // pull raw JSON from the API client
+                var rawJson = await _elfrydClient.GetGyroDataAsync(limit, hours, time_offset);
+
+                // deserialize to RawGyroRow[]
+                var raw = JsonSerializer.Deserialize<RawGyroRow[]>(rawJson)!;
+
+                const double µg  = 1_000_000.0;
+                const double mdeg = 1_000.0;
+                const double rad2deg = 180.0 / Math.PI;
+
+                // project into MotionRow[]
+                var motion = raw.Select(r =>
+                {
+                    // convert to g
+                    var ax = r.accel_x / µg;
+                    var ay = r.accel_y / µg;
+                    var az = r.accel_z / µg;
+                    // convert to °/s
+                    var gx = r.gyro_x / mdeg;
+                    var gy = r.gyro_y / mdeg;
+                    var gz = r.gyro_z / mdeg;
+
+                    // compute orientation & heave
+                    var roll  = Math.Atan2(ay, az) * rad2deg;
+                    var pitch = Math.Atan2(-ax, Math.Sqrt(ay*ay + az*az)) * rad2deg;
+                    var yawRate = gz;
+                    var heave   = Math.Sqrt(ax*ax + ay*ay + az*az) - 1.0;
+
+                    return new MotionRow
+                    {
+                        t = DateTimeOffset.FromUnixTimeSeconds(r.device_timestamp).UtcDateTime,
+                        ax = ax,
+                        ay = ay,
+                        az = az,
+                        gx = gx,
+                        gy = gy,
+                        gz = gz,
+                        roll = roll,
+                        pitch = pitch,
+                        yawRate = yawRate,
+                        heave = heave
+                    };
+                }).ToArray();
+
+                return Ok(motion);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving gyro data");
                 return StatusCode(500, "Error retrieving gyro data from Elfryd API");
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = prevCulture;
             }
         }
 

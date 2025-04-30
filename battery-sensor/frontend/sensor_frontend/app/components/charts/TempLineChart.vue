@@ -13,8 +13,8 @@ import {
   Filler,
 } from "chart.js";
 import "chartjs-adapter-date-fns";
-import type { BatteryData } from "~/types/elfryd";
 
+import type { TempData } from "~/types/elfryd";
 import {
   chartColors,
   chartOptions,
@@ -31,35 +31,30 @@ ChartJS.register(
   Filler
 );
 
-const props = defineProps<{ data: BatteryData[] }>();
+const props = defineProps<{ data: TempData[] }>();
 
 const chartData = computed(() => {
   const sortedData = [...props.data].sort(
     (a, b) => a.device_timestamp - b.device_timestamp
   );
-  const grouped = sortedData.reduce((acc, entry) => {
-    if (!acc[entry.battery_id]) {
-      acc[entry.battery_id] = [];
-    }
-    acc[entry.battery_id]!.push(entry);
-    return acc;
-  }, {} as Record<number, BatteryData[]>);
 
   return {
-    datasets: Object.entries(grouped).map(([batteryId, entries], index) => ({
-      label: `Battery ${batteryId}`,
-      data: entries.map((e) => ({
-        x: e.device_timestamp * 1000,
-        y: e.voltage,
-      })),
-      borderColor: chartColors[index % chartColors.length],
-      backgroundColor: chartColors[index % chartColors.length],
-      borderWidth: 2,
-      fill: false,
-      tension: 0.4,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-    })),
+    datasets: [
+      {
+        label: "Temperature",
+        data: sortedData.map((entry) => ({
+          x: entry.device_timestamp * 1000, // Convert seconds to ms for JS Date
+          y: entry.temperature,
+        })),
+        borderColor: chartColors[0],
+        backgroundColor: chartColors[0],
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      },
+    ],
   };
 });
 </script>
