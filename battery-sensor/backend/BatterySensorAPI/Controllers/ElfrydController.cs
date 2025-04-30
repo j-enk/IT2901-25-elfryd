@@ -169,132 +169,132 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
-/// <summary>
-/// Retrieve battery voltage measurements from connected devices
-/// </summary>
-/// <remarks>
-/// This endpoint returns battery voltage data collected from the IoT devices
-/// in the Elfryd system. The voltage values are in millivolts (mV).
-///
-/// ## Parameters
-/// - **battery_id**: Filter by specific battery identifier (0 = all batteries)
-/// - **limit**: Maximum number of records to return (default: 20)
-/// - **hours**: Get data from the last X hours (default: 168)
-/// - **time_offset**: Offset in hours from current time
-///
-/// ## Response
-/// Returns an array of battery records, each containing:
-/// - **id**: Unique record identifier
-/// - **battery_id**: Identifier of the battery
-/// - **voltage**: Battery voltage in millivolts (mV)
-/// - **device_timestamp**: Timestamp of the measurement on the device (Unix timestamp)
-///
-/// ## Authentication
-/// Requires API key in the X-API-Key header when forwarded to Elfryd API
-/// </remarks>
-[HttpGet("battery", Order = 0)]
-public async Task<IActionResult> GetBatteryData(
-    [FromQuery] int battery_id = 0,
-    [FromQuery] int limit = 20,
-    [FromQuery] double hours = 168,
-    [FromQuery] double time_offset = 0
-)
-{
-    try
-    {
-        // This guarantees that the doubles are parsed as dot (.).
-        var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
-        System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-        
-        try
+        /// <summary>
+        /// Retrieve battery voltage measurements from connected devices
+        /// </summary>
+        /// <remarks>
+        /// This endpoint returns battery voltage data collected from the IoT devices
+        /// in the Elfryd system. The voltage values are in millivolts (mV).
+        ///
+        /// ## Parameters
+        /// - **battery_id**: Filter by specific battery identifier (0 = all batteries)
+        /// - **limit**: Maximum number of records to return (default: 20)
+        /// - **hours**: Get data from the last X hours (default: 168)
+        /// - **time_offset**: Offset in hours from current time
+        ///
+        /// ## Response
+        /// Returns an array of battery records, each containing:
+        /// - **id**: Unique record identifier
+        /// - **battery_id**: Identifier of the battery
+        /// - **voltage**: Battery voltage in millivolts (mV)
+        /// - **device_timestamp**: Timestamp of the measurement on the device (Unix timestamp)
+        ///
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header when forwarded to Elfryd API
+        /// </remarks>
+        [HttpGet("battery", Order = 0)]
+        public async Task<IActionResult> GetBatteryData(
+            [FromQuery] int battery_id = 0,
+            [FromQuery] int limit = 20,
+            [FromQuery] double hours = 168,
+            [FromQuery] double time_offset = 0
+        )
         {
-           if (battery_id != 0)
+            try
             {
-                // Retrieve data for a specific battery
-                var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
-                
-                // Validate that all entries have the requested battery_id
+                // This guarantees that the doubles are parsed as dot (.).
+                var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+                System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
                 try
                 {
-                    var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
-                    
-                    // Check if an entry contains illegal battery_id
-                    foreach (var item in jsonDoc.RootElement.EnumerateArray())
+                    if (battery_id != 0)
                     {
-                        if (item.TryGetProperty("battery_id", out var idProp) && 
-                            idProp.TryGetInt32(out var id) && 
-                            id != battery_id)
+                        // Retrieve data for a specific battery
+                        var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
+
+                        // Validate that all entries have the requested battery_id
+                        try
                         {
-                            _logger.LogWarning("Inconsistent data received from Elfryd API: requested battery_id={RequestedId}, but found battery_id={FoundId}", 
-                                battery_id, id);
-                                
-                            return new ObjectResult($"Inconsistent battery data: requested battery_id={battery_id}, but found entries with different IDs")
+                            var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
+
+                            // Check if an entry contains illegal battery_id
+                            foreach (var item in jsonDoc.RootElement.EnumerateArray())
+                            {
+                                if (item.TryGetProperty("battery_id", out var idProp) &&
+                                    idProp.TryGetInt32(out var id) &&
+                                    id != battery_id)
+                                {
+                                    _logger.LogWarning("Inconsistent data received from Elfryd API: requested battery_id={RequestedId}, but found battery_id={FoundId}",
+                                        battery_id, id);
+
+                                    return new ObjectResult($"Inconsistent battery data: requested battery_id={battery_id}, but found entries with different IDs")
+                                    {
+                                        StatusCode = StatusCodes.Status500InternalServerError
+                                    };
+                                }
+                            }
+                        }
+                        catch (System.Text.Json.JsonException ex)
+                        {
+                            _logger.LogError(ex, "Error parsing JSON from Elfryd API");
+                            return new ObjectResult("Error parsing battery data from Elfryd API")
                             {
                                 StatusCode = StatusCodes.Status500InternalServerError
                             };
                         }
+
+                        return Content(result, "application/json");
                     }
-                }
-                catch (System.Text.Json.JsonException ex)
-                {
-                    _logger.LogError(ex, "Error parsing JSON from Elfryd API");
-                    return new ObjectResult("Error parsing battery data from Elfryd API")
+
+                    // Collect all data points for batteries 1-8
+                    var allEntries = new List<(int batteryId, long timestamp, JsonElement raw)>();
+
+                    for (int id = 1; id <= 8; id++)
                     {
-                        StatusCode = StatusCodes.Status500InternalServerError
-                    };
-                }
-                
-                return Content(result, "application/json");
-            }
-            
-            // Collect all data points for batteries 1-8
-            var allEntries = new List<(int batteryId, long timestamp, JsonElement raw)>();
+                        var result = await _elfrydClient.GetBatteryDataAsync(id, limit, hours, time_offset);
 
-            for (int id = 1; id <= 8; id++)
-            {
-                var result = await _elfrydClient.GetBatteryDataAsync(id, limit, hours, time_offset);
+                        var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
+                        var dataArray = jsonDoc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                                        jsonDoc.RootElement.TryGetProperty("data", out var dataElement)
+                            ? dataElement
+                            : jsonDoc.RootElement;
 
-                var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
-                var dataArray = jsonDoc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
-                                jsonDoc.RootElement.TryGetProperty("data", out var dataElement)
-                    ? dataElement
-                    : jsonDoc.RootElement;
-
-                foreach (var item in dataArray.EnumerateArray())
-                {
-                    if (item.TryGetProperty("device_timestamp", out var timestampProp) &&
-                        timestampProp.TryGetInt64(out var timestamp))
-                    {
-                        allEntries.Add((id, timestamp, item));
+                        foreach (var item in dataArray.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("device_timestamp", out var timestampProp) &&
+                                timestampProp.TryGetInt64(out var timestamp))
+                            {
+                                allEntries.Add((id, timestamp, item));
+                            }
+                        }
                     }
+
+                    if (allEntries.Count == 0)
+                    {
+                        return new JsonResult(new object[0]);
+                    }
+
+                    // Sort all entries by timestamp ascending (oldest first)
+                    var sortedData = allEntries
+                        .OrderBy(e => e.timestamp)
+                        .Select(e => e.raw)
+                        .ToList();
+
+                    return new JsonResult(sortedData);
+                }
+                finally
+                {
+                    // Restore the original culture
+                    System.Threading.Thread.CurrentThread.CurrentCulture = previousCulture;
                 }
             }
-
-            if (allEntries.Count == 0)
+            catch (Exception ex)
             {
-                return new JsonResult(new object[0]);
+                _logger.LogError(ex, "Error retrieving battery data: {ErrorMessage}", ex.ToString());
+                return StatusCode(500, "Error retrieving battery data from Elfryd API");
             }
-
-            // Sort all entries by timestamp ascending (oldest first)
-            var sortedData = allEntries
-                .OrderBy(e => e.timestamp)
-                .Select(e => e.raw)
-                .ToList();
-
-            return new JsonResult(sortedData);
         }
-        finally
-        {
-            // Restore the original culture
-            System.Threading.Thread.CurrentThread.CurrentCulture = previousCulture;
-        }
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error retrieving battery data: {ErrorMessage}", ex.ToString());
-        return StatusCode(500, "Error retrieving battery data from Elfryd API");
-    }
-}
 
         /// <summary>
         /// Retrieve gyroscope data
@@ -320,8 +320,8 @@ public async Task<IActionResult> GetBatteryData(
             [FromQuery] double time_offset = 0
         )
         {
-            var prevCulture = Thread.CurrentThread.CurrentCulture;
-            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            var prevCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
             try
             {
@@ -331,7 +331,7 @@ public async Task<IActionResult> GetBatteryData(
                 // deserialize to RawGyroRow[]
                 var raw = JsonSerializer.Deserialize<RawGyroRow[]>(rawJson)!;
 
-                const double µg  = 1_000_000.0;
+                const double µg = 1_000_000.0;
                 const double mdeg = 1_000.0;
                 const double rad2deg = 180.0 / Math.PI;
 
@@ -348,10 +348,10 @@ public async Task<IActionResult> GetBatteryData(
                     var gz = r.gyro_z / mdeg;
 
                     // compute orientation & heave
-                    var roll  = Math.Atan2(ay, az) * rad2deg;
-                    var pitch = Math.Atan2(-ax, Math.Sqrt(ay*ay + az*az)) * rad2deg;
+                    var roll = Math.Atan2(ay, az) * rad2deg;
+                    var pitch = Math.Atan2(-ax, Math.Sqrt(ay * ay + az * az)) * rad2deg;
                     var yawRate = gz;
-                    var heave   = Math.Sqrt(ax*ax + ay*ay + az*az) - 1.0;
+                    var heave = Math.Sqrt(ax * ax + ay * ay + az * az) - 1.0;
 
                     return new MotionRow
                     {
