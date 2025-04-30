@@ -1,29 +1,16 @@
 import { ref } from "vue";
 
-export interface RawGyroRow {
-  id: number;
-  accel_x: number;
-  accel_y: number;
-  accel_z: number;
-  gyro_x: number;
-  gyro_y: number;
-  gyro_z: number;
-  device_timestamp: number;
-}
-
 export interface MotionRow {
-  /* raw values */
   t: Date;
   ax: number;
   ay: number;
-  az: number; // g
+  az: number;    // g
   gx: number;
   gy: number;
-  gz: number; // ° s-¹
-  /* derived values */
-  roll: number; // °
+  gz: number;    // °/s
+  roll: number;  // °
   pitch: number; // °
-  yawRate: number; // ° s-¹
+  yawRate: number; // °/s
   heave: number; // g above rest
 }
 
@@ -31,36 +18,12 @@ const gyroData = ref<MotionRow[] | null>(null);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
-const µg = 1_000_000; // adjust?
-const mdeg = 1_000;
-
-const toMotionRow = (r: RawGyroRow): MotionRow => {
-  const ax = r.accel_x / µg;
-  const ay = r.accel_y / µg;
-  const az = r.accel_z / µg;
-  const gx = r.gyro_x / mdeg;
-  const gy = r.gyro_y / mdeg;
-  const gz = r.gyro_z / mdeg;
-
-  const roll = Math.atan2(ay, az) * 57.2958; // rad->deg
-  const pitch = Math.atan2(-ax, Math.hypot(ay, az)) * 57.2958;
-  const heave = Math.hypot(ax, ay, az) - 1; // remove 1 g gravity
-
-  return {
-    t: new Date(r.device_timestamp * 1_000),
-    ax,
-    ay,
-    az,
-    gx,
-    gy,
-    gz,
-    roll,
-    pitch,
-    yawRate: gz,
-    heave,
-  };
-};
-
+/**
+ * Fetches processed gyro/motion data
+ * @param limit number of points to fetch (0 = no limit)
+ * @param hours lookback window in hours
+ * @param time_offset offset in hours
+ */
 const fetchGyroData = async (
   limit: number = 0,
   hours: number = 168,
@@ -78,10 +41,14 @@ const fetchGyroData = async (
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
 
-    const raw: RawGyroRow[] = await res.json();
-    gyroData.value = raw.map(toMotionRow);
+    const data = (await res.json()) as Array<Omit<MotionRow, 't'> & { t: string }>;
+    // Convert timestamp strings into Date objects
+    gyroData.value = data.map(r => ({
+      ...r,
+      t: new Date(r.t)
+    }));
   } catch (e) {
-    error.value = e instanceof Error ? e.message : "Unknown error";
+    error.value = e instanceof Error ? e.message : String(e);
   } finally {
     isLoading.value = false;
   }
