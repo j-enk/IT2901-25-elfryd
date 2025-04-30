@@ -65,7 +65,6 @@ namespace BatterySensorAPI.Services
                 requestUri += $"&battery_id={battery_id}";
             }
 
-            Console.WriteLine("Request URI: {0}", requestUri);
             var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
             request.Headers.Add("X-API-Key", _apiKey);
 
