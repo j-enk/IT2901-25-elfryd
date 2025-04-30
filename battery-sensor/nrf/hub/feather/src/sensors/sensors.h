@@ -47,12 +47,12 @@ typedef struct
  */
 typedef struct
 {
-    int32_t accel_x;
-    int32_t accel_y;
-    int32_t accel_z;
-    int32_t gyro_x;
-    int32_t gyro_y;
-    int32_t gyro_z;
+    int32_t accel_x;  /* Using 24 bits only */
+    int32_t accel_y;  /* Using 24 bits only */
+    int32_t accel_z;  /* Using 24 bits only */
+    int32_t gyro_x;   /* Using 24 bits only */
+    int32_t gyro_y;   /* Using 24 bits only */
+    int32_t gyro_z;   /* Using 24 bits only */
     int64_t timestamp;
 } gyro_reading_t;
 

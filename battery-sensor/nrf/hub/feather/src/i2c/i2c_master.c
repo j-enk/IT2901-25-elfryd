@@ -34,7 +34,7 @@ static K_MUTEX_DEFINE(i2c_mutex);
 /* Data formats */
 #define BATTERY_BYTES_PER_READING 4    /* 1 byte new flag + 1 byte ID + 2 bytes voltage */
 #define TEMP_DATA_SIZE 3               /* 1 byte new flag + 2 bytes temperature */
-#define GYRO_DATA_SIZE 25              /* 1 byte new flag + 6 x 4 bytes for accel/gyro values */
+#define GYRO_DATA_SIZE 19              /* 1 byte new flag + 6 x 3 bytes for accel/gyro values */
 
 /* Flag to track if I2C is ready */
 static bool i2c_ready = false;
@@ -359,9 +359,22 @@ int i2c_read_gyro_data(gyro_reading_t *reading)
         return -EAGAIN;
     }
 
-    /* Extract accelerometer and gyroscope values (int32_t values after the new flag) */
+    /* Extract accelerometer and gyroscope values (int24_t values after the new flag) */
     int32_t values[6];
-    memcpy(values, &data[1], 6 * sizeof(int32_t));
+    for (int i = 0; i < 6; i++) {
+        /* Construct the 24-bit value from 3 bytes */
+        int32_t val = ((uint32_t)data[1 + i * 3] << 16) | 
+                      ((uint32_t)data[2 + i * 3] << 8) | 
+                      (uint32_t)data[3 + i * 3];
+        
+        /* Check if this is a negative number (bit 23 is set) */
+        if (val & 0x800000) {
+            /* Sign extension - set bits 24-31 to 1 */
+            val |= 0xFF000000;
+        }
+        
+        values[i] = val;
+    }
     
     /* Fill in the gyroscope reading structure with local timestamp */
     reading->accel_x = values[0];
