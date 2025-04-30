@@ -125,6 +125,7 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
+
         /// <summary>
         /// Retrieve configuration history from connected devices
         /// </summary>
@@ -297,18 +298,33 @@ namespace BatterySensorAPI.Controllers
         }
 
         /// <summary>
-        /// Retrieve gyroscope data
+        /// Retrieve gyroscope data from connected devices
         /// </summary>
         /// <remarks>
-        /// This endpoint returns gyroscope data collected from the Elfryd system.
+        /// This endpoint returns gyroscope and accelerometer data collected from the IoT devices
+        /// in the Elfryd system.
         /// 
         /// ## Parameters
-        /// - **limit**: Maximum number of records to return (default: 20)
+        /// - **limit**: Maximum number of records to return (default: 20, max: 1000000).
+        ///   When used with the hours parameter, data points will be evenly distributed across the time range
+        ///   instead of just returning the newest records. Set to 0 to disable limiting and
+        ///   return all data points in the time range.
         /// - **hours**: Get data from the last X hours (default: 168)
-        /// - **time_offset**: Offset in hours from current time
+        /// - **time_offset**: Offset in hours from current time (default: 0)
         /// 
         /// ## Response
-        /// Returns an array of gyroscope sensor readings.
+        /// Returns an array of gyroscope records, each containing:
+        /// - **t**: ISO 8601 timestamp of the measurement
+        /// - **ax**: X-axis acceleration (m/s²)
+        /// - **ay**: Y-axis acceleration (m/s²)
+        /// - **az**: Z-axis acceleration (m/s²)
+        /// - **gx**: X-axis gyroscope angular velocity (degrees/s)
+        /// - **gy**: Y-axis gyroscope angular velocity (degrees/s)
+        /// - **gz**: Z-axis gyroscope angular velocity (degrees/s)
+        /// - **roll**: Roll angle calculated from accelerometer data (degrees)
+        /// - **pitch**: Pitch angle calculated from accelerometer data (degrees)
+        /// - **yawRate**: Yaw rate from gyroscope (degrees/s)
+        /// - **heave**: Vertical acceleration magnitude (m/s²)
         /// 
         /// ## Authentication
         /// Requires API key in the X-API-Key header when forwarded to Elfryd API
@@ -320,65 +336,17 @@ namespace BatterySensorAPI.Controllers
             [FromQuery] double time_offset = 0
         )
         {
-            var prevCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            var previousCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
             System.Threading.Thread.CurrentThread.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-
             try
             {
-                // pull raw JSON from the API client
-                var rawJson = await _elfrydClient.GetGyroDataAsync(limit, hours, time_offset);
-
-                // deserialize to RawGyroRow[]
-                var raw = JsonSerializer.Deserialize<RawGyroRow[]>(rawJson)!;
-
-                const double µg = 1_000_000.0;
-                const double mdeg = 1_000.0;
-                const double rad2deg = 180.0 / Math.PI;
-
-                // project into MotionRow[]
-                var motion = raw.Select(r =>
-                {
-                    // convert to g
-                    var ax = r.accel_x / µg;
-                    var ay = r.accel_y / µg;
-                    var az = r.accel_z / µg;
-                    // convert to °/s
-                    var gx = r.gyro_x / mdeg;
-                    var gy = r.gyro_y / mdeg;
-                    var gz = r.gyro_z / mdeg;
-
-                    // compute orientation & heave
-                    var roll = Math.Atan2(ay, az) * rad2deg;
-                    var pitch = Math.Atan2(-ax, Math.Sqrt(ay * ay + az * az)) * rad2deg;
-                    var yawRate = gz;
-                    var heave = Math.Sqrt(ax * ax + ay * ay + az * az) - 1.0;
-
-                    return new MotionRow
-                    {
-                        t = DateTimeOffset.FromUnixTimeSeconds(r.device_timestamp).UtcDateTime,
-                        ax = ax,
-                        ay = ay,
-                        az = az,
-                        gx = gx,
-                        gy = gy,
-                        gz = gz,
-                        roll = roll,
-                        pitch = pitch,
-                        yawRate = yawRate,
-                        heave = heave
-                    };
-                }).ToArray();
-
-                return Ok(motion);
+                var result = await _elfrydClient.GetGyroDataAsync(limit, hours, time_offset);
+                return Content(result, "application/json");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving gyro data");
                 return StatusCode(500, "Error retrieving gyro data from Elfryd API");
-            }
-            finally
-            {
-                Thread.CurrentThread.CurrentCulture = prevCulture;
             }
         }
 

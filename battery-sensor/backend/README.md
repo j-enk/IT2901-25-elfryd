@@ -72,7 +72,7 @@ The API communicates with the [Elfryd MQTT broker system](../broker/README.md) t
    cd IT2901-25-elfryd/battery-sensor/backend
    ```
 
-2. Create a `.env` file in the BatterySensorAPI directory with the following configuration:
+2. Duplicate the `.env.example` file in the BatterySensorAPI directory. Rename it to `.env`  and insert the necessary information according to the following configuration:
    ```
    HOST_NAME=your-broker-hostname
    API_KEY=your-api-key
@@ -209,14 +209,17 @@ Retrieves gyroscope and accelerometer measurements.
 ```json
 [
   {
-    "id": 789,
-    "accel_x": -4991017,
-    "accel_y": -4984009,
-    "accel_z": 4979460,
-    "gyro_x": -239841,
-    "gyro_y": 241869,
-    "gyro_z": -243303,
-    "device_timestamp": 1680123803
+    "t": "2025-04-29T13:43:41Z",
+    "ax": -1.781151,
+    "ay": -1.504165,
+    "az": -4.662797,
+    "gx": 116.049,
+    "gy": 20.633,
+    "gz": 41.405,
+    "roll": -162.12089232362138,
+    "pitch": 19.97844280912413,
+    "yawRate": 41.405,
+    "heave": 4.213126422333819
   }
 ]
 ```
