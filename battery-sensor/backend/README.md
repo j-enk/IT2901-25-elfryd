@@ -305,4 +305,6 @@ The tests use Moq for mocking dependencies, allowing for isolated testing of con
 
 For questions or issues, please contact the contributors of the backend system:
 
-- Magnus Hansen Åsheim (developer)
+- Magnus Hansen Åsheim (main developer)
+- Sigve Fehn Kulsrud (contributor)
+- Martin Vågseter Jakobsen (contributor)

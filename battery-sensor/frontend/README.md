@@ -1,3 +1,5 @@
+# Elfryd Sensor Visualization Frontend
+
 <details>
   <summary>Table of Contents</summary>
   <ol>
@@ -6,8 +8,8 @@
     <li><a href="#data-flow">Data Flow</a></li>
     <li><a href="#key-features">Key Features</a></li>
     <li><a href="#getting-started">Getting Started</a></li>
-    <li><a href="#project-status">Project Status</a></li>
-    <li><a href="#development-team">Development Team</a></li>
+    <li><a href="#api-integration">API Integration</a></li>
+    <li><a href="#support-and-contribution">Support and Contribution</a></li>
   </ol>
 </details>
 
@@ -18,34 +20,52 @@ The Elfryd Frontend is a Nuxt.js-based web application that provides a dashboard
 ## Project Components
 
 ### 1. Vue.js Components
-- **Reusable Components**: Includes `BatteryStatus.vue` for displaying battery information and `chart.vue` for rendering data visualizations.
-- **Pages**: Individual pages like `sensor.vue` and `batsensor.vue` provide specific functionalities.
+- **Section Components**: 
+  - `BatterySection.vue` - Manages battery information display
+  - `GyroSection.vue` - Handles gyroscope data visualization
+  - `TempSection.vue` - Shows temperature readings
+  - `ConfigSection.vue` - Provides configuration options
+- **Chart Components**: 
+  - `BatteryLineChart.vue` - Renders battery data visualizations
+  - `TempLineChart.vue` - Displays temperature trends
+  - `GyroLineChart.vue` - Shows gyroscope data
+- **UI Components**:
+  - `TabSwitcher.vue` - Navigation between different data sections
+  - `forms/ConfigForm.vue` - Form for configuration settings
 
 ### 2. Composables
-- **Data Fetching**: Reusable logic for interacting with the backend API, such as `useElfrydBatteryData.ts` and `useElfrydGyroData.ts`.
+- **Data Fetching**: 
+  - `useElfrydBattery.ts` - Handles battery data API calls
+  - `useElfrydTemp.ts` - Manages temperature data retrieval
+  - `useElfrydGyro.ts` - Fetches gyroscope data
+  - `useElfrydConfig.ts` - Handles configuration API interactions
 
-### 3. Styling
-- **Tailwind CSS**: For utility-first styling.
-- **DaisyUI**: For pre-designed UI components.
+### 3. Pages
+- **Single Page Application**:
+  - `index.vue` - The main dashboard that integrates all components
+
+### 4. Styling
+- **Tailwind CSS**: For utility-first styling
+- **DaisyUI**: For pre-designed UI components
 
 ## Data Flow
 
-1. **Data Collection**: Sensors on the boat collect data.
-2. **Backend Integration**: The frontend fetches data from the backend API.
-3. **Visualization**: Data is displayed in real-time charts and summaries.
+1. **Data Collection**: Sensors on the boat collect data
+2. **Backend Integration**: The frontend fetches data from the [backend API](../backend/README.md#api-documentation)
+3. **Visualization**: Data is displayed in real-time charts and summaries
 
 ## Key Features
 
-- **Real-Time Data Visualization**: Displays live updates from the backend.
-- **Historical Data**: Allows users to view trends over time.
-- **Responsive Design**: Optimized for both desktop and mobile devices.
-- **Configurable Parameters**: Users can adjust monitoring settings directly from the dashboard.
+- **Real-Time Data Visualization**: Displays live updates from the backend
+- **Historical Data**: Allows users to view trends over time
+- **Responsive Design**: Optimized for both desktop and mobile devices
+- **Configurable Parameters**: Users can adjust monitoring settings directly from the dashboard
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js and npm installed on your system.
+- Node.js and npm installed on your system
 
 ### Installation
 
@@ -77,9 +97,20 @@ The Elfryd Frontend is a Nuxt.js-based web application that provides a dashboard
   npm run preview
   ```
 
+## API Integration
+
+This frontend application integrates with the Elfryd Battery Sensor API. For detailed information about the available endpoints and how to use them, please refer to the following resources:
+
+- [Battery Data Endpoints](../backend/README.md#battery-endpoints)
+- [Temperature Data Endpoints](../backend/README.md#temperature-endpoints)
+- [Gyroscope Data Endpoints](../backend/README.md#gyroscope-endpoints)
+- [Configuration Endpoints](../backend/README.md#configuration-endpoints)
+
+The API provides standardized interfaces for retrieving sensor data and sending configuration commands to the Elfryd system.
+
 ## Support and Contribution
 
-For questions or issues, please contact the contributors of the backend system:
+For questions or issues, please contact the contributors of the frontend system:
 
 - Leif Eggenfeller (main developer)
 - Sigve Fehn Kulsrud (contributor)
