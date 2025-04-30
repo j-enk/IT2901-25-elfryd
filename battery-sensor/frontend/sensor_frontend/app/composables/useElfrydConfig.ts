@@ -2,7 +2,7 @@ import { ref } from "vue";
 import axios from "axios";
 import type {
   ConfigEntry,
-  FetchConfigParams,
+  FetchConfigOptions,
   ParsedCommandResult,
 } from "~/types/elfryd";
 
@@ -15,7 +15,7 @@ export function useElfrydConfig() {
   const sendError = ref<Error | null>(null);
   const commandResult = ref<ParsedCommandResult | null>(null);
 
-  const fetchConfig = async (params: FetchConfigParams = {}) => {
+  const fetchConfig = async (params: FetchConfigOptions = {}) => {
     fetchLoading.value = true;
     fetchError.value = null;
     try {
@@ -55,7 +55,6 @@ export function useElfrydConfig() {
       commandResult.value = null;
     } finally {
       sendLoading.value = false;
-      await fetchConfig();
     }
   };
 

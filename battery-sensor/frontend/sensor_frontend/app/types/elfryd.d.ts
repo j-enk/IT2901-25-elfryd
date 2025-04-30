@@ -5,13 +5,26 @@ export interface ConfigEntry {
   timestamp: string;
 }
 
-export interface FetchConfigParams {
+export interface FetchBatteryOptions {
+  batteryId: number;
+  limit?: number;
+  hours?: number;
+  timeOffset?: number;
+}
+
+export interface FetchConfigOptions {
   limit?: number;
   hours?: number;
   time_offset?: number;
 }
 
-interface FetchTempOptions {
+export interface FetchTempOptions {
+  limit?: number;
+  hours?: number;
+  timeOffset?: number;
+}
+
+export interface FetchGyroOptions {
   limit?: number;
   hours?: number;
   timeOffset?: number;
@@ -39,5 +52,20 @@ export interface BatteryData {
 export interface TempData {
   id: number;
   temperature: number;
+  device_timestamp: number;
+}
+
+export interface GyroData {
+  id: number;
+  ax: number;
+  ay: number;
+  az: number;
+  gx: number;
+  gy: number;
+  gz: number;
+  roll: number;
+  pitch: number;
+  yawRate: number;
+  heave: number;
   device_timestamp: number;
 }

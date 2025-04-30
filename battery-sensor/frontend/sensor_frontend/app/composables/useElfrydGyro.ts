@@ -1,25 +1,21 @@
 import { ref } from "vue";
 import axios from "axios";
-import type { BatteryData, FetchBatteryOptions } from "~/types/elfryd";
+import type { GyroData, FetchGyroOptions } from "~/types/elfryd";
 
-export const useElfrydBattery = () => {
-  const batteryData = ref<BatteryData[]>([]);
+export const useElfrydGyro = () => {
+  const gyroData = ref<GyroData[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  const fetchBattery = async ({
-    batteryId = 0,
+  const fetchGyro = async ({
     limit = 100,
     hours = 24,
     timeOffset = 0,
-  }: FetchBatteryOptions) => {
+  }: FetchGyroOptions = {}) => {
     isLoading.value = true;
     error.value = null;
 
     try {
-      if (batteryId < 0 || batteryId > 8) {
-        throw new Error("batteryId must be between 0 and 8.");
-      }
       if (hours < 1 || hours > 1_000_000) {
         throw new Error("hours must be between 1 and 1,000,000.");
       }
@@ -31,14 +27,13 @@ export const useElfrydBattery = () => {
       }
 
       const params = {
-        battery_id: batteryId,
         limit,
         hours,
         time_offset: timeOffset,
       };
 
-      const response = await axios.get<BatteryData[]>(
-        "http://localhost:5196/api/Elfryd/battery",
+      const response = await axios.get<GyroData[]>(
+        "http://localhost:5196/api/Elfryd/gyro",
         {
           params,
           headers: {
@@ -47,7 +42,7 @@ export const useElfrydBattery = () => {
         }
       );
 
-      batteryData.value = response.data;
+      gyroData.value = response.data;
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         error.value =
@@ -63,9 +58,9 @@ export const useElfrydBattery = () => {
   };
 
   return {
-    batteryData,
+    gyroData,
     isLoading,
     error,
-    fetchBattery,
+    fetchGyro,
   };
 };
