@@ -1,7 +1,13 @@
-<script setup lang="ts">
-import { computed } from 'vue'
-import { Line } from 'vue-chartjs'
-import {
+<template>
+    <div class="chart-container">
+      <Line :data="chartData" :options="batteryChartOptions" />
+    </div>
+  </template>
+  
+  <script setup lang="ts">
+  import { computed } from 'vue'
+  import { Line } from 'vue-chartjs'
+  import {
     Chart as ChartJS,
     Title,
     Tooltip,
@@ -11,13 +17,13 @@ import {
     LinearScale,
     TimeScale,
     Filler,
-} from 'chart.js'
-import 'chartjs-adapter-date-fns'
-import type { BatteryData } from '~/types/elfryd'
-
-import { batteryChartColors, batteryChartOptions } from '~/components/charts/config/batteryChartConfig'
-
-ChartJS.register(
+  } from 'chart.js'
+  import 'chartjs-adapter-date-fns'
+  
+  import type { BatteryData } from '~/types/elfryd'
+  import { batteryChartColors, batteryChartOptions } from '~/components/charts/config/batteryChartConfig'
+  
+  ChartJS.register(
     Title,
     Tooltip,
     Legend,
@@ -26,48 +32,44 @@ ChartJS.register(
     LinearScale,
     TimeScale,
     Filler,
-)
+  )
+  
+  const props = defineProps<{ data: BatteryData[] }>()
+  
+  const chartData = computed(() => {
+    const sorted = [...props.data].sort((a, b) => a.device_timestamp - b.device_timestamp)
 
-const props = defineProps<{ data: BatteryData[] }>()
-
-const chartData = computed(() => {
-    const sortedData = [...props.data].sort((a, b) => a.device_timestamp - b.device_timestamp)
-    const grouped = sortedData.reduce((acc, entry) => {
-        if (!acc[entry.battery_id]) {
-            acc[entry.battery_id] = []
-        }
-        acc[entry.battery_id].push(entry)
-        return acc
-    }, {} as Record<number, BatteryData[]>)
-
+    const grouped = sorted.reduce<Record<number, BatteryData[]>>((acc, entry) => {
+      const id = entry.battery_id
+      if (id === undefined) return acc
+      if (!acc[id]) acc[id] = []
+      acc[id].push(entry)
+      return acc
+    }, {})
+  
     return {
-        datasets: Object.entries(grouped).map(([batteryId, entries], index) => ({
-            label: `Battery ${batteryId}`,
-            data: entries.map(e => ({
-                x: e.device_timestamp * 1000,
-                y: e.voltage
-            })),
-            borderColor: batteryChartColors[index % batteryChartColors.length],
-            backgroundColor: batteryChartColors[index % batteryChartColors.length],
-            borderWidth: 2,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 3,
-            pointHoverRadius: 5
-        }))
+      datasets: Object.entries(grouped).map(([id, entries], idx) => ({
+        label: `Battery ${id}`,
+        data: entries.map(e => ({
+          x: e.device_timestamp * 1000,
+          y: e.voltage,
+        })),
+        borderColor: batteryChartColors[idx % batteryChartColors.length],
+        backgroundColor: batteryChartColors[idx % batteryChartColors.length],
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      })),
     }
-})
-</script>
-
-<template>
-    <div class="chart-container">
-        <Line :data="chartData" :options="batteryChartOptions" />
-    </div>
-</template>
-
-<style scoped>
-.chart-container {
+  })
+  </script>
+  
+  <style scoped>
+  .chart-container {
     position: relative;
     height: 450px;
-}
-</style>
+  }
+  </style>
+  

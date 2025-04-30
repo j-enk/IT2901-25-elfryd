@@ -1,15 +1,4 @@
 <script setup lang="ts">
-import type { BatteryData } from '~/types/elfryd'
-
-defineProps<{
-    batteryData: BatteryData[]
-    batteryLoading: boolean
-    batteryError: string | null
-    battery_id: string
-    limit: number
-    handleFormSubmit: (e: Event) => void
-    fetchBattery: () => void
-}>()
 </script>
 
 <template>

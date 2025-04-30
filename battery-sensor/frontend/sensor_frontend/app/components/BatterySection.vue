@@ -5,7 +5,7 @@ import type { BatteryData } from '~/types/elfryd'
 
 import { useElfrydBattery } from '~/composables/useElfrydBattery'
 
-const { batteryData, isLoading, error, fetchBattery } = useElfrydBattery();
+const { batteryData, isLoading, error, fetchBattery }: {batteryData: BatteryData[], isLoading: boolean} = useElfrydBattery();
 
 const batteryId = ref(0)
 const limit = ref(1000)

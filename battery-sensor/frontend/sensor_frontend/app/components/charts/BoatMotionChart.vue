@@ -17,10 +17,8 @@ import {
   LinearScale,
   CategoryScale
 } from 'chart.js'
-import { debounce } from 'lodash-es'
+import type { ChartOptions } from 'chart.js'
 import type { MotionRow } from '~/composables/useElfrydGyroData'
-
-const props = defineProps<{ data: MotionRow[] }>()
 
 ChartJS.register(
   Title,
@@ -32,8 +30,15 @@ ChartJS.register(
   CategoryScale
 )
 
+const props = defineProps<{ data: MotionRow[] }>()
+
 // Helper to create a dataset
-const makeDataset = (label: string, key: keyof MotionRow, color: string, axis = 'y') => ({
+const makeDataset = (
+  label: string,
+  key: keyof MotionRow,
+  color: string,
+  axis: 'y' | 'y2' = 'y'
+) => ({
   label,
   borderColor: color,
   borderWidth: 1.4,
@@ -47,7 +52,6 @@ const makeDataset = (label: string, key: keyof MotionRow, color: string, axis = 
 // Computed chart data
 const chartData = computed(() => {
   const labels = props.data.map(r => r.t.toLocaleTimeString())
-
   return {
     labels,
     datasets: [
@@ -59,8 +63,8 @@ const chartData = computed(() => {
   }
 })
 
-// Chart options
-const chartOptions = computed(() => ({
+// Typed Chart.js options
+const chartOptions = computed<ChartOptions<'line'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
   interaction: {
@@ -76,9 +80,7 @@ const chartOptions = computed(() => ({
     },
     y2: {
       position: 'right',
-      grid: {
-        drawOnChartArea: false
-      },
+      grid: { drawOnChartArea: false },
       title: {
         display: true,
         text: 'g'
