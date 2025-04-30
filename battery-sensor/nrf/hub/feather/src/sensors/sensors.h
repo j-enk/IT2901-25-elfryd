@@ -1,170 +1,188 @@
 /**
  * @file sensors.h
- * @brief Sensor data management for the Elfryd hub
+ * @brief Sensor data management header
  */
 
 #ifndef SENSORS_H
 #define SENSORS_H
 
-#include <zephyr/kernel.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <zephyr/kernel.h>
 
-/** Maximum number of sensor samples to store - using Kconfig values */
+/** 
+ * Configure number of battery packs to monitor 
+ * Note: This is defined by Kconfig (CONFIG_ELFRYD_NUM_BATTERIES)
+ */
+#define NUM_BATTERIES CONFIG_ELFRYD_NUM_BATTERIES
+
+/**
+ * Maximum number of sensor readings to store
+ * Note: These are defined by Kconfig
+ */
 #define MAX_BATTERY_SAMPLES CONFIG_ELFRYD_MAX_BATTERY_SAMPLES
 #define MAX_TEMP_SAMPLES CONFIG_ELFRYD_MAX_TEMP_SAMPLES
 #define MAX_GYRO_SAMPLES CONFIG_ELFRYD_MAX_GYRO_SAMPLES
 
-/** Number of batteries in the system */
-#define NUM_BATTERIES CONFIG_ELFRYD_NUM_BATTERIES
-
-/** Battery reading structure */
+/**
+ * Battery voltage reading structure
+ */
 typedef struct
 {
-    int battery_id;    /**< Battery identifier */
-    int voltage;       /**< Voltage in millivolts */
-    int64_t timestamp; /**< Unix timestamp in seconds */
+    int battery_id;
+    int16_t voltage;
+    int64_t timestamp;
 } battery_reading_t;
 
-/** Temperature reading structure */
+/**
+ * Temperature reading structure
+ */
 typedef struct
 {
-    int temperature;   /**< Temperature in degrees Celsius */
-    int64_t timestamp; /**< Unix timestamp in seconds */
+    int16_t temperature;
+    int64_t timestamp;
 } temp_reading_t;
 
-/** Gyroscope reading structure */
+/**
+ * Gyroscope/accelerometer reading structure
+ */
 typedef struct
 {
-    int accel_x;       /**< Accelerometer X-axis reading */
-    int accel_y;       /**< Accelerometer Y-axis reading */
-    int accel_z;       /**< Accelerometer Z-axis reading */
-    int gyro_x;        /**< Gyroscope X-axis reading */
-    int gyro_y;        /**< Gyroscope Y-axis reading */
-    int gyro_z;        /**< Gyroscope Z-axis reading */
-    int64_t timestamp; /**< Unix timestamp in seconds */
+    int32_t accel_x;  /* Using 24 bits only */
+    int32_t accel_y;  /* Using 24 bits only */
+    int32_t accel_z;  /* Using 24 bits only */
+    int32_t gyro_x;   /* Using 24 bits only */
+    int32_t gyro_y;   /* Using 24 bits only */
+    int32_t gyro_z;   /* Using 24 bits only */
+    int64_t timestamp;
 } gyro_reading_t;
 
 /**
- * @brief Initialize the sensor module
+ * Initialize the sensor module
  *
- * @return 0 on success, negative errno otherwise
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_init(void);
 
 /**
- * @brief Generate a new battery reading and store it
+ * Generate a new battery reading for a specific battery ID
  *
- * @param battery_id The battery ID (1-4)
- * @return 0 on success, negative errno otherwise
+ * @param battery_id ID of the battery to generate a reading for
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_generate_battery_reading(int battery_id);
 
 /**
- * @brief Generate a new temperature reading and store it
+ * Generate readings for all batteries in a single I2C transaction (optimized)
  *
- * @return 0 on success, negative errno otherwise
+ * @return Number of readings generated, or negative errno code on failure
+ */
+int sensors_generate_all_battery_readings(void);
+
+/**
+ * Generate a new temperature reading
+ *
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_generate_temp_reading(void);
 
 /**
- * @brief Generate a new gyroscope reading and store it
+ * Generate a new gyroscope/accelerometer reading
  *
- * @return 0 on success, negative errno otherwise
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_generate_gyro_reading(void);
 
 /**
- * @brief Get the newest battery readings for publishing
+ * Get battery readings
  *
  * @param readings Array to store the readings
  * @param max_count Maximum number of readings to retrieve
- * @return Number of readings retrieved
+ * @return Number of readings copied, or negative errno code on failure
  */
 int sensors_get_battery_readings(battery_reading_t *readings, int max_count);
 
 /**
- * @brief Get the newest temperature readings for publishing
+ * Get temperature readings
  *
  * @param readings Array to store the readings
  * @param max_count Maximum number of readings to retrieve
- * @return Number of readings retrieved
+ * @return Number of readings copied, or negative errno code on failure
  */
 int sensors_get_temp_readings(temp_reading_t *readings, int max_count);
 
 /**
- * @brief Get the newest gyroscope readings for publishing
+ * Get gyroscope/accelerometer readings
  *
  * @param readings Array to store the readings
  * @param max_count Maximum number of readings to retrieve
- * @return Number of readings retrieved
+ * @return Number of readings copied, or negative errno code on failure
  */
 int sensors_get_gyro_readings(gyro_reading_t *readings, int max_count);
 
 /**
- * @brief Clear all battery readings
+ * Clear all stored battery readings
  */
 void sensors_clear_battery_readings(void);
 
 /**
- * @brief Clear all temperature readings
+ * Clear all stored temperature readings
  */
 void sensors_clear_temp_readings(void);
 
 /**
- * @brief Clear all gyroscope readings
+ * Clear all stored gyroscope/accelerometer readings
  */
 void sensors_clear_gyro_readings(void);
 
 /**
- * @brief Get the most recent battery reading
+ * Get the latest battery reading
  *
- * @param reading Pointer to store the most recent reading
- * @return 0 if successful, -ENODATA if no readings available
+ * @param reading Pointer to store the reading
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_get_latest_battery_reading(battery_reading_t *reading);
 
 /**
- * @brief Get the most recent temperature reading
+ * Get the latest temperature reading
  *
- * @param reading Pointer to store the most recent reading
- * @return 0 if successful, -ENODATA if no readings available
+ * @param reading Pointer to store the reading
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_get_latest_temp_reading(temp_reading_t *reading);
 
 /**
- * @brief Get the most recent gyroscope reading
+ * Get the latest gyroscope/accelerometer reading
  *
- * @param reading Pointer to store the most recent reading
- * @return 0 if successful, -ENODATA if no readings available
+ * @param reading Pointer to store the reading
+ * @return 0 on success, negative errno code on failure
  */
 int sensors_get_latest_gyro_reading(gyro_reading_t *reading);
 
 /**
- * @brief Get the current number of battery readings stored
+ * Get the number of stored battery readings
  *
- * @return Number of battery readings currently stored
+ * @return Number of readings
  */
 int sensors_get_battery_reading_count(void);
 
 /**
- * @brief Get the current number of temperature readings stored
+ * Get the number of stored temperature readings
  *
- * @return Number of temperature readings currently stored
+ * @return Number of readings
  */
 int sensors_get_temp_reading_count(void);
 
 /**
- * @brief Get the current number of gyroscope readings stored
+ * Get the number of stored gyroscope/accelerometer readings
  *
- * @return Number of gyroscope readings currently stored
+ * @return Number of readings
  */
 int sensors_get_gyro_reading_count(void);
 
 /**
- * @brief Check if the sensor module is using I2C for data collection
+ * Check if we are using I2C sensors
  *
- * @return true if using I2C, false if using sample data generation
+ * @return true if using I2C sensors, false if using sample data
  */
 bool sensors_using_i2c(void);
 

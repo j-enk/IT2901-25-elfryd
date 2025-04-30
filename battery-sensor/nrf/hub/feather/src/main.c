@@ -81,12 +81,20 @@ static int64_t last_temp_publish_time;
 static int64_t last_gyro_publish_time;
 
 /* Variables for storing the latest sensor readings */
+#ifdef CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR
 static battery_reading_t latest_battery_reading;
-static temp_reading_t latest_temp_reading;
-static gyro_reading_t latest_gyro_reading;
 static int battery_count_cached = 0;
+#endif
+
+#ifdef CONFIG_ELFRYD_ENABLE_TEMP_SENSOR
+static temp_reading_t latest_temp_reading;
 static int temp_count_cached = 0;
+#endif
+
+#ifdef CONFIG_ELFRYD_ENABLE_GYRO_SENSOR
+static gyro_reading_t latest_gyro_reading;
 static int gyro_count_cached = 0;
+#endif
 
 /* External flags for immediate publishing - these definitions need to match
  * the extern declarations in config_module.c
@@ -403,29 +411,56 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     LOG_INF(LOG_PREFIX_SENS "Waiting for first interval before publishing data");
     LOG_INF(LOG_PREFIX_SENS "Intervals (seconds) - Battery: %d, Temp: %d, Gyro: %d",
             battery_interval, temp_interval, gyro_interval);
+    
+#ifdef CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR
     LOG_INF(LOG_PREFIX_SENS "System configured for %d batteries", NUM_BATTERIES);
+#else
+    LOG_INF(LOG_PREFIX_SENS "Battery sensor disabled in config");
+#endif
+
+#ifndef CONFIG_ELFRYD_ENABLE_TEMP_SENSOR
+    LOG_INF(LOG_PREFIX_SENS "Temperature sensor disabled in config");
+#endif
+
+#ifndef CONFIG_ELFRYD_ENABLE_GYRO_SENSOR
+    LOG_INF(LOG_PREFIX_SENS "Gyroscope sensor disabled in config");
+#endif
 
     /* Main sensor processing loop */
     while (1)
     {
         current_time = utils_get_timestamp();
 
-        /* Generate new sensor data every second for all configured batteries */
-        for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++)
-        {
-            err = sensors_generate_battery_reading(battery_id);
-            if (err)
+#ifdef CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR
+        /* Generate new battery sensor data */
+        if (sensors_using_i2c()) {
+            /* More efficient approach - read all battery data at once when using I2C */
+            err = sensors_generate_all_battery_readings();
+            if (err < 0 && err != -EAGAIN) {
+                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery readings: %d", err);
+            } else if (err > 0) {
+                LOG_INF(LOG_PREFIX_SENS "Generated %d battery readings in a batch", err);
+            }
+        } else {
+            /* When not using I2C, use the individual approach to ensure consistent behavior */
+            for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++)
             {
-                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d",
-                        battery_id, err);
+                err = sensors_generate_battery_reading(battery_id);
+                if (err)
+                {
+                    LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery reading for battery %d: %d",
+                            battery_id, err);
+                }
             }
         }
 
         /* Get the latest battery reading and count for monitoring */
         err = sensors_get_latest_battery_reading(&latest_battery_reading);
         battery_count_cached = sensors_get_battery_reading_count();
+#endif
 
-        /* Generate temperature and gyro readings */
+#ifdef CONFIG_ELFRYD_ENABLE_TEMP_SENSOR
+        /* Generate temperature readings */
         err = sensors_generate_temp_reading();
         if (err)
         {
@@ -436,7 +471,10 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
             err = sensors_get_latest_temp_reading(&latest_temp_reading);
             temp_count_cached = sensors_get_temp_reading_count();
         }
+#endif
 
+#ifdef CONFIG_ELFRYD_ENABLE_GYRO_SENSOR
+        /* Generate gyro readings */
         err = sensors_generate_gyro_reading();
         if (err)
         {
@@ -447,16 +485,45 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
             err = sensors_get_latest_gyro_reading(&latest_gyro_reading);
             gyro_count_cached = sensors_get_gyro_reading_count();
         }
+#endif
 
         /* Print monitoring information for debugging */
-        LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d, Temp: %d, Gyro: %d",
-                battery_count_cached, temp_count_cached, gyro_count_cached);
+#if defined(CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR) && defined(CONFIG_ELFRYD_ENABLE_TEMP_SENSOR) && defined(CONFIG_ELFRYD_ENABLE_GYRO_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d/%d, Temp: %d/%d, Gyro: %d/%d",
+                battery_count_cached, MAX_BATTERY_SAMPLES,
+                temp_count_cached, MAX_TEMP_SAMPLES,
+                gyro_count_cached, MAX_GYRO_SAMPLES);
+#elif defined(CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR) && defined(CONFIG_ELFRYD_ENABLE_TEMP_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d/%d, Temp: %d/%d",
+                battery_count_cached, MAX_BATTERY_SAMPLES,
+                temp_count_cached, MAX_TEMP_SAMPLES);
+#elif defined(CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR) && defined(CONFIG_ELFRYD_ENABLE_GYRO_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d/%d, Gyro: %d/%d",
+                battery_count_cached, MAX_BATTERY_SAMPLES,
+                gyro_count_cached, MAX_GYRO_SAMPLES);
+#elif defined(CONFIG_ELFRYD_ENABLE_TEMP_SENSOR) && defined(CONFIG_ELFRYD_ENABLE_GYRO_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Temp: %d/%d, Gyro: %d/%d",
+                temp_count_cached, MAX_TEMP_SAMPLES,
+                gyro_count_cached, MAX_GYRO_SAMPLES);
+#elif defined(CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Battery: %d/%d",
+                battery_count_cached, MAX_BATTERY_SAMPLES);
+#elif defined(CONFIG_ELFRYD_ENABLE_TEMP_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Temp: %d/%d",
+                temp_count_cached, MAX_TEMP_SAMPLES);
+#elif defined(CONFIG_ELFRYD_ENABLE_GYRO_SENSOR)
+        LOG_INF(LOG_PREFIX_SENS "Array sizes - Gyro: %d/%d",
+                gyro_count_cached, MAX_GYRO_SAMPLES);
+#else
+        LOG_INF(LOG_PREFIX_SENS "All sensor types disabled");
+#endif
 
         /* Process immediate publish requests by sending messages to publisher thread */
         k_mutex_lock(&publish_flags_mutex, K_FOREVER);
 
         /* Process immediate publish requests even on first run,
            as these are explicit user requests */
+#ifdef CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR
         if (battery_publish_request)
         {
             msg.type = PUBLISH_TYPE_BATTERY;
@@ -475,7 +542,9 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                 battery_publish_request = false;
             }
         }
+#endif
 
+#ifdef CONFIG_ELFRYD_ENABLE_TEMP_SENSOR
         if (temp_publish_request)
         {
             msg.type = PUBLISH_TYPE_TEMP;
@@ -494,7 +563,9 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                 temp_publish_request = false;
             }
         }
+#endif
 
+#ifdef CONFIG_ELFRYD_ENABLE_GYRO_SENSOR
         if (gyro_publish_request)
         {
             msg.type = PUBLISH_TYPE_GYRO;
@@ -513,6 +584,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                 gyro_publish_request = false;
             }
         }
+#endif
 
         k_mutex_unlock(&publish_flags_mutex);
 
@@ -522,6 +594,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         gyro_interval = config_get_gyro_interval();
 
         /* Check if it's time to publish battery data based on intervals */
+#ifdef CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR
         if (battery_interval > 0 &&
             (current_time - last_battery_publish_time) >= battery_interval)
         {
@@ -541,8 +614,10 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                 last_battery_publish_time = current_time;
             }
         }
+#endif
 
         /* Check if it's time to publish temperature data */
+#ifdef CONFIG_ELFRYD_ENABLE_TEMP_SENSOR
         if (temp_interval > 0 &&
             (current_time - last_temp_publish_time) >= temp_interval)
         {
@@ -562,8 +637,10 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                 last_temp_publish_time = current_time;
             }
         }
+#endif
 
         /* Check if it's time to publish gyroscope data */
+#ifdef CONFIG_ELFRYD_ENABLE_GYRO_SENSOR
         if (gyro_interval > 0 &&
             (current_time - last_gyro_publish_time) >= gyro_interval)
         {
@@ -583,6 +660,7 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
                 last_gyro_publish_time = current_time;
             }
         }
+#endif
 
         k_sleep(K_SECONDS(1)); /* Generate new data every second */
     }

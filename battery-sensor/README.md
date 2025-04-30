@@ -93,7 +93,7 @@ Enables energy-efficient local communication between sensors through Bluetooth L
 - **BLE Peripheral**: Sensor nodes that collect and transmit data
 - **BLE Central**: Central node that processes incoming data from peripherals and forwards it to the nRF9160 Feather Hub
 
-[BLE Documentation →](/battery-sensor/nrf/ble/README.md)
+[BLE Documentation →](/battery-sensor/nrf/promicro_nrf52840/README.md)
 
 ### 3. nRF9160 Feather Hub
 
