@@ -4,7 +4,7 @@ import BatteryLineChart from "~/components/charts/BatteryLineChart.vue";
 
 import { useElfrydBattery } from "~/composables/useElfrydBattery";
 
-const { batteryData, isLoading, error, fetchBattery }: {batteryData: BatteryData[], isLoading: boolean} = useElfrydBattery();
+const { batteryData, isLoading, error, fetchBattery } = useElfrydBattery();
 
 const batteryId = ref(0);
 const limit = ref(100);
