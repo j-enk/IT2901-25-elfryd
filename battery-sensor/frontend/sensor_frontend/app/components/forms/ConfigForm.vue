@@ -20,6 +20,7 @@ const configFreq = [
 
 const configSensorVal = ref("Battery");
 const configFreqVal = ref("");
+const isRequestingData = ref(false);
 
 async function handleUpdateConfig() {
   if (!configSensorVal.value) {
@@ -32,6 +33,23 @@ async function handleUpdateConfig() {
     await sendConfigCommand(command);
   } catch (error) {
     console.error("Error sending config command", error);
+  }
+}
+
+async function handleRequestData() {
+  if (!configSensorVal.value) {
+    sendError.value = new Error("Please select a sensor");
+    return;
+  }
+
+  isRequestingData.value = true;
+  try {
+    // Send just the sensor name as command to request immediate data
+    await sendConfigCommand(configSensorVal.value);
+  } catch (error) {
+    console.error("Error requesting data", error);
+  } finally {
+    isRequestingData.value = false;
   }
 }
 </script>
@@ -74,17 +92,31 @@ async function handleUpdateConfig() {
       <span class="label validator-hint">Optional</span>
     </label>
 
-    <button
-      :disabled="sendLoading"
-      class="btn btn-outline btn-error w-full"
-      @click="handleUpdateConfig"
-    >
-      <span
-        v-if="sendLoading"
-        class="loading loading-spinner loading-md mr-2"
-      />
-      <span v-else>Update Frequency</span>
-    </button>
+    <div class="flex flex-col sm:flex-row gap-2 w-full">
+      <button
+        :disabled="sendLoading || isRequestingData"
+        class="btn btn-outline btn-error flex-1"
+        @click="handleUpdateConfig"
+      >
+        <span
+          v-if="sendLoading && !isRequestingData"
+          class="loading loading-spinner loading-md mr-2"
+        />
+        <span v-else>Update Frequency</span>
+      </button>
+      
+      <button
+        :disabled="sendLoading || isRequestingData"
+        class="btn btn-error flex-1"
+        @click="handleRequestData"
+      >
+        <span
+          v-if="isRequestingData"
+          class="loading loading-spinner loading-md mr-2"
+        />
+        <span v-else>Request Data Now</span>
+      </button>
+    </div>
 
     <div
       v-if="commandResult"
