@@ -369,6 +369,7 @@ namespace BatterySensorAPI.Controllers
 
                     return new MotionRow
                     {
+                        id = r.id,
                         device_timestamp = r.device_timestamp,
                         ax = ax,
                         ay = ay,

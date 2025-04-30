@@ -1,6 +1,7 @@
 public class MotionRow
 {
     // raw values
+    public int id { get; set; }
     public long device_timestamp { get; set; }
     public double ax { get; set; }
     public double ay { get; set; }
