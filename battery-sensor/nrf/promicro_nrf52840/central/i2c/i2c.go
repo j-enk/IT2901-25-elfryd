@@ -116,7 +116,7 @@ func handleRequest() {
             var entryLen int
             switch sensorType {
             case "Gyro":
-                entryLen = 24 // 1 byte New, 1 byte ID, 48 payload
+                entryLen = 19 // 1 byte New, 1 byte ID, 48 payload
             case "Temperature":
                 entryLen = 6
             default:

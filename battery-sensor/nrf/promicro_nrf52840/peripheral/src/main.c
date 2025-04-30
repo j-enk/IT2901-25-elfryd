@@ -342,20 +342,36 @@ int baut_mpu_read(double values[6]) {
 }
 
 static ssize_t mpu_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
-                  uint16_t len, uint16_t offset)
+    uint16_t len, uint16_t offset)
 {
+static uint8_t packed[18]; // Static to handle GATT offset correctly
+double values[6];
+const size_t total_len = sizeof(packed);
 
-    double values[6];
-    if(baut_mpu_read(values) == 0) {
-        printk("MPU: read successfully\n");
-        // printk("celcius = %d\n", celcius);
-    } else {
-        printk("MPU: read failed\n");
-        // celcius = -1;
-        // return;
-    }
+if (offset >= total_len) {
+return 0; // Nothing more to read
+}
 
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, &values, sizeof(values));
+// Only fetch and convert data on first call (offset == 0)
+if (offset == 0) {
+if (baut_mpu_read(values) != 0) {
+printk("MPU: read failed\n");
+return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY);
+}
+
+printk("MPU: read successfully\n");
+
+for (int i = 0; i < 6; ++i) {
+int32_t fixed_val = (int32_t)(values[i] * 10000.0); // 5 decimal places
+
+// Pack as big-endian 24-bit signed int
+packed[i * 3 + 0] = (fixed_val >> 16) & 0xFF;
+packed[i * 3 + 1] = (fixed_val >> 8) & 0xFF;
+packed[i * 3 + 2] = fixed_val & 0xFF;
+}
+}
+
+return bt_gatt_attr_read(conn, attr, buf, len, offset, packed, total_len);
 }
 
 static ssize_t id_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
