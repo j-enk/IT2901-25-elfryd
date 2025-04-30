@@ -1,6 +1,7 @@
 // Program.cs
 using BatterySensorAPI.Services;
 using DotNetEnv;
+using System.Reflection;
 
 DotNetEnv.Env.Load();
 
@@ -9,10 +10,22 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options => 
+{
+    // Set up XML comments for Swagger documentation
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    options.IncludeXmlComments(xmlPath);
+    
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Elfryd Battery Sensor API",
+        Version = "v1",
+        Description = "API for accessing Elfryd IoT battery monitoring system data",
+    });
+});
 
-
-
+// Add services to the container
 builder.Services.AddSingleton<IElfrydApiClient, ElfrydApiClient>(sp => {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<ElfrydApiClient>>();

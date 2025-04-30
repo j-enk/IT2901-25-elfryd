@@ -24,6 +24,25 @@ namespace BatterySensorAPI.Controllers
             _logger = logger;
         }
 
+        /// <summary>
+        /// Updates device configuration settings
+        /// </summary>
+        /// <remarks>
+        /// Sends configuration commands to Elfryd IoT devices.
+        /// 
+        /// ## Parameters
+        /// - **command**: Command string to send to devices. Valid formats:
+        ///   - Single command: "battery", "temp 30", "gyro 0"
+        ///   - Multiple commands: "battery 10|temp 30|gyro 0"
+        ///   
+        /// ## Supported Commands
+        /// - **battery**: Configure battery monitoring
+        /// - **temp**: Configure temperature monitoring, with optional sampling rate
+        /// - **gyro**: Configure gyroscope monitoring, with optional sampling rate
+        /// 
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header when forwarded to Elfryd API
+        /// </remarks>
         [HttpPost("config/update")]
         public async Task<IActionResult> UpdateConfig([FromBody] ElfrydUpdateConfigRequest request)
         {
@@ -106,6 +125,29 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
+        /// <summary>
+        /// Retrieve configuration history from connected devices
+        /// </summary>
+        /// <remarks>
+        /// This endpoint returns configuration commands that have been sent to 
+        /// IoT devices in the Elfryd system.
+        /// 
+        /// ## Parameters
+        /// - **limit**: Maximum number of records to return (default: 20)
+        /// - **hours**: Get data from the last X hours (default: 168)
+        /// - **time_offset**: Offset in hours from current time
+        /// 
+        /// ## Response
+        /// Returns an array of configuration records, each containing:
+        /// - **id**: Unique record identifier
+        /// - **device_id**: Identifier of the device
+        /// - **command**: Configuration command sent to the device
+        /// - **device_timestamp**: Timestamp of the command on the device (Unix timestamp)
+        /// 
+        /// 
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header when forwarded to Elfryd API
+        /// </remarks>
         [HttpGet("config")]
         public async Task<IActionResult> GetConfig(
         [FromQuery] int limit = 20,
@@ -127,6 +169,29 @@ namespace BatterySensorAPI.Controllers
             }
         }
 
+/// <summary>
+/// Retrieve battery voltage measurements from connected devices
+/// </summary>
+/// <remarks>
+/// This endpoint returns battery voltage data collected from the IoT devices
+/// in the Elfryd system. The voltage values are in millivolts (mV).
+///
+/// ## Parameters
+/// - **battery_id**: Filter by specific battery identifier (0 = all batteries)
+/// - **limit**: Maximum number of records to return (default: 20)
+/// - **hours**: Get data from the last X hours (default: 168)
+/// - **time_offset**: Offset in hours from current time
+///
+/// ## Response
+/// Returns an array of battery records, each containing:
+/// - **id**: Unique record identifier
+/// - **battery_id**: Identifier of the battery
+/// - **voltage**: Battery voltage in millivolts (mV)
+/// - **device_timestamp**: Timestamp of the measurement on the device (Unix timestamp)
+///
+/// ## Authentication
+/// Requires API key in the X-API-Key header when forwarded to Elfryd API
+/// </remarks>
 [HttpGet("battery", Order = 0)]
 public async Task<IActionResult> GetBatteryData(
     [FromQuery] int battery_id = 0,
@@ -143,10 +208,41 @@ public async Task<IActionResult> GetBatteryData(
         
         try
         {
-            if (battery_id != 0)
+           if (battery_id != 0)
             {
-                // For a specific battery, just return the result as is
+                // Retrieve data for a specific battery
                 var result = await _elfrydClient.GetBatteryDataAsync(battery_id, limit, hours, time_offset);
+                
+                // Validate that all entries have the requested battery_id
+                try
+                {
+                    var jsonDoc = System.Text.Json.JsonDocument.Parse(result);
+                    
+                    // Check if an entry contains illegal battery_id
+                    foreach (var item in jsonDoc.RootElement.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("battery_id", out var idProp) && 
+                            idProp.TryGetInt32(out var id) && 
+                            id != battery_id)
+                        {
+                            _logger.LogWarning("Inconsistent data received from Elfryd API: requested battery_id={RequestedId}, but found battery_id={FoundId}", 
+                                battery_id, id);
+                                
+                            return new ObjectResult($"Inconsistent battery data: requested battery_id={battery_id}, but found entries with different IDs")
+                            {
+                                StatusCode = StatusCodes.Status500InternalServerError
+                            };
+                        }
+                    }
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    _logger.LogError(ex, "Error parsing JSON from Elfryd API");
+                    return new ObjectResult("Error parsing battery data from Elfryd API")
+                    {
+                        StatusCode = StatusCodes.Status500InternalServerError
+                    };
+                }
                 
                 return Content(result, "application/json");
             }
@@ -185,7 +281,6 @@ public async Task<IActionResult> GetBatteryData(
                 .Select(e => e.raw)
                 .ToList();
 
-            // Return the array directly without wrapping it in a "data" object
             return new JsonResult(sortedData);
         }
         finally
@@ -201,6 +296,23 @@ public async Task<IActionResult> GetBatteryData(
     }
 }
 
+        /// <summary>
+        /// Retrieve gyroscope data
+        /// </summary>
+        /// <remarks>
+        /// This endpoint returns gyroscope data collected from the Elfryd system.
+        /// 
+        /// ## Parameters
+        /// - **limit**: Maximum number of records to return (default: 20)
+        /// - **hours**: Get data from the last X hours (default: 168)
+        /// - **time_offset**: Offset in hours from current time
+        /// 
+        /// ## Response
+        /// Returns an array of gyroscope sensor readings.
+        /// 
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header when forwarded to Elfryd API
+        /// </remarks>
         [HttpGet("gyro")]
         public async Task<IActionResult> GetGyroData(
             [FromQuery] int limit = 20,
@@ -222,6 +334,23 @@ public async Task<IActionResult> GetBatteryData(
             }
         }
 
+        /// <summary>
+        /// Retrieve temperature data
+        /// </summary>
+        /// <remarks>
+        /// This endpoint returns temperature data collected from the Elfryd system.
+        /// 
+        /// ## Parameters
+        /// - **limit**: Maximum number of records to return (default: 20)
+        /// - **hours**: Get data from the last X hours (default: 168)
+        /// - **time_offset**: Offset in hours from current time
+        /// 
+        /// ## Response
+        /// Returns an array of temperature readings.
+        /// 
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header when forwarded to Elfryd API
+        /// </remarks>
         [HttpGet("temp")]
         public async Task<IActionResult> GetTempData(
             [FromQuery] int limit = 20,
@@ -243,6 +372,22 @@ public async Task<IActionResult> GetBatteryData(
             }
         }
 
+        /// <summary>
+        /// Get overall system state of charge
+        /// </summary>
+        /// <remarks>
+        /// This endpoint calculates the average state of charge (SoC) across all batteries
+        /// in the Elfryd system, returning a single percentage value.
+        /// 
+        /// ## Response
+        /// Returns a single integer representing the system-wide average state of charge (0-100%).
+        /// The SoC is estimated from battery voltage levels:
+        /// - 12000mV = 0% (fully discharged)
+        /// - 15000mV = 100% (fully charged)
+        /// 
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header for the underlying battery data fetch
+        /// </remarks>
         [HttpGet("battery/system/soc", Order = 1)]
         public async Task<IActionResult> GetSystemSocVoltage()
         {
@@ -259,6 +404,28 @@ public async Task<IActionResult> GetBatteryData(
             return Ok(Math.Round(systemSoc));
         }
 
+        /// <summary>
+        /// Get state of charge for individual batteries
+        /// </summary>
+        /// <remarks>
+        /// This endpoint retrieves the state of charge (SoC) for individual batteries
+        /// in the Elfryd system.
+        /// 
+        /// ## Parameters
+        /// - **battery_id**: Filter by specific battery identifier (0 = all batteries)
+        /// 
+        /// ## Response
+        /// Returns an array of battery SoC values, each containing:
+        /// - **battery_id**: Identifier of the battery
+        /// - **Soc**: State of charge as a percentage (0-100%)
+        /// 
+        /// The SoC is estimated from battery voltage levels:
+        /// - 12000mV = 0% (fully discharged)
+        /// - 15000mV = 100% (fully charged)
+        /// 
+        /// ## Authentication
+        /// Requires API key in the X-API-Key header for the underlying battery data fetch
+        /// </remarks>
         [HttpGet("battery/individual/soc", Order = 1)]
         public async Task<IActionResult> GetIndividualSocVoltage(int battery_id = 0)
         {
