@@ -16,7 +16,7 @@ watch(fetchLoading, (loading) => {
 
 <template>
   <section class="w-full">
-    <h3 class="text-lg font-medium">
+    <h3 class="text-lg font-semibold text-base-content">
       Configuration Data <small class="label">(Last 30 minutes)</small>
     </h3>
 
@@ -47,7 +47,7 @@ watch(fetchLoading, (loading) => {
 
     <!-- Fetch Button -->
     <button
-      class="btn btn-success w-full mt-4"
+      class="btn btn-error w-full mt-4"
       :disabled="fetchLoading"
       @click="fetchConfig"
     >

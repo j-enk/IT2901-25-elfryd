@@ -42,7 +42,7 @@ async function handleUpdateConfig() {
       <span class="label font-semibold">Sensor</span>
       <select
         v-model="configSensorVal"
-        class="select select-success select-bordered w-full"
+        class="select select-error select-bordered w-full"
       >
         <option
           v-for="option in configSensor"
@@ -59,7 +59,7 @@ async function handleUpdateConfig() {
       <div class="w-full">
         <select
           v-model="configFreqVal"
-          class="select select-success select-bordered w-full pr-10"
+          class="select select-error select-bordered w-full pr-10"
         >
           <option :value="''">Set Frequency</option>
           <option
@@ -76,7 +76,7 @@ async function handleUpdateConfig() {
 
     <button
       :disabled="sendLoading"
-      class="btn btn-outline btn-success w-full"
+      class="btn btn-outline btn-error w-full"
       @click="handleUpdateConfig"
     >
       <span

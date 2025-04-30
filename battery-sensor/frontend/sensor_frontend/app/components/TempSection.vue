@@ -46,7 +46,7 @@ onMounted(() => {
       <div class="w-full md:w-2/3 flex flex-col gap-6">
         <!-- Form -->
         <form
-          class="bg-base-300 border-1 border-success rounded-lg p-4 flex flex-col gap-4"
+          class="bg-base-300 border-1 border-info rounded-lg p-4 flex flex-col gap-4"
           @submit="handleFetchTemp"
         >
           <div class="flex flex-wrap gap-4 w-full">
@@ -57,7 +57,7 @@ onMounted(() => {
                 id="limit"
                 :value="limit"
                 type="number"
-                class="w-full rounded-md input input-md input-success"
+                class="w-full rounded-md input input-md input-info"
                 aria-describedby="limitHelp"
                 min="0"
                 max="1000000"
@@ -77,7 +77,7 @@ onMounted(() => {
                 id="hours"
                 :value="hours"
                 type="number"
-                class="w-full rounded-md input input-md input-success"
+                class="w-full rounded-md input input-md input-info"
                 min="1"
                 max="1000000"
                 @input="
@@ -93,7 +93,7 @@ onMounted(() => {
                 id="timeOffset"
                 :value="timeOffset"
                 type="number"
-                class="w-full rounded-md input input-md input-success"
+                class="w-full rounded-md input input-md input-info"
                 min="0"
                 max="1000000"
                 @input="
@@ -106,7 +106,7 @@ onMounted(() => {
           <button
             type="submit"
             :disabled="isLoading"
-            class="btn btn-outline btn-success rounded-md mt-6"
+            class="btn btn-outline btn-info rounded-md mt-6"
           >
             {{ isLoading ? "Loading..." : "Fetch Data" }}
           </button>
@@ -115,7 +115,7 @@ onMounted(() => {
         <!-- Chart -->
         <div
           v-if="tempData.length"
-          class="p-4 bg-base-300 border-1 border-success rounded-lg"
+          class="p-4 bg-base-300 border-1 border-info rounded-lg"
         >
           <h2 class="text-xl text-base-content font-bold mb-4">
             Temperature Chart
@@ -126,7 +126,7 @@ onMounted(() => {
 
       <!-- Right side: Raw JSON -->
       <aside
-        class="w-full md:w-1/3 bg-base-300 p-4 border-1 border-success rounded-lg overflow-auto h-fit max-h-[750px]"
+        class="w-full md:w-1/3 bg-base-300 p-4 border-1 border-info rounded-lg overflow-auto h-fit max-h-[750px]"
       >
         <h2 class="text-lg font-semibold mb-2">Raw Temperature Data</h2>
 
