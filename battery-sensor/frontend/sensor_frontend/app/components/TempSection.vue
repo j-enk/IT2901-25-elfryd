@@ -5,9 +5,9 @@ import { useElfrydTemp } from "~/composables/useElfrydTemp";
 
 const { tempData, isLoading, error, fetchTemp } = useElfrydTemp();
 
-const limit = ref(20);
-const hours = ref(168);
-const timeOffset = ref(24);
+const limit = ref(100);
+const hours = ref(24);
+const timeOffset = ref(0);
 
 const handleFetchTemp = async (e: Event) => {
   e.preventDefault();
