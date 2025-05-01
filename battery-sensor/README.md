@@ -18,15 +18,19 @@
 
 <div align="center">
   <a href="https://en.wikipedia.org/wiki/C_(programming_language)"><img src="https://tinyurl.com/249mjzb9" alt="C"></a>
-  <a href="https://www.python.org/"><img src="https://tinyurl.com/26vvmywy" alt="Python"></a>
-  <a href="https://www.docker.com/"><img src="https://tinyurl.com/278rykn6" alt="Docker"></a>
   <a href="https://docs.microsoft.com/en-us/dotnet/csharp/"><img src="https://tinyurl.com/2c9p4knv" alt="C#"></a>
-  <a href="https://dotnet.microsoft.com/"><img src="https://tinyurl.com/26sekyup" alt=".NET"></a>
-  <br>
+  <a href="https://www.python.org/"><img src="https://tinyurl.com/26vvmywy" alt="Python"></a>
+  <a href="https://golang.org/"><img src="https://tinyurl.com/27grvf2t" alt="Go"></a>
   <a href="https://mqtt.org/"><img src="https://tinyurl.com/2yeuyq5z" alt="MQTT"></a>
+  <a href="https://www.bluetooth.com/"><img src="https://tinyurl.com/2ar74fr5" alt="Bluetooth"></a>
+  <br>
+  <a href="https://www.docker.com/"><img src="https://tinyurl.com/278rykn6" alt="Docker"></a>
+  <a href="https://dotnet.microsoft.com/"><img src="https://tinyurl.com/26sekyup" alt=".NET"></a>
   <a href="https://azure.microsoft.com/"><img src="https://tinyurl.com/2b7fwu7m" alt="Azure"></a>
   <a href="https://vuejs.org/"><img src="https://tinyurl.com/22c28lf3" alt="Vue.js"></a>
   <a href="https://nuxtjs.org/"><img src="https://tinyurl.com/25w36sc9" alt="Nuxt.js"></a>
+  
+
 </div>
 
 <br />
