@@ -16,7 +16,7 @@ export const useElfrydTemp = () => {
     error.value = null;
 
     try {
-      if (hours < 1 || hours > 1_000_000) {
+      if (hours < 0 || hours > 1_000_000) {
         throw new Error("hours must be between 1 and 1,000,000.");
       }
       if (limit < 0 || limit > 1_000_000) {
