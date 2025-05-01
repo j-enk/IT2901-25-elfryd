@@ -20,7 +20,7 @@ The application uses a multi-threaded architecture to handle different tasks ind
 
 1. **MQTT Thread**: Handles LTE connection, MQTT connectivity, and message events
 2. **Publisher Thread**: Manages the publishing queue and sends data to MQTT broker
-3. **Sensor Thread**: Collects data from sensors and queues it for publication
+3. **Sensor Thread**: Collects sensor data from centrals and queues it for publication
 4. **Time Thread**: Synchronizes time with network for accurate timestamping
 
 ### Core Features
@@ -49,6 +49,9 @@ CONFIG_MQTT_TLS_SEC_TAG=42              # Security tag for TLS credentials
 ### Sensor Configuration
 
 ```
+CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR=y   # Enable/disable battery sensor data collection
+CONFIG_ELFRYD_ENABLE_TEMP_SENSOR=y      # Enable/disable temperature sensor data collection
+CONFIG_ELFRYD_ENABLE_GYRO_SENSOR=y      # Enable/disable gyroscope sensor data collection
 CONFIG_ELFRYD_NUM_BATTERIES=4           # Number of batteries to monitor
 CONFIG_ELFRYD_MAX_BATTERY_SAMPLES=1440  # Maximum battery samples to store
 CONFIG_ELFRYD_MAX_TEMP_SAMPLES=180      # Maximum temperature samples to store
@@ -97,6 +100,32 @@ Data published by this hub is received and processed by the Elfryd MQTT Broker S
 - Parses the messages into separate readings
 - Stores them in a TimescaleDB time-series database
 - Makes them available via a REST API for the backend system
+
+## Sensor Type Configuration
+
+The hub firmware includes the ability to selectively enable or disable specific sensor types. This is particularly useful when:
+
+- Your setup doesn't include all supported sensor types
+- You want to conserve power by disabling unused sensors
+- You need to reduce data transmission frequency or volume
+- You're testing specific sensor components of the system
+
+To enable or disable a sensor type, modify the following options in `prj.conf`:
+
+```
+# To enable/disable individual sensor types
+CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR=y   # Set to 'n' to disable battery sensor
+CONFIG_ELFRYD_ENABLE_TEMP_SENSOR=y      # Set to 'n' to disable temperature sensor
+CONFIG_ELFRYD_ENABLE_GYRO_SENSOR=y      # Set to 'n' to disable gyroscope sensor
+```
+
+When a sensor type is disabled:
+- The application won't attempt to read data from that sensor
+- No memory will be allocated for that sensor type's readings
+- No messages for that sensor type will be sent to the MQTT broker
+- Related configuration commands will be ignored
+
+This selective enabling/disabling works with both I2C sensors and sample data generation modes.
 
 ## Building and Flashing
 

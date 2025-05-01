@@ -91,6 +91,24 @@ config MQTT_TOPIC_CONFIG_CONFIRM
 # Sensor configuration options
 menu "Sensor Configuration"
 
+config ELFRYD_ENABLE_BATTERY_SENSOR
+    bool "Enable battery sensor data collection"
+    default y
+    help
+      If enabled, the application will collect and process battery sensor data.
+
+config ELFRYD_ENABLE_TEMP_SENSOR
+    bool "Enable temperature sensor data collection"
+    default y
+    help
+      If enabled, the application will collect and process temperature sensor data.
+
+config ELFRYD_ENABLE_GYRO_SENSOR
+    bool "Enable gyroscope sensor data collection"
+    default y
+    help
+      If enabled, the application will collect and process gyroscope sensor data.
+
 config ELFRYD_NUM_BATTERIES
     int "Number of batteries in the system"
     range 1 16

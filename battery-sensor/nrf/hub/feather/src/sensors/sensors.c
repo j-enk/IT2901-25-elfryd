@@ -89,41 +89,69 @@ int sensors_generate_battery_reading(int battery_id)
         return 0; /* Skip data collection but don't report as error */
     }
 
-    /* Generate battery reading either from I2C or sample data */
+    /* Generate battery reading from I2C or sample data */
     if (using_i2c)
     {
         err = i2c_read_battery_data(battery_id, &reading);
         if (err)
         {
+            if (err == -EAGAIN)
+            {
+                /* No new data available, just skip without error */
+                LOG_DBG(LOG_PREFIX_SENSOR "No new battery data for ID %d", battery_id);
+                return 0;
+            }
             LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", err);
             return err; /* Return the error from I2C reading */
         }
+        
+        /* Successfully read new data, store it */
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
+
+        /* If buffer is full, make room by shifting */
+        if (battery_count >= MAX_BATTERY_SAMPLES)
+        {
+            for (int i = 0; i < MAX_BATTERY_SAMPLES - 1; i++)
+            {
+                battery_readings[i] = battery_readings[i + 1];
+            }
+            battery_count = MAX_BATTERY_SAMPLES - 1;
+        }
+
+        /* Store the new reading */
+        battery_readings[battery_count] = reading;
+        battery_count++;
+
+        k_mutex_unlock(&sensor_mutex);
+        
+        LOG_INF(LOG_PREFIX_SENSOR "New battery reading for ID %d: %d mV", 
+                reading.battery_id, reading.voltage);
     }
     else
     {
-        /* Generate sample battery data */
+        /* Generate sample battery data - only in non-I2C mode */
         reading.battery_id = battery_id;
         reading.voltage = 12000 + (sys_rand32_get() % 3001);
         reading.timestamp = utils_get_timestamp();
-    }
+        
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
 
-    k_mutex_lock(&sensor_mutex, K_FOREVER);
-
-    /* If buffer is full, make room by shifting */
-    if (battery_count >= MAX_BATTERY_SAMPLES)
-    {
-        for (int i = 0; i < MAX_BATTERY_SAMPLES - 1; i++)
+        /* If buffer is full, make room by shifting */
+        if (battery_count >= MAX_BATTERY_SAMPLES)
         {
-            battery_readings[i] = battery_readings[i + 1];
+            for (int i = 0; i < MAX_BATTERY_SAMPLES - 1; i++)
+            {
+                battery_readings[i] = battery_readings[i + 1];
+            }
+            battery_count = MAX_BATTERY_SAMPLES - 1;
         }
-        battery_count = MAX_BATTERY_SAMPLES - 1;
+
+        /* Store the new reading */
+        battery_readings[battery_count] = reading;
+        battery_count++;
+
+        k_mutex_unlock(&sensor_mutex);
     }
-
-    /* Store the new reading */
-    battery_readings[battery_count] = reading;
-    battery_count++;
-
-    k_mutex_unlock(&sensor_mutex);
 
     return 0;
 }
@@ -140,40 +168,67 @@ int sensors_generate_temp_reading(void)
         return 0; /* Skip data collection but don't report as error */
     }
 
-    /* Generate temperature reading either from I2C or sample data */
+    /* Generate temperature reading from I2C or sample data */
     if (using_i2c)
     {
         err = i2c_read_temp_data(&reading);
         if (err)
         {
+            if (err == -EAGAIN)
+            {
+                /* No new data available, just skip without error */
+                LOG_DBG(LOG_PREFIX_SENSOR "No new temperature data");
+                return 0;
+            }
             LOG_ERR(LOG_PREFIX_I2C "Failed to read temperature data from I2C: %d", err);
             return err; /* Return the error from I2C reading */
         }
+        
+        /* Successfully read new data, store it */
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
+
+        /* If buffer is full, make room by shifting */
+        if (temp_count >= MAX_TEMP_SAMPLES)
+        {
+            for (int i = 0; i < MAX_TEMP_SAMPLES - 1; i++)
+            {
+                temp_readings[i] = temp_readings[i + 1];
+            }
+            temp_count = MAX_TEMP_SAMPLES - 1;
+        }
+
+        /* Store the new reading */
+        temp_readings[temp_count] = reading;
+        temp_count++;
+
+        k_mutex_unlock(&sensor_mutex);
+        
+        LOG_INF(LOG_PREFIX_SENSOR "New temperature reading: %d °C", reading.temperature);
     }
     else
     {
-        /* Generate sample temperature data */
+        /* Generate sample temperature data - only in non-I2C mode */
         reading.temperature = 5 + (sys_rand32_get() % 30);
         reading.timestamp = utils_get_timestamp();
-    }
+        
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
 
-    k_mutex_lock(&sensor_mutex, K_FOREVER);
-
-    /* If buffer is full, make room by shifting */
-    if (temp_count >= MAX_TEMP_SAMPLES)
-    {
-        for (int i = 0; i < MAX_TEMP_SAMPLES - 1; i++)
+        /* If buffer is full, make room by shifting */
+        if (temp_count >= MAX_TEMP_SAMPLES)
         {
-            temp_readings[i] = temp_readings[i + 1];
+            for (int i = 0; i < MAX_TEMP_SAMPLES - 1; i++)
+            {
+                temp_readings[i] = temp_readings[i + 1];
+            }
+            temp_count = MAX_TEMP_SAMPLES - 1;
         }
-        temp_count = MAX_TEMP_SAMPLES - 1;
+
+        /* Store the new reading */
+        temp_readings[temp_count] = reading;
+        temp_count++;
+
+        k_mutex_unlock(&sensor_mutex);
     }
-
-    /* Store the new reading */
-    temp_readings[temp_count] = reading;
-    temp_count++;
-
-    k_mutex_unlock(&sensor_mutex);
 
     return 0;
 }
@@ -190,19 +245,46 @@ int sensors_generate_gyro_reading(void)
         return 0; /* Skip data collection but don't report as error */
     }
 
-    /* Generate gyroscope reading either from I2C or sample data */
+    /* Generate gyroscope reading from I2C or sample data */
     if (using_i2c)
     {
         err = i2c_read_gyro_data(&reading);
         if (err)
         {
+            if (err == -EAGAIN)
+            {
+                /* No new data available, just skip without error */
+                LOG_DBG(LOG_PREFIX_SENSOR "No new gyroscope data");
+                return 0;
+            }
             LOG_ERR(LOG_PREFIX_I2C "Failed to read gyroscope data from I2C: %d", err);
             return err; /* Return the error from I2C reading */
         }
+        
+        /* Successfully read new data, store it */
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
+
+        /* If buffer is full, make room by shifting */
+        if (gyro_count >= MAX_GYRO_SAMPLES)
+        {
+            for (int i = 0; i < MAX_GYRO_SAMPLES - 1; i++)
+            {
+                gyro_readings[i] = gyro_readings[i + 1];
+            }
+            gyro_count = MAX_GYRO_SAMPLES - 1;
+        }
+
+        /* Store the new reading */
+        gyro_readings[gyro_count] = reading;
+        gyro_count++;
+
+        k_mutex_unlock(&sensor_mutex);
+        
+        LOG_INF(LOG_PREFIX_SENSOR "New gyroscope reading received");
     }
     else
     {
-        /* Generate sample gyroscope data */
+        /* Generate sample gyroscope data - only in non-I2C mode */
         reading.accel_x = -5000000 + (sys_rand32_get() % 10000000);
         reading.accel_y = -5000000 + (sys_rand32_get() % 10000000);
         reading.accel_z = -5000000 + (sys_rand32_get() % 10000000);
@@ -210,25 +292,25 @@ int sensors_generate_gyro_reading(void)
         reading.gyro_y = -250000 + (sys_rand32_get() % 500000);
         reading.gyro_z = -250000 + (sys_rand32_get() % 500000);
         reading.timestamp = utils_get_timestamp();
-    }
+        
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
 
-    k_mutex_lock(&sensor_mutex, K_FOREVER);
-
-    /* If buffer is full, make room by shifting */
-    if (gyro_count >= MAX_GYRO_SAMPLES)
-    {
-        for (int i = 0; i < MAX_GYRO_SAMPLES - 1; i++)
+        /* If buffer is full, make room by shifting */
+        if (gyro_count >= MAX_GYRO_SAMPLES)
         {
-            gyro_readings[i] = gyro_readings[i + 1];
+            for (int i = 0; i < MAX_GYRO_SAMPLES - 1; i++)
+            {
+                gyro_readings[i] = gyro_readings[i + 1];
+            }
+            gyro_count = MAX_GYRO_SAMPLES - 1;
         }
-        gyro_count = MAX_GYRO_SAMPLES - 1;
+
+        /* Store the new reading */
+        gyro_readings[gyro_count] = reading;
+        gyro_count++;
+
+        k_mutex_unlock(&sensor_mutex);
     }
-
-    /* Store the new reading */
-    gyro_readings[gyro_count] = reading;
-    gyro_count++;
-
-    k_mutex_unlock(&sensor_mutex);
 
     return 0;
 }
@@ -417,4 +499,98 @@ int sensors_get_gyro_reading_count(void)
 bool sensors_using_i2c(void)
 {
     return using_i2c;
+}
+
+int sensors_generate_all_battery_readings(void)
+{
+    int err;
+    int valid_readings = 0;
+    battery_reading_t temp_readings[NUM_BATTERIES];
+
+    /* Check if time is synchronized before collecting data */
+    if (!utils_is_time_synchronized())
+    {
+        LOG_WRN(LOG_PREFIX_SENSOR "Time not synchronized, skipping battery readings");
+        return 0; /* Skip data collection but don't report as error */
+    }
+
+    /* Generate battery readings from I2C or sample data */
+    if (using_i2c)
+    {
+        /* Use the new bulk read function for I2C mode */
+        err = i2c_read_all_battery_data(temp_readings, NUM_BATTERIES);
+        if (err < 0)
+        {
+            if (err == -EAGAIN)
+            {
+                /* No new data available, just skip without error */
+                LOG_DBG(LOG_PREFIX_SENSOR "No new battery data available");
+                return 0;
+            }
+            LOG_ERR(LOG_PREFIX_I2C "Failed to read battery data from I2C: %d", err);
+            return err; /* Return the error from I2C reading */
+        }
+        
+        valid_readings = err; /* err contains the number of valid readings */
+        
+        if (valid_readings == 0)
+        {
+            LOG_DBG(LOG_PREFIX_SENSOR "No new battery data to process");
+            return 0;
+        }
+
+        /* Store all valid readings */
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
+
+        for (int i = 0; i < valid_readings; i++)
+        {
+            /* If buffer is full, make room by shifting */
+            if (battery_count >= MAX_BATTERY_SAMPLES)
+            {
+                for (int j = 0; j < MAX_BATTERY_SAMPLES - 1; j++)
+                {
+                    battery_readings[j] = battery_readings[j + 1];
+                }
+                battery_count = MAX_BATTERY_SAMPLES - 1;
+            }
+
+            /* Store the new reading */
+            battery_readings[battery_count] = temp_readings[i];
+            battery_count++;
+            
+            LOG_INF(LOG_PREFIX_SENSOR "New battery reading for ID %d: %d mV", 
+                    temp_readings[i].battery_id, temp_readings[i].voltage);
+        }
+
+        k_mutex_unlock(&sensor_mutex);
+    }
+    else
+    {
+        /* Generate sample battery data for all batteries - only in non-I2C mode */
+        k_mutex_lock(&sensor_mutex, K_FOREVER);
+        
+        for (int battery_id = 1; battery_id <= NUM_BATTERIES; battery_id++)
+        {
+            /* If buffer is full, make room by shifting */
+            if (battery_count >= MAX_BATTERY_SAMPLES)
+            {
+                for (int j = 0; j < MAX_BATTERY_SAMPLES - 1; j++)
+                {
+                    battery_readings[j] = battery_readings[j + 1];
+                }
+                battery_count = MAX_BATTERY_SAMPLES - 1;
+            }
+            
+            /* Create a new sample reading */
+            battery_readings[battery_count].battery_id = battery_id;
+            battery_readings[battery_count].voltage = 12000 + (sys_rand32_get() % 3001);
+            battery_readings[battery_count].timestamp = utils_get_timestamp();
+            battery_count++;
+            valid_readings++;
+        }
+        
+        k_mutex_unlock(&sensor_mutex);
+    }
+
+    return valid_readings;
 }

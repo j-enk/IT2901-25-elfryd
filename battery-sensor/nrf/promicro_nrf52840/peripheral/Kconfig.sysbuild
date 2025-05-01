@@ -1,6 +1,7 @@
 # Copyright 2023-2024 Nordic Semiconductor ASA
 # SPDX-License-Identifier: Apache-2.0
 
+# Er denne nødvendig?
 source "share/sysbuild/Kconfig"
 
 config NET_CORE_BOARD
