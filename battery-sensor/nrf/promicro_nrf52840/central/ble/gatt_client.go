@@ -131,7 +131,7 @@ func findSrvcChars(profile *GATTProfile) error {
 	var gattUUID bluetooth.UUID
 	switch sensorType{
 	case "Battery":
-		gattUUID = bluetooth.NewUUID(voltageUUID)
+		gattUUID = bluetooth.NewUUID(batteryfind(profile.Address))
 	
 	case "Temperature":
 		gattUUID = bluetooth.NewUUID(tempUUID)
@@ -175,6 +175,22 @@ func findSrvcChars(profile *GATTProfile) error {
 	}
 
 	return nil
+}
+
+func batteryfind(addr bluetooth.Address) [16]byte {
+	switch addr.String() {
+    case "D9:A8:EC:EA:72:6B":
+        return enUUID
+    case "EC:0A:B5:04:71:7B":
+        return toUUID
+    case "E9:46:77:D0:E3:05":
+        return trerUUID
+    case "CA:6A:4C:BD:7C:36":
+        return fireUUID
+    default:
+		fmt.Println("fant ikke ajdpiajwdijawipdjaipwd")
+		return [16]byte{}
+    }
 }
 
 
