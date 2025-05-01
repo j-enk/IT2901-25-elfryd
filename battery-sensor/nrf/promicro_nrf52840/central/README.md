@@ -1,3 +1,7 @@
+## TODO:
+- i2c register 0 gjør ingenting nå, burde sjekke at man før en og hvis ikke så reject read. Siden hubben sender 1 til register 0 før den reader
+- update testing tool til å være zephyr i2c shell eller lage oppdatere test_i2c_controller 
+
 # Elfryd BLE Central
 
 A TinyGo-based BLE central for the Promicro nRF52840 board that scans for, connects to, and receives data from sensor peripherals, then makes this data available to the nRF9160 Hub via I2C.
@@ -7,7 +11,7 @@ A TinyGo-based BLE central for the Promicro nRF52840 board that scans for, conne
 This central firmware is a key component of the Elfryd boat monitoring system's BLE communication layer. It runs on the Promicro nRF52840 board and performs two main functions:
 
 1. Acting as a BLE Central that scans for and connects to sensor peripherals
-2. Acting as an I2C target that provides collected sensor data to the nRF9160 Hub
+2. Acting as an I2C target/slave that provides collected sensor data to the nRF9160 Hub
 
 ## Features
 
@@ -16,7 +20,7 @@ This central firmware is a key component of the Elfryd boat monitoring system's 
 - **GATT Client**: Reads data from connected peripherals at regular intervals
 - **I2C Target**: Makes collected data available via I2C interface
 - **Device ID Management**: Tracks unique IDs for each connected sensor
-- **Concurrent Operation**: Uses goroutines for simultaneous BLE and I2C operations
+- **Concurrent Operation**: Uses goroutines for simultaneous GATT and I2C operations
 - **Data Buffering**: Maintains latest readings from all connected peripherals
 
 ## System Architecture
@@ -111,8 +115,8 @@ The central operates as an I2C target device with the following register map:
 When the I2C controller reads register 0x01, the response contains all sensor data in the following format:
 
 - **Battery Data**: 1 byte New flag, 1 byte ID, 2 bytes Battery voltage (mV)
-- **Temperature Data**: 1 byte New flag, 1 byte ID, 4 bytes Temperature (32-bit int, Celsius)
-- **Gyro Data**: 1 byte New flag, 1 byte ID, 18 bytes of accelerometer and gyroscope data (3 axes each, 3 bytes per value)
+- **Temperature Data**: 1 byte New flag, 2 bytes Temperature (32-bit int, Celsius)
+- **Gyro Data**: 1 byte New flag, 18 bytes of accelerometer and gyroscope data (3 axes each, 3 bytes per value)
 
 Data from multiple sensors is concatenated in the response.
 
@@ -141,6 +145,10 @@ Monitor the USB serial output for debugging information:
 
 ```bash
 minicom -D /dev/ttyACM0 -b 115200
+```
+or
+```bash
+tinygo monitor #"-port COMX" is needed if multiple devices are connected 
 ```
 
 ## Related Components
