@@ -1,10 +1,19 @@
+## TODO:
+Ting i peripheral read todo:
+*Legge til nytt bilde av wiring
+*Legge til bilde av error dialog når man flasher til nicenano
+*Fjerne CONFIG_BT_SMP hvis den er default n
+*Burde endre så lyset blinker 1 gang hvert X sekund istenedfor å ha det på konstant; da må endres i common issues
+*Er based on nødvendig?
+
+
 # Elfryd BLE Peripheral
 
 A Zephyr-based peripheral for the Promicro nRF52840 board that monitors battery voltage, temperature, and motion data and advertises it over Bluetooth Low Energy (BLE).
 
 ## Overview
 
-This peripheral firmware is part of the Elfryd boat monitoring system's BLE communication layer. It runs on the Promicro nRF52840 board and collects data from connected sensors, exposing the readings via standard BLE GATT services to be consumed by the BLE Central.
+This peripheral firmware is part of the Elfryd boat monitoring system's BLE communication layer. It runs on the Promicro nRF52840 board and collects data from connected sensors, exposing the readings via standard BLE GATT services to be read by the BLE Central.
 
 ## Features
 
@@ -12,6 +21,8 @@ This peripheral firmware is part of the Elfryd boat monitoring system's BLE comm
 - **Temperature Sensing**: Interfaces with BME280 sensor via I2C
 - **Motion Detection**: Reads accelerometer and gyroscope data from MPU6050 via I2C
 - **BLE Advertising**: Continuously advertises for connection
+- **BLE peripheral**: Establishes connection with BLE central
+- **BLE GATT server**: GATT server that handles read requests from central
 - **Status LED**: Visual indication of connection status
 - **Configurable Sensor ID**: Unique identifier for each sensor node
 
@@ -32,7 +43,7 @@ The voltage is measured through a voltage divider to bring higher voltages into 
 1. Connect your voltage source to a voltage divider
 2. Connect the output of the voltage divider to pin P0.02 (AIN0)
 3. Make sure the divided voltage doesn't exceed 3.3V
-
+## Nytt bilde trengs
 ![Voltage Wiring](wiring.png)
 
 #### I2C Sensors
@@ -77,10 +88,10 @@ west flash
 
 #### Method 2: Manual UF2 Flashing
 
-1. Put the Promicro board into bootloader mode by double-pressing the reset button
-2. A drive named "PROBOOT" should appear
+1. Put the Promicro board into bootloader mode by double-pressing the reset button (Two pulses from ground to RST)
+2. A drive named "PROBOOT" or "NICENANO" should appear
 3. Copy the file `build/zephyr/zephyr.uf2` to this drive
-4. The board will automatically reset and run the new firmware
+4. The board will automatically reset and run the new firmware after the error dialog shows (bilde?)
 
 ## Configuration Options
 

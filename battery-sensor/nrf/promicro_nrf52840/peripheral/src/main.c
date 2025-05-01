@@ -208,7 +208,7 @@ static ssize_t vol_read_function(struct bt_conn *conn, const struct bt_gatt_attr
                  uint16_t len, uint16_t offset)
 {
 
-    int32_t mv = -1;
+    int16_t mv = -1;
     if(baut_adc_read(&mv) == 0) {
         printk("mV = %d\n", mv);
     } else {
