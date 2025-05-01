@@ -53,7 +53,12 @@ var(
 
 	ScanStop =		false
 	BatteryArray = 	make(map[bluetooth.Address]BatteryMessage)
-	addrIDArray = 	make(map[bluetooth.Address]int8)
+	//D9:A8:EC:EA:72:6B id = 	3
+	//EC:0A:B5:04:71:7B id =	2
+	//E9:46:77:D0:E3:05 id =	4
+	//CA:6A:4C:BD:7C:36 id =	1
+	// addrIDArray = 	make(map[bluetooth.Address]int8)
+
 )
 
 type GATTProfile struct{

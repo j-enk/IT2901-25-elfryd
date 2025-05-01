@@ -126,11 +126,11 @@ func handleRequest() {
             entry := make([]byte, entryLen)
             // pack New + ID
             entry[0] = byte(msg.New)
-            cursed := 0
+            cursed := 1
             switch sensorType {
             case "Battery":
                 entry[1] = byte(msg.ID)
-                cursed = 1
+                cursed = 0
                 
             }
             // copy as much of msg.Payload as fits
