@@ -73,7 +73,8 @@ Navigate to your Zephyr installation directory and run:
 
 ```bash
 cd ~/zephyrproject/zephyr
-west build -b promicro_nrf52840/nrf52840/uf2 path/to/IT2901-25-elfryd/battery-sensor/nrf/promicro_nrf52840/peripheral
+source ~/zephyrproject/.venv/bin/activate
+west build -b promicro_nrf52840/nrf52840/uf2 path/to/peripheral -- -DCONFIG_BATTERY_ID=1
 ```
 
 ### Flashing
