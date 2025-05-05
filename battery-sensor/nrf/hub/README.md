@@ -65,6 +65,7 @@ CONFIG_ELFRYD_USE_I2C_SENSORS=n         # Use I2C sensors (y) or sample data (n)
 CONFIG_SENSOR_BATTERY_INTERVAL=180      # Battery data publish interval (seconds)
 CONFIG_SENSOR_TEMP_INTERVAL=180         # Temperature data publish interval (seconds)
 CONFIG_SENSOR_GYRO_INTERVAL=180         # Gyroscope data publish interval (seconds)
+CONFIG_SENSOR_I2C_READ_INTERVAL=5       # How often to read from I2C sensors (seconds)
 ```
 
 ## MQTT Topics and Message Formats

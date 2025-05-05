@@ -385,12 +385,15 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
 {
     int err;
     publish_msg_t msg;
+    int i2c_read_counter = 0;  /* Counter to track when to read I2C data */
+    const int I2C_READ_INTERVAL = CONFIG_SENSOR_I2C_READ_INTERVAL;  /* Read I2C data based on config */
 
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
     LOG_INF(LOG_PREFIX_SENS "Sensor thread started");
+    LOG_INF(LOG_PREFIX_SENS "I2C read interval set to %d seconds", I2C_READ_INTERVAL);
 
     /* Initialize sensors */
     sensors_init();
@@ -431,15 +434,20 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
     {
         current_time = utils_get_timestamp();
 
+        /* Only read from I2C sensors every I2C_READ_INTERVAL iterations */
+        bool should_read_i2c = (i2c_read_counter == 0);
+
 #ifdef CONFIG_ELFRYD_ENABLE_BATTERY_SENSOR
         /* Generate new battery sensor data */
         if (sensors_using_i2c()) {
-            /* More efficient approach - read all battery data at once when using I2C */
-            err = sensors_generate_all_battery_readings();
-            if (err < 0 && err != -EAGAIN) {
-                LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery readings: %d", err);
-            } else if (err > 0) {
-                LOG_INF(LOG_PREFIX_SENS "Generated %d battery readings in a batch", err);
+            if (should_read_i2c) {
+                /* More efficient approach - read all battery data at once when using I2C */
+                err = sensors_generate_all_battery_readings();
+                if (err < 0 && err != -EAGAIN) {
+                    LOG_ERR(LOG_PREFIX_SENS "Failed to generate battery readings: %d", err);
+                } else if (err > 0) {
+                    LOG_INF(LOG_PREFIX_SENS "Generated %d battery readings in a batch", err);
+                }
             }
         } else {
             /* When not using I2C, use the individual approach to ensure consistent behavior */
@@ -461,29 +469,33 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
 
 #ifdef CONFIG_ELFRYD_ENABLE_TEMP_SENSOR
         /* Generate temperature readings */
-        err = sensors_generate_temp_reading();
-        if (err)
-        {
-            LOG_ERR(LOG_PREFIX_SENS "Failed to generate temperature reading: %d", err);
-        }
-        else
-        {
-            err = sensors_get_latest_temp_reading(&latest_temp_reading);
-            temp_count_cached = sensors_get_temp_reading_count();
+        if (!sensors_using_i2c() || should_read_i2c) {
+            err = sensors_generate_temp_reading();
+            if (err)
+            {
+                LOG_ERR(LOG_PREFIX_SENS "Failed to generate temperature reading: %d", err);
+            }
+            else
+            {
+                err = sensors_get_latest_temp_reading(&latest_temp_reading);
+                temp_count_cached = sensors_get_temp_reading_count();
+            }
         }
 #endif
 
 #ifdef CONFIG_ELFRYD_ENABLE_GYRO_SENSOR
         /* Generate gyro readings */
-        err = sensors_generate_gyro_reading();
-        if (err)
-        {
-            LOG_ERR(LOG_PREFIX_SENS "Failed to generate gyroscope reading: %d", err);
-        }
-        else
-        {
-            err = sensors_get_latest_gyro_reading(&latest_gyro_reading);
-            gyro_count_cached = sensors_get_gyro_reading_count();
+        if (!sensors_using_i2c() || should_read_i2c) {
+            err = sensors_generate_gyro_reading();
+            if (err)
+            {
+                LOG_ERR(LOG_PREFIX_SENS "Failed to generate gyroscope reading: %d", err);
+            }
+            else
+            {
+                err = sensors_get_latest_gyro_reading(&latest_gyro_reading);
+                gyro_count_cached = sensors_get_gyro_reading_count();
+            }
         }
 #endif
 
@@ -662,7 +674,10 @@ static void sensor_thread_fn(void *arg1, void *arg2, void *arg3)
         }
 #endif
 
-        k_sleep(K_SECONDS(1)); /* Generate new data every second */
+        /* Update I2C read counter */
+        i2c_read_counter = (i2c_read_counter + 1) % I2C_READ_INTERVAL;
+
+        k_sleep(K_SECONDS(1)); /* Main loop still runs every second for timely response to commands */
     }
 }
 

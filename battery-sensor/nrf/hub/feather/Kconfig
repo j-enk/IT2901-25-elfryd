@@ -154,6 +154,14 @@ config SENSOR_GYRO_INTERVAL
     help
       Interval in seconds between gyroscope data publishing (0 = disabled).
 
+config SENSOR_I2C_READ_INTERVAL
+    int "I2C sensor read interval in seconds"
+    default 5
+    range 1 60
+    help
+      How often to read data from I2C sensors in seconds. Lower values provide more
+      frequent readings but increase I2C bus traffic and power consumption.
+
 config ELFRYD_USE_I2C_SENSORS
     bool "Use I2C sensors for data acquisition"
     default n
