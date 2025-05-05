@@ -156,8 +156,8 @@ config SENSOR_GYRO_INTERVAL
 
 config SENSOR_I2C_READ_INTERVAL
     int "I2C sensor read interval in seconds"
-    default 5
     range 1 60
+    default 5
     help
       How often to read data from I2C sensors in seconds. Lower values provide more
       frequent readings but increase I2C bus traffic and power consumption.
