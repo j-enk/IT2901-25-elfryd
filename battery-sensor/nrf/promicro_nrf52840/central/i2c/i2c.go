@@ -1,178 +1,156 @@
+// Package i2c_target implements an I²C target (slave) interface
+// that exposes BLE sensor data to an I²C master. It uses TinyGo machine.I2C
+// in target mode to listen for read/write requests on predefined registers.
 package i2c_target
 
 import (
-    "Kystlaget_central/ble"
-    "fmt"
-    "machine"
+	"Kystlaget_central/ble"
+	"machine"
 )
 
 var (
-    i2c      = machine.I2C0
-    lastReg  byte
-    registers map[byte]*Register
-    sensorType = "null"
+	// i2c is the I²C peripheral in target mode
+	i2c = machine.I2C0
+
+	// lastReg stores the last register address selected by the master
+	lastReg byte
+
+	// registers maps register addresses to Register descriptors
+	registers map[byte]*Register
+
+	// sensorType indicates which BLE sensor data to expose via register 0x01
+	sensorType = "null"
 )
 
-// Register describes a readable/writable register
+// Register describes a readable/writable I²C register
+// ReadData: static bytes to return on read requests
+// WriteHandler: optional function to handle writes to this register
 type Register struct {
-    ReadData     []byte
-    WriteHandler func(data []byte)
+	ReadData     []byte
+	WriteHandler func(data []byte)
 }
 
-// InitI2C sets up the I²C peripheral in target mode
+// InitI2C configures the I²C peripheral in target mode and stores
+// a sensor type identifier for dynamic data reads.
+// sensorTypeMain must be one of "Battery", "Temperature", or "Gyro".
 func InitI2C(sensorTypeMain string) error {
-    cfg := machine.I2CConfig{
-        Frequency: machine.KHz * 100,
-        SDA:       machine.SDA_PIN,
-        SCL:       machine.SCL_PIN,
-        Mode:      machine.I2CModeTarget,
-    }
-    sensorType = sensorTypeMain
-    return i2c.Configure(cfg)
+	cfg := machine.I2CConfig{
+		Frequency: machine.KHz * 100,
+		SDA:       machine.SDA_PIN,
+		SCL:       machine.SCL_PIN,
+		Mode:      machine.I2CModeTarget,
+	}
+	sensorType = sensorTypeMain
+	return i2c.Configure(cfg)
 }
 
-// ConfigI2C sets the I²C address and initializes registers
+// ConfigI2C sets the I²C target address and initializes the register map.
+// Must be called after InitI2C and before PassiveListening.
 func ConfigI2C(addr uint8) {
-    if err := i2c.Listen(addr); err != nil {
-        panic("I2C Listen failed: " + err.Error())
-    }
-    setupRegisters()
+	if err := i2c.Listen(addr); err != nil {
+		panic("I2C Listen failed: " + err.Error())
+	}
+	setupRegisters()
 }
 
+// setupRegisters populates the initial set of registers with
+// static responses and placeholders for dynamic registers.
 func setupRegisters() {
-    // only called once
-    registers = map[byte]*Register{
-        0x00: {
-            ReadData: []byte{0x01},
-        },
-        0x01: {
-            ReadData: nil, // dynamic: handled in handleRequest
-        },
-    }
+	registers = map[byte]*Register{
+		0x00: { ReadData: []byte{0x01} }, // Fixed version or ID register
+		0x01: { ReadData: nil },         // Dynamic data: BLE sensor values
+	}
 }
 
-// PassiveListening loops forever handling I²C master events
+// PassiveListening loops indefinitely, handling I²C master events.
+// It dispatches receive (register selection) and request (read data)
+// events to the appropriate handlers.
 func PassiveListening() error {
-    if registers == nil {
-        panic("registers not initialized; call ConfigI2C first")
-    }
-    buf := make([]byte, 64)
-    for {
-        fmt.Println("[I2C] Waiting for I²C event...")
-        evt, n, err := i2c.WaitForEvent(buf)
-        if err != nil {
-            fmt.Printf("[I2C] WaitForEvent error: %v\n", err)
-            continue
-        }
-        switch evt {
-        case machine.I2CReceive:
-            handleReceive(buf[:n])
-        case machine.I2CRequest:
-            handleRequest()
-        case machine.I2CFinish:
-            fmt.Println("[I2C] Event: Finish")
-        default:
-            fmt.Printf("[I2C] Unknown event: %v\n", evt)
-        }
-    }
+	if registers == nil {
+		panic("registers not initialized; call ConfigI2C first")
+	}
+	buf := make([]byte, 64)
+	for {
+		evt, n, err := i2c.WaitForEvent(buf)
+		if err != nil {
+			continue // Ignore and wait for next event
+		}
+		switch evt {
+		case machine.I2CReceive:
+			handleReceive(buf[:n])
+		case machine.I2CRequest:
+			handleRequest()
+		case machine.I2CFinish:
+			// Transaction finished; no action needed
+		default:
+			// Unhandled event type
+		}
+	}
 }
 
+// handleReceive processes I²C write data from the master.
+// The first byte selects the register; subsequent bytes invoke a write handler.
 func handleReceive(data []byte) {
-    fmt.Printf("[I2C] Receive (%d): % X\n", len(data), data)
-    if len(data) < 1 {
-        return
-    }
-    reg := data[0]
-    lastReg = reg
-
-    r, ok := registers[reg]
-    if !ok {
-        fmt.Printf("[I2C] Unknown reg 0x%02X\n", reg)
-        return
-    }
-    if len(data) > 1 {
-        if r.WriteHandler != nil {
-            r.WriteHandler(data[1:])
-        } else {
-            fmt.Printf("[I2C] Write to RO reg 0x%02X rejected\n", reg)
-        }
-    }
+	if len(data) < 1 {
+		return // No register specified
+	}
+	lastReg = data[0]
+	r, exists := registers[lastReg]
+	if !exists {
+		return // Unknown register; ignore
+	}
+	if len(data) > 1 && r.WriteHandler != nil {
+		r.WriteHandler(data[1:])
+	}
 }
 
+// handleRequest responds to an I²C read request based on the last selected register.
+// For register 0x01, it fetches BLE sensor data; for others, it returns static data.
 func handleRequest() {
-    fmt.Println("[I2C] Master read request")
+	// Dynamic register: BLE sensor payloads
+	if lastReg == 0x01 {
+		batteryData := ble.GetBatteryArray()
+		// Preallocate reply buffer based on number of devices and sensor type
+		reply := make([]byte, 0, len(batteryData)*8)
+		for _, msg := range batteryData {
+			var entryLen int
+            var id int = 0
+			switch sensorType {
+			case "Gyro":
+				entryLen = 1 + len(msg.Payload)
+			case "Temperature":
+				entryLen = 1 + len(msg.Payload)
+			default: // "Battery"
+				entryLen = 1 + 1 + len(msg.Payload)
+                id = 1
+			}
 
-    if lastReg == 0x01 {
-        batteryData := ble.GetBatteryArray()
-        // pre-allocate a reasonable capacity
-        reply := make([]byte, 0, len(batteryData)*8)
+			entry := make([]byte, entryLen)
+			entry[0] = byte(msg.New)
+			if id == 1 {entry[1] = byte(msg.ID)}
+			copy(entry[1+id:], msg.Payload)
+			reply = append(reply, entry...)
+		}
 
-        for addr, msg := range batteryData {
-            fmt.Printf("[I2C] Including device %s → New=%d ID=%d Payload len=%d\n",
-                addr.String(), msg.New, msg.ID, len(msg.Payload),
-            )
+		// If no data, send a zero-filled default entry
+		if len(reply) == 0 {
+			zeroLen := 1 + 1 + 0
+			reply = make([]byte, zeroLen)
+		}
 
-            // decide entry length
-            var entryLen int
-            switch sensorType {
-            case "Gyro":
-                entryLen = 19 // 1 byte New, 1 byte ID, 48 payload
-            case "Temperature":
-                entryLen = 6
-            default:
-                entryLen = 4
-            }
+		i2c.Reply(reply)
+		// Clear "New" flags for all entries
+		for addr, msg := range batteryData {
+			msg.New = 0
+			ble.SetBatteryEntry(addr, msg)
+		}
+		return
+	}
 
-            entry := make([]byte, entryLen)
-            // pack New + ID
-            entry[0] = byte(msg.New)
-            cursed := 1
-            switch sensorType {
-            case "Battery":
-                entry[1] = byte(msg.ID)
-                cursed = 0
-                
-            }
-            // copy as much of msg.Payload as fits
-            copied := copy(entry[2-cursed:], msg.Payload)
-            if copied < len(msg.Payload) {
-                fmt.Printf("[I2C] Warning: payload truncated from %d to %d bytes\n",
-                    len(msg.Payload), copied,
-                )
-            }
-
-            reply = append(reply, entry...)
-        }
-
-        if len(reply) == 0 {
-            fmt.Println("[I2C] No entries, sending a single zero entry")
-            // match default entryLen for your sensor type
-            zeroLen := 4
-            if sensorType == "Gyro" {
-                zeroLen = 24
-            }
-            reply = make([]byte, zeroLen)
-        }
-
-        fmt.Printf("[I2C] Replying all entries (%d bytes): % X\n",
-            len(reply), reply,
-        )
-        i2c.Reply(reply)
-
-        // clear the New flags
-        for addr, msg := range batteryData {
-            msg.New = 0
-            ble.SetBatteryEntry(addr, msg)
-        }
-        return
-    }
-    // Static registers
-    if r, ok := registers[lastReg]; ok && r.ReadData != nil {
-        fmt.Printf("[I2C] Replying reg 0x%02X: % X\n", lastReg, r.ReadData)
-        i2c.Reply(r.ReadData)
-    } else {
-        fmt.Printf("[I2C] Replying zeros for reg 0x%02X\n", lastReg)
-        i2c.Reply(make([]byte, 5))
-    }
+	// Static register: return preconfigured bytes or zeros
+	if r, exists := registers[lastReg]; exists && r.ReadData != nil {
+		i2c.Reply(r.ReadData)
+	} else {
+		i2c.Reply(make([]byte, 5))
+	}
 }
-

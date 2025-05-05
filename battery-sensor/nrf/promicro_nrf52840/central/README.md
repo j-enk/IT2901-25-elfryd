@@ -138,6 +138,10 @@ This program acts as an I2C controller and regularly polls the central for senso
 1. **No BLE devices found**: Ensure peripherals are advertising and within range
 2. **I2C communication failures**: Verify correct I2C addresses and connections
 3. **Missing or corrupted sensor data**: Check that peripheral firmware is correctly configured
+4. **Multiple peripherals not supported**: add code on line 300 in file gattc_sd.go
+```go
+  dc.connectionHandle = s.connectionHandle
+```
 
 ### Debugging
 

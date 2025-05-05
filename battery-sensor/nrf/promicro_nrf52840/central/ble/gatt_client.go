@@ -1,3 +1,6 @@
+// Package ble provides functionality for scanning, connecting, and reading
+// data from BLE devices using TinyGo's Bluetooth API. It supports Battery,
+// Temperature, and Gyro sensors with service discovery and characteristic reads.
 package ble
 
 import (
@@ -8,183 +11,169 @@ import (
 )
 
 var (
-	devices_connected = 0
+	// devicesConnected holds the current count of active connected devices.
+	devicesConnected = 0
+
+	// sensorType indicates which type of sensor is active: "Battery", "Temperature", or "Gyro".
 	sensorType = "null"
 )
 
-
+// InitGATT initializes GATT profiles for all connected devices.
+// It discovers the ID service and reads a one-byte identifier from each device.
+// sensorTypeMain must be one of "Battery", "Temperature", or "Gyro".
 func InitGATT(sensorTypeMain string) error {
-	if sensorTypeMain == "null"{
-		fmt.Println("No sensor type choosen")
-		devices_connected = 0
-		return nil
+	// Validate sensor type selection
+	if sensorTypeMain == "null" {
+		return fmt.Errorf("no sensor type selected")
 	}
 	sensorType = sensorTypeMain
+
+	// Buffer for reading the ID characteristic
 	buf := make([]byte, 1)
-	fmt.Println("[InitGATT] Initializing GATT profiles...")
+
+	// Iterate over all connected devices and discover their services
 	for addr, dev := range conns {
-		fmt.Printf("[InitGATT] Discovering services for device: %s\n", addr.String())
-		err := findSrvcChars(dev)
-		m, err := dev.Services["ID"].Chars[idUUID].Read(buf[:1])
-		if err != nil {
-			fmt.Printf("[RunGATTClient] Error reading from device %s: %v\n", addr.String(), err)
+		// Discover ID service and characteristics
+		if err := findSrvcChars(dev); err != nil {
 			dev.Active = false
-			return nil
+			continue
 		}
-		if m != 1 {
-			fmt.Printf("[RunGATTClient] Warning: expected 1 byte, got %d bytes\n", m)
+
+		// Read one byte from the ID characteristic
+		m, err := dev.Services["ID"].Chars[idUUID].Read(buf[:1])
+		if err != nil || m != 1 {
+			dev.Active = false
+			continue
 		}
+
+		// Store the read identifier in the address-to-ID map
 		addrIDArray[addr] = int8(buf[0])
 	}
-	devices_connected = len(conns)
-	fmt.Printf("[InitGATT] Devices connected: %d\n", devices_connected)
-	// Future work; add validation so IDs only corresponds to one address
-	for key, value := range addrIDArray{
-	fmt.Printf("[InitGATT] Addr and IDs: %s %d\n",key.String(), value)
-	}
+
+	// Update global count of connected devices
+	devicesConnected = len(conns)
 	return nil
 }
 
+// RunGATTClient starts periodic reads from the selected sensor characteristic
+// on all active devices. It schedules reads every 1 second and pushes results
+// to the message queue for further processing.
 func RunGATTClient() error {
-	fmt.Println("[RunGATTClient] Starting GATT client...")
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	if devices_connected == 0 {
-		fmt.Println("[RunGATTClient] No connected devices. Exiting.")
+	// Exit early if no devices are connected
+	if devicesConnected == 0 {
 		return nil
 	}
-	var readUUID bluetooth.UUID
-	var buf []byte
-	var bytes int
+
+	// Prepare UUID and buffer length based on sensor type
+	var (
+		readUUID bluetooth.UUID
+		nBytes   int
+	)
 	switch sensorType {
 	case "Battery":
 		readUUID = bluetooth.NewUUID(voltageUUID)
-		bytes = 2
-		buf = make([]byte, bytes)
+		nBytes = 2
 	case "Temperature":
 		readUUID = bluetooth.NewUUID(tempUUID)
-		bytes = 4
-		buf = make([]byte, bytes)
-
+		nBytes = 2
 	case "Gyro":
 		readUUID = bluetooth.NewUUID(gyroUUID)
-		bytes = 18
-		buf = make([]byte, bytes)
+		nBytes = 18
+	default:
+		return fmt.Errorf("unknown sensor type: %s", sensorType)
 	}
 
-	for tick := range ticker.C {
-		_ = tick
+	buf := make([]byte, nBytes)
+		ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	// Periodic read loop
+	for range ticker.C {
 		for addr, dev := range conns {
-		if dev.Active {
-			fmt.Printf("[RunGATTClient] Reading characteristic from device %s...\n", addr.String())
-			id := int8(addrIDArray[addr])
-			n, err := dev.Services[sensorType].Chars[readUUID].Read(buf[:bytes])
-			if err != nil {
-				fmt.Printf("[RunGATTClient] Error reading from device %s: %v\n", addr.String(), err)
-				return err
+			if !dev.Active {
+				continue
 			}
 
-			if n != bytes {
-				fmt.Printf("[RunGATTClient] Warning: expected %d bytes, got %d bytes\n",bytes , n)
+			// Perform characteristic read
+			n, err := dev.Services[sensorType].Chars[readUUID].Read(buf)
+			if err != nil {
+				return fmt.Errorf("read error from %s: %w", addr.String(), err)
 			}
-			fmt.Printf("[RunGATTClient] Device: %s Sensor: %s\n", addr.String(), sensorType)
-			SetBatteryEntry(addr,BatteryMessage{
-				New: 1,
-				ID: id,
-				Payload: buf,
-			})
-		} else {
-			continue
-		}
+
+			// Validate byte count
+			if n != nBytes {
+				fmt.Printf("warning: expected %d bytes, got %d bytes\n", nBytes, n)
+			}
+
+			// Construct and send the sensor message
+			msg := BatteryMessage{
+				New:     1,
+				ID:      int8(addrIDArray[addr]),
+				Payload: buf[:nBytes],
+			}
+			SetBatteryEntry(addr, msg)
 		}
 	}
 	return nil
 }
 
+// findSrvcChars discovers the ID service and characteristics, as well as
+// the sensor-specific service and characteristics for the given profile.
+// It populates profile.Services with ServiceClient entries for "ID" and
+// sensorType, each holding a map of characteristic UUID to DeviceCharacteristic.
 func findSrvcChars(profile *GATTProfile) error {
-
-	fmt.Println("[findSrvcChars] Discovering ID service")
-	idsrvc := []bluetooth.UUID{idUUID}
-	srvcs, err := profile.Device.DiscoverServices(idsrvc)
-	if err != nil {
+	// Discover the ID service
+	ids := []bluetooth.UUID{idUUID}
+	srvcs, err := profile.Device.DiscoverServices(ids)
+	if err != nil || len(srvcs) == 0 {
 		profile.Active = false
-		return nil
-	}
-	if len(srvcs) == 0 {
-		fmt.Println("[findSrvcChars] No services found!")
-		profile.Active = false
-		return nil
+		return fmt.Errorf("ID service discovery failed: %w", err)
 	}
 
+	// Initialize the ServiceClient for ID
 	profile.Services["ID"] = &ServiceClient{
-		UUID: idUUID,
+		UUID:  idUUID,
 		Chars: make(map[bluetooth.UUID]bluetooth.DeviceCharacteristic),
 	}
 
-	chars, err := srvcs[0].DiscoverCharacteristics(idsrvc)
-	if err != nil {
-		fmt.Printf("[findSrvcChars] Failed to discover characteristics: %v\n", err)
-		return err
+	// Discover ID characteristics and populate map
+	chars, err := srvcs[0].DiscoverCharacteristics(ids)
+	if err != nil || len(chars) == 0 {
+		return fmt.Errorf("ID characteristic discovery failed: %w", err)
 	}
-	if len(chars) == 0 {
-		fmt.Println("[findSrvcChars] No characteristics found!")
-		return fmt.Errorf("no characteristics found")
-	}
-
-	for _, char := range chars {
-		fmt.Printf("[findSrvcChars] Found characteristic: %s\n", char.UUID().String())
-		profile.Services["ID"].Chars[char.UUID()] = char
+	for _, c := range chars {
+		profile.Services["ID"].Chars[c.UUID()] = c
 	}
 
-	fmt.Println("[findSrvcChars] Discovering battery service...")
-	var gattUUID bluetooth.UUID
-	switch sensorType{
+	// Discover the sensor service based on global sensorType
+	var svcUUID bluetooth.UUID
+	switch sensorType {
 	case "Battery":
-		gattUUID = bluetooth.NewUUID(voltageUUID)
-	
+		svcUUID = bluetooth.NewUUID(voltageUUID)
 	case "Temperature":
-		gattUUID = bluetooth.NewUUID(tempUUID)
-
+		svcUUID = bluetooth.NewUUID(tempUUID)
 	case "Gyro":
-		gattUUID = bluetooth.NewUUID(gyroUUID)
+		svcUUID = bluetooth.NewUUID(gyroUUID)
 	}
-	srvcUUID := []bluetooth.UUID{gattUUID}
-	srvcs, err = profile.Device.DiscoverServices(srvcUUID)
-	if err != nil {
-		fmt.Printf("[findSrvcChars] Failed to discover services: %v\n", err)
-		profile.Active = false
-		return nil
-	}
-	if len(srvcs) == 0 {
-		fmt.Println("[findSrvcChars] No services found!")
-		profile.Active = false
-		return nil
-	}
-	fmt.Printf("[findSrvcChars] Found %d service(s)\n", len(srvcs))
-	
 
+	srvcs, err = profile.Device.DiscoverServices([]bluetooth.UUID{svcUUID})
+	if err != nil || len(srvcs) == 0 {
+		profile.Active = false
+		return fmt.Errorf("sensor service discovery failed: %w", err)
+	}
+
+	// Initialize and populate the ServiceClient for the sensor
 	profile.Services[sensorType] = &ServiceClient{
-		UUID:  gattUUID,
+		UUID:  svcUUID,
 		Chars: make(map[bluetooth.UUID]bluetooth.DeviceCharacteristic),
 	}
 
-	chars, err = srvcs[0].DiscoverCharacteristics(srvcUUID)
-	if err != nil {
-		fmt.Printf("[findSrvcChars] Failed to discover characteristics: %v\n", err)
-		return err
+	chars, err = srvcs[0].DiscoverCharacteristics([]bluetooth.UUID{svcUUID})
+	if err != nil || len(chars) == 0 {
+		return fmt.Errorf("sensor characteristic discovery failed: %w", err)
 	}
-	if len(chars) == 0 {
-		fmt.Println("[findSrvcChars] No characteristics found!")
-		return fmt.Errorf("no characteristics found")
-	}
-
-	for _, char := range chars {
-		fmt.Printf("[findSrvcChars] Found characteristic: %s\n", char.UUID().String())
-		profile.Services[sensorType].Chars[char.UUID()] = char
-		mtu, _ := char.GetMTU()
-
-		fmt.Println("AAAAAAAAAAAAAAA%d", mtu)
+	for _, c := range chars {
+		profile.Services[sensorType].Chars[c.UUID()] = c
 	}
 
 	return nil

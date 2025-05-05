@@ -89,8 +89,13 @@ func GetBatteryArray() map[bluetooth.Address]BatteryMessage{
 
 // SetBatteryEntry safely sets or updates a BatteryMessage for a device
 func SetBatteryEntry(addr bluetooth.Address, msg BatteryMessage) {
-	mu.Lock()
-	defer mu.Unlock()
+    mu.Lock()
+    defer mu.Unlock()
 
-	BatteryArray[addr] = msg
+    // Create a copy of the Payload slice to avoid shared references
+    payloadCopy := make([]byte, len(msg.Payload))
+    copy(payloadCopy, msg.Payload)
+    msg.Payload = payloadCopy
+
+    BatteryArray[addr] = msg
 }
