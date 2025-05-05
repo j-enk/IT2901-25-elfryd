@@ -583,7 +583,7 @@ int sensors_generate_all_battery_readings(void)
             
             /* Create a new sample reading */
             battery_readings[battery_count].battery_id = battery_id;
-            battery_readings[battery_count].voltage = 12000 + (sys_rand32_get() % 3001);
+            battery_readings[battery_count].voltage = 12000 + (sys_rand32_get() % 1501);
             battery_readings[battery_count].timestamp = utils_get_timestamp();
             battery_count++;
             valid_readings++;
