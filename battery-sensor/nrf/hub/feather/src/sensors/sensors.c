@@ -131,7 +131,7 @@ int sensors_generate_battery_reading(int battery_id)
     {
         /* Generate sample battery data - only in non-I2C mode */
         reading.battery_id = battery_id;
-        reading.voltage = 12000 + (sys_rand32_get() % 3001);
+        reading.voltage = 12000 + (sys_rand32_get() % 1501);
         reading.timestamp = utils_get_timestamp();
         
         k_mutex_lock(&sensor_mutex, K_FOREVER);
