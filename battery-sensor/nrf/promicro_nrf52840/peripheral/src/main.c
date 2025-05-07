@@ -21,6 +21,10 @@
 #include <math.h>
 #include <zephyr/kernel.h>
 
+#if CONFIG_BATTERY_ID < 1 || CONFIG_BATTERY_ID > 8
+    #error You must set CONFIG_BATTERY_ID to a value between 1 and 8 inclusive
+#endif
+
 // i made this up
 #define BT_UUID_MPU BT_UUID_DECLARE_16(0x2f01)
 
@@ -48,8 +52,6 @@ static const uint8_t custom_uuid[] = {
     0x00, 0x80,
     0x5F, 0x9B, 0x34, 0xFB,
 };
-
-#define BAUT_SENSOR_ID 1
 
 static const struct bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -383,7 +385,7 @@ static ssize_t mpu_read_function(struct bt_conn *conn, const struct bt_gatt_attr
 static ssize_t id_read_function(struct bt_conn *conn, const struct bt_gatt_attr *attr, void *buf,
                      uint16_t len, uint16_t offset)
 {
-    uint8_t sensor_id = BAUT_SENSOR_ID;
+    uint8_t sensor_id = CONFIG_BATTERY_ID;
 
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &sensor_id, sizeof(sensor_id));
 }

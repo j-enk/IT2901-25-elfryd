@@ -1,0 +1,5 @@
+config BATTERY_ID
+	int "The id of the battery"
+	default 0
+
+source "Kconfig.zephyr"

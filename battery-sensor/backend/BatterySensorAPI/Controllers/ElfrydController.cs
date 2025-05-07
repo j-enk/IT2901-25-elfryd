@@ -438,17 +438,21 @@ namespace BatterySensorAPI.Controllers
         /// This endpoint calculates the average state of charge (SoC) across all batteries
         /// in the Elfryd system, returning a single percentage value.
         /// 
+        /// ## Parameters
+        /// - **minVoltage**: Minimum voltage value in millivolts representing 0% charge (default: 12000mV)
+        /// - **maxVoltage**: Maximum voltage value in millivolts representing 100% charge (default: 15000mV)
+        /// 
         /// ## Response
         /// Returns a single integer representing the system-wide average state of charge (0-100%).
-        /// The SoC is estimated from battery voltage levels:
-        /// - 12000mV = 0% (fully discharged)
-        /// - 15000mV = 100% (fully charged)
+        /// The SoC is estimated from battery voltage levels using the specified min/max voltage thresholds.
         /// 
         /// ## Authentication
         /// Requires API key in the X-API-Key header for the underlying battery data fetch
         /// </remarks>
         [HttpGet("battery/system/soc", Order = 1)]
-        public async Task<IActionResult> GetSystemSocVoltage()
+        public async Task<IActionResult> GetSystemSocVoltage(
+            [FromQuery] double minVoltage = 12000.0,
+            [FromQuery] double maxVoltage = 15000.0)
         {
             var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync();
 
@@ -456,7 +460,7 @@ namespace BatterySensorAPI.Controllers
                 return StatusCode(500, "No battery readings available");
 
             var socValues = latestReadings
-                .Select(r => VoltageToSoC(r.millivoltage))
+                .Select(r => VoltageToSoC(r.millivoltage, minVoltage, maxVoltage))
                 .ToList();
 
             var systemSoc = socValues.Average();
@@ -472,41 +476,40 @@ namespace BatterySensorAPI.Controllers
         /// 
         /// ## Parameters
         /// - **battery_id**: Filter by specific battery identifier (0 = all batteries)
+        /// - **minVoltage**: Minimum voltage value in millivolts representing 0% charge (default: 12000mV)
+        /// - **maxVoltage**: Maximum voltage value in millivolts representing 100% charge (default: 15000mV)
         /// 
         /// ## Response
         /// Returns an array of battery SoC values, each containing:
         /// - **battery_id**: Identifier of the battery
         /// - **Soc**: State of charge as a percentage (0-100%)
         /// 
-        /// The SoC is estimated from battery voltage levels:
-        /// - 12000mV = 0% (fully discharged)
-        /// - 15000mV = 100% (fully charged)
+        /// The SoC is estimated from battery voltage levels using the specified min/max voltage thresholds.
         /// 
         /// ## Authentication
         /// Requires API key in the X-API-Key header for the underlying battery data fetch
         /// </remarks>
         [HttpGet("battery/individual/soc", Order = 1)]
-        public async Task<IActionResult> GetIndividualSocVoltage(int battery_id = 0)
+        public async Task<IActionResult> GetIndividualSocVoltage(
+            [FromQuery] int battery_id = 0,
+            [FromQuery] double minVoltage = 12000.0,
+            [FromQuery] double maxVoltage = 15000.0)
         {
-
             var latestReadings = await _elfrydClient.GetLatestPerBatteryAsync(battery_id);
 
             if (!latestReadings.Any())
                 return StatusCode(500, "No battery readings available");
 
             var socValues = latestReadings
-                .Select(r => new { r.battery_id, Soc = VoltageToSoC(r.millivoltage) })
+                .Select(r => new { r.battery_id, Soc = VoltageToSoC(r.millivoltage, minVoltage, maxVoltage) })
                 .ToList();
 
             return Ok(socValues);
         }
 
 
-        private double VoltageToSoC(double millivolts)
+        private double VoltageToSoC(double millivolts, double minVoltage, double maxVoltage)
         {
-            const double minVoltage = 12000.0; // Fully discharged
-            const double maxVoltage = 15000.0; //Fully charged
-
             // Clamp voltage within range
             double clampedVoltage = Math.Clamp(millivolts, minVoltage, maxVoltage);
 
