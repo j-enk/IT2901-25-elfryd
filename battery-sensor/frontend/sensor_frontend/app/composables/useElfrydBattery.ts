@@ -20,7 +20,7 @@ export const useElfrydBattery = () => {
       if (batteryId < 0 || batteryId > 8) {
         throw new Error("batteryId must be between 0 and 8.");
       }
-      if (hours < 1 || hours > 1_000_000) {
+      if (hours < 0 || hours > 1_000_000) {
         throw new Error("hours must be between 1 and 1,000,000.");
       }
       if (limit < 0 || limit > 1_000_000) {

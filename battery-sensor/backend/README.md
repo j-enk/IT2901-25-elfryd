@@ -136,6 +136,10 @@ GET /api/elfryd/battery/system/soc
 
 Calculates and returns the average state-of-charge across all batteries in the system.
 
+**Parameters:**
+- `minVoltage` (optional, default: 12000): Minimum voltage value in millivolts representing 0% charge
+- `maxVoltage` (optional, default: 15000): Maximum voltage value in millivolts representing 100% charge
+
 **Response Example:**
 ```json
 75
@@ -148,7 +152,9 @@ GET /api/elfryd/battery/individual/soc
 ```
 
 **Parameters:**
-- `battery_id` (optional): Filter by specific battery ID
+- `battery_id` (optional, default: 0): Filter by specific battery ID
+- `minVoltage` (optional, default: 12000): Minimum voltage value in millivolts representing 0% charge
+- `maxVoltage` (optional, default: 15000): Maximum voltage value in millivolts representing 100% charge
 
 **Response Example:**
 ```json

@@ -20,28 +20,17 @@ func InitGATT(sensorTypeMain string) error {
 		return nil
 	}
 	sensorType = sensorTypeMain
-	buf := make([]byte, 1)
 	fmt.Println("[InitGATT] Initializing GATT profiles...")
 	for addr, dev := range conns {
 		fmt.Printf("[InitGATT] Discovering services for device: %s\n", addr.String())
-		err := findSrvcChars(dev)
-		m, err := dev.Services["ID"].Chars[idUUID].Read(buf[:1])
-		if err != nil {
-			fmt.Printf("[RunGATTClient] Error reading from device %s: %v\n", addr.String(), err)
-			dev.Active = false
-			return nil
-		}
-		if m != 1 {
-			fmt.Printf("[RunGATTClient] Warning: expected 1 byte, got %d bytes\n", m)
-		}
-		addrIDArray[addr] = int8(buf[0])
+		findSrvcChars(dev)		
 	}
 	devices_connected = len(conns)
 	fmt.Printf("[InitGATT] Devices connected: %d\n", devices_connected)
 	// Future work; add validation so IDs only corresponds to one address
-	for key, value := range addrIDArray{
-	fmt.Printf("[InitGATT] Addr and IDs: %s %d\n",key.String(), value)
-	}
+	// for key, value := range addrIDArray{
+	// fmt.Printf("[InitGATT] Addr and IDs: %s %d\n",key.String(), value)
+	// }
 	return nil
 }
 
@@ -78,7 +67,8 @@ func RunGATTClient() error {
 		for addr, dev := range conns {
 		if dev.Active {
 			fmt.Printf("[RunGATTClient] Reading characteristic from device %s...\n", addr.String())
-			id := int8(addrIDArray[addr])
+			
+			id := IDFor(addr)
 			n, err := dev.Services[sensorType].Chars[readUUID].Read(buf[:bytes])
 			if err != nil {
 				fmt.Printf("[RunGATTClient] Error reading from device %s: %v\n", addr.String(), err)
@@ -141,7 +131,7 @@ func findSrvcChars(profile *GATTProfile) error {
 	var gattUUID bluetooth.UUID
 	switch sensorType{
 	case "Battery":
-		gattUUID = bluetooth.NewUUID(voltageUUID)
+		gattUUID = bluetooth.NewUUID(batteryfind(profile.Address))
 	
 	case "Temperature":
 		gattUUID = bluetooth.NewUUID(tempUUID)
@@ -182,10 +172,41 @@ func findSrvcChars(profile *GATTProfile) error {
 	for _, char := range chars {
 		fmt.Printf("[findSrvcChars] Found characteristic: %s\n", char.UUID().String())
 		profile.Services[sensorType].Chars[char.UUID()] = char
-		mtu, _ := char.GetMTU()
-
-		fmt.Println("AAAAAAAAAAAAAAA%d", mtu)
 	}
 
 	return nil
+}
+
+func batteryfind(addr bluetooth.Address) [16]byte {
+	switch addr.String() {
+    case "D9:A8:EC:EA:72:6B":
+        return enUUID
+    case "EC:0A:B5:04:71:7B":
+        return toUUID
+    case "E9:46:77:D0:E3:05":
+        return trerUUID
+    case "CA:6A:4C:BD:7C:36":
+        return fireUUID
+    default:
+		fmt.Println("fant ikke ajdpiajwdijawipdjaipwd")
+		return [16]byte{}
+    }
+}
+
+
+
+func IDFor(addr bluetooth.Address) int8 {
+    switch addr.String() {
+    case "D9:A8:EC:EA:72:6B":
+        return 3
+    case "EC:0A:B5:04:71:7B":
+        return 2
+    case "E9:46:77:D0:E3:05":
+        return 4
+    case "CA:6A:4C:BD:7C:36":
+        return 1
+    default:
+		fmt.Println("fant ikke ajdpiajwdijawipdjaipwd")
+        return 0
+    }
 }

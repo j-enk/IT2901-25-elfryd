@@ -14,15 +14,32 @@ const timeOffset = ref(0);
 const handleFetchBattery = async (e: Event) => {
   e.preventDefault();
 
+  const parsedBatteryId = Number(batteryId.value);
+  const parsedLimit = Number(limit.value);
+  const parsedHours = Number(hours.value);
+  const parsedTimeOffset = Number(timeOffset.value);
+
+  if (
+    isNaN(parsedBatteryId) ||
+    isNaN(parsedLimit) ||
+    isNaN(parsedHours) ||
+    isNaN(parsedTimeOffset)
+  ) {
+    console.error(
+      "Validation error: limit, hours, and timeOffset must be numbers."
+    );
+    return;
+  }
+
   try {
     await fetchBattery({
-      batteryId: batteryId.value,
-      limit: limit.value,
-      hours: hours.value,
-      timeOffset: timeOffset.value,
+      batteryId: parsedBatteryId,
+      limit: parsedLimit,
+      hours: parsedHours,
+      timeOffset: parsedTimeOffset,
     });
   } catch (err) {
-    console.error("Error fetching battery data:", err);
+    console.error("Error fetching temperature data:", err);
   }
 };
 
@@ -60,10 +77,8 @@ onMounted(() => {
               <input
                 id="batteryId"
                 :value="batteryId"
-                type="number"
+                type="text"
                 class="w-full rounded-md input input-md input-success"
-                min="0"
-                max="8"
                 title="Must be between 0 and 8"
                 @input="
                   batteryId = Number(($event.target as HTMLInputElement).value)
@@ -80,11 +95,9 @@ onMounted(() => {
               <input
                 id="limit"
                 :value="limit"
-                type="number"
+                type="text"
                 class="w-full rounded-md input input-md input-success"
                 aria-describedby="limitHelp"
-                min="0"
-                max="1000000"
                 @input="
                   limit = Number(($event.target as HTMLInputElement).value)
                 "
@@ -100,10 +113,8 @@ onMounted(() => {
               <input
                 id="hours"
                 :value="hours"
-                type="number"
+                type="text"
                 class="w-full rounded-md input input-md input-success"
-                min="1"
-                max="1000000"
                 @input="
                   hours = Number(($event.target as HTMLInputElement).value)
                 "
@@ -116,10 +127,8 @@ onMounted(() => {
               <input
                 id="timeOffset"
                 :value="timeOffset"
-                type="number"
+                type="text"
                 class="w-full rounded-md input input-md input-success"
-                min="0"
-                max="1000000"
                 @input="
                   timeOffset = Number(($event.target as HTMLInputElement).value)
                 "

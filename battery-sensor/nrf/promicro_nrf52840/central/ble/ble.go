@@ -64,6 +64,7 @@ func ScanStart(sensorType string) error{
 		conns[addr] = &GATTProfile{
 			Device: 	dev,
 			Active: 	true,	
+			Address:  addr,
 			// ID:			0,
 			Services: 	make(map[string]*ServiceClient),
 		}
