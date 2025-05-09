@@ -1,12 +1,3 @@
-## TODO:
-Ting i peripheral read todo:
-*Legge til nytt bilde av wiring
-*Legge til bilde av error dialog når man flasher til nicenano
-*Fjerne CONFIG_BT_SMP hvis den er default n
-*Burde endre så lyset blinker 1 gang hvert X sekund istenedfor å ha det på konstant; da må endres i common issues
-*Er based on nødvendig?
-
-
 # Elfryd BLE Peripheral
 
 A Zephyr-based peripheral for the Promicro nRF52840 board that monitors battery voltage, temperature, and motion data and advertises it over Bluetooth Low Energy (BLE).
@@ -43,7 +34,6 @@ The voltage is measured through a voltage divider to bring higher voltages into 
 1. Connect your voltage source to a voltage divider
 2. Connect the output of the voltage divider to pin P0.02 (AIN0)
 3. Make sure the divided voltage doesn't exceed 3.3V
-## Nytt bilde trengs
 ![Voltage Wiring](wiring.png)
 
 #### I2C Sensors
@@ -90,7 +80,7 @@ west flash
 #### Method 2: Manual UF2 Flashing
 
 1. Put the Promicro board into bootloader mode by double-pressing the reset button (Two pulses from ground to RST)
-2. A drive named "PROBOOT" or "NICENANO" should appear
+2. A drive named "NICENANO" should appear
 3. Copy the file `build/zephyr/zephyr.uf2` to this drive
 4. The board will automatically reset and run the new firmware after the error dialog shows (bilde?)
 
@@ -130,16 +120,16 @@ To enable or disable specific sensors, modify the following definitions in `src/
 
 The peripheral exposes the following GATT services:
 
-### Sensor ID Service (UUID: 0x2c05)
+### Sensor ID Service (UUID: 0x2C05)
 - **ID Characteristic**: Provides a unique ID for the sensor node
 
 ### Voltage Service (UUID: 0x2B18)
 - **Voltage Characteristic**: Provides the current voltage reading in millivolts (calibrated for voltage divider)
 
-### Temperature Service (Standard UUID)
+### Temperature Service (UUID: 0x2A6E)
 - **Temperature Characteristic**: Provides the current temperature in Celsius
 
-### MPU6050 Service (UUID: 0x2f01)
+### MPU6050 Service (UUID: 0x2F01)
 - **MPU Characteristic**: Provides accelerometer and gyroscope readings as packed 24-bit signed integers
 
 ## Troubleshooting
@@ -154,7 +144,3 @@ The peripheral exposes the following GATT services:
 ### Debugging
 
 The firmware includes extensive debug prints via the serial console. Connect to the board's serial port (typically at 115200 baud) to view diagnostic messages.
-
-## Based On
-
-This project is based on the Zephyr `samples/bluetooth/peripheral_hr` sample.
