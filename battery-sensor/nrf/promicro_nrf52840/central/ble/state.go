@@ -50,53 +50,15 @@ var(
 						0x00, 0x80,
 						0x5F, 0x9B, 0x34, 0xFB,
 					}
-					enUUID =		[16]byte{
-						0x00, 0x00, 0x2F, 0x01,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
-					toUUID =		[16]byte{
-						0x00, 0x00, 0x2F, 0x01,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
-					trerUUID =		[16]byte{
-						0x00, 0x00, 0x2F, 0x01,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
-					fireUUID =		[16]byte{
-						0x00, 0x00, 0x2F, 0x01,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
 
 	ScanStop =		false
 	BatteryArray = 	make(map[bluetooth.Address]BatteryMessage)
-	//D9:A8:EC:EA:72:6B id = 	3
-	//EC:0A:B5:04:71:7B id =	2
-	//E9:46:77:D0:E3:05 id =	4
-	//CA:6A:4C:BD:7C:36 id =	1
-	// addrIDArray = 	make(map[bluetooth.Address]int8)
-
+	addrIDArray = 	make(map[bluetooth.Address]int8)
 )
 
 type GATTProfile struct{
 	Device			bluetooth.Device
 	Active			bool
-	Address 		bluetooth.Address
 	// ID				int8
 	Services		map[string]*ServiceClient
 }
@@ -127,8 +89,13 @@ func GetBatteryArray() map[bluetooth.Address]BatteryMessage{
 
 // SetBatteryEntry safely sets or updates a BatteryMessage for a device
 func SetBatteryEntry(addr bluetooth.Address, msg BatteryMessage) {
-	mu.Lock()
-	defer mu.Unlock()
+    mu.Lock()
+    defer mu.Unlock()
 
-	BatteryArray[addr] = msg
+    // Create a copy of the Payload slice to avoid shared references
+    payloadCopy := make([]byte, len(msg.Payload))
+    copy(payloadCopy, msg.Payload)
+    msg.Payload = payloadCopy
+
+    BatteryArray[addr] = msg
 }

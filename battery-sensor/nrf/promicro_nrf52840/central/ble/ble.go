@@ -1,8 +1,8 @@
+// Package ble provides BLE scanning and connection functionality using TinyGo.
 package ble
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 
 	"tinygo.org/x/bluetooth"
@@ -12,12 +12,24 @@ func InitBLE() error{
 	return Adapter.Enable()
 }
 
-func ScanStart(sensorType string) error{
-
+// ScanStart scans for BLE peripherals advertising the specified sensorType and
+// establishes connections to them. It filters advertisements based on the sensor's
+// service UUID, collects unique devices for up to 5 seconds, and then attempts
+// to connect to each discovered device, storing active connections in the global map.
+//
+// Parameters:
+//   sensorType - one of "Battery", "Temperature", or "Gyro" to select the filter UUID.
+//
+// Returns:
+//   error if scanning failed; otherwise nil.
+func ScanStart(sensorType string) error {
 	scanStartTime := time.Now()
 
+	// Channel for discovered devices, buffered to limit concurrent connections
 	foundDevices := make(chan bluetooth.ScanResult, 8)
 	uniqueAddress := make(map[bluetooth.Address]bool)
+
+	// Select the service UUID filter based on the sensor type
 	var uuidFilter [16]byte
 	switch sensorType {
 	case "Battery":
@@ -26,49 +38,58 @@ func ScanStart(sensorType string) error{
 		uuidFilter = tempUUID
 	case "Gyro":
 		uuidFilter = gyroUUID
+	default:
+		// Unknown sensor type: no filter applied
 	}
-	err := Adapter.Scan(func(a *bluetooth.Adapter, device_found bluetooth.ScanResult){
-		//Får ikke skanne etter at den har connected?
+
+	// Start scanning and collect unique devices advertising the selected UUID
+	err := Adapter.Scan(func(a *bluetooth.Adapter, deviceFound bluetooth.ScanResult) {
+		// Stop scanning after a 5-second window
 		if time.Since(scanStartTime) > 5*time.Second {
 			Adapter.StopScan()
 			return
 		}
-		payload:= device_found.AdvertisementPayload.Bytes()
-		if bytes.Equal(payload[5:21], uuidFilter[:]){
-			if !uniqueAddress[device_found.Address]{
+
+		payload := deviceFound.AdvertisementPayload.Bytes()
+		if len(payload) >= 21 && bytes.Equal(payload[5:21], uuidFilter[:]) {
+			addr := deviceFound.Address
+			if !uniqueAddress[addr] {
 				select {
-				case foundDevices <- device_found:
+				case foundDevices <- deviceFound:
 				default:
-					fmt.Println("Channel full, no more connections allowed")
+					// Buffer full: drop extra devices
 				}
-				uniqueAddress[device_found.Address] = true
+				uniqueAddress[addr] = true
 			}
 		}
-		//nothing
 	})
-	if err != nil{
+	if err != nil {
 		return err
 	}
+
+	// Close channel to signal no more devices
 	close(foundDevices)
 
-	for device:=range foundDevices{
-		addr:=device.Address
-		if _, exists := conns[addr]; exists{
-			continue
+	// Attempt connections for each discovered device
+	for device := range foundDevices {
+		addr := device.Address
+		if _, exists := conns[addr]; exists {
+			continue // skip if already connected
 		}
+
 		dev, err := Adapter.Connect(addr, bluetooth.ConnectionParams{})
-		if err != nil{
-			fmt.Printf("[ERROR] Connect failed for %s: %v\n", addr.String(), err)
+		if err != nil {
+			// Skip devices that fail to connect
 			continue
 		}
+
+		// Store connected device profile
 		conns[addr] = &GATTProfile{
-			Device: 	dev,
-			Active: 	true,	
-			Address:  addr,
-			// ID:			0,
-			Services: 	make(map[string]*ServiceClient),
+			Device:   dev,
+			Active:   true,
+			Services: make(map[string]*ServiceClient),
 		}
 	}
-	fmt.Printf("Devices connected: %d\n", len(conns))
+
 	return nil
 }
