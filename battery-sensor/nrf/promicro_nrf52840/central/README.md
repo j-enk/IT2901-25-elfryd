@@ -1,7 +1,3 @@
-## TODO:
-- i2c register 0 gjør ingenting nå, burde sjekke at man før en og hvis ikke så reject read. Siden hubben sender 1 til register 0 før den reader
-- update testing tool til å være zephyr i2c shell eller lage oppdatere test_i2c_controller 
-
 # Elfryd BLE Central
 
 A TinyGo-based BLE central for the Promicro nRF52840 board that scans for, connects to, and receives data from sensor peripherals, then makes this data available to the nRF9160 Hub via I2C.
@@ -58,7 +54,7 @@ The central firmware needs to be built with a specific sensor type:
 
 ```bash
 # Build for battery sensors
-tinygo build -o central_battery.uf2 -target=promicro-nrf52840 -ldflags="-X 'main.sensorType=Battery'" ./main
+tinygo build -o central_battery.uf2 -target=promicro-nrf52840 -ldflags="-X main.sensorType=Battery" ./main
 ```
 
 Replace `Battery` with `Temperature` or `Gyro` to build firmware for other sensor types.
@@ -69,10 +65,10 @@ Put the board into bootloader mode by double-pressing the reset button, then cop
 
 ```bash
 # Flash directly with TinyGo
-tinygo flash -target=promicro-nrf52840 -ldflags="-X 'main.sensorType=Battery'" ./main
+tinygo flash -target=promicro-nrf52840 -ldflags="-X main.sensorType=Battery" ./main
 
 # Or manually copy after building
-cp central_battery.uf2 /path/to/mounted/PROBOOT/drive
+cp central_battery.uf2 /path/to/mounted/NICENANO/
 ```
 
 ## Configuration Options
@@ -107,7 +103,7 @@ The central operates as an I2C target device with the following register map:
 
 | Register | Description | Access | Format |
 |----------|-------------|--------|--------|
-| 0x00 | Protocol Version | Read | 1 byte (currently 0x01) |
+| 0x00 | Read register| Write | 1 byte |
 | 0x01 | Sensor Data | Read | Variable length data block (sensor-specific format) |
 
 ### Data Format
@@ -122,14 +118,7 @@ Data from multiple sensors is concatenated in the response.
 
 ## Testing Tools
 
-To test the I2C interface without the nRF9160 Hub, you can use the test controller program:
-
-```bash
-cd test_i2c_controller
-tinygo flash -target=promicro-nrf52840 ./main.go
-```
-
-This program acts as an I2C controller and regularly polls the central for sensor data.
+To test the I2C interface without the nRF9160 Hub, you can use the [I2C shell program](../i2c_shell/README.md)
 
 ## Troubleshooting
 
