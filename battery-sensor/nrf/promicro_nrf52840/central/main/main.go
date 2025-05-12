@@ -20,7 +20,6 @@ func main() {
 	must("Scanning", ble.ScanStart(sensorType))
 	fmt.Println("Finished scanning")
 	must("Init Gatt client", ble.InitGATT(sensorType))
-	//i2c go rutine must go first i think🤷‍♂️
 	var address uint8
 	switch sensorType {
 	case "Battery":
