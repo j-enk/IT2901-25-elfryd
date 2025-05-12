@@ -4,7 +4,6 @@ package ble
 import (
 	"bytes"
 	"time"
-
 	"tinygo.org/x/bluetooth"
 )
 
@@ -29,19 +28,6 @@ func ScanStart(sensorType string) error {
 	foundDevices := make(chan bluetooth.ScanResult, 8)
 	uniqueAddress := make(map[bluetooth.Address]bool)
 
-	// Select the service UUID filter based on the sensor type
-	var uuidFilter [16]byte
-	switch sensorType {
-	case "Battery":
-		uuidFilter = voltageUUID
-	case "Temperature":
-		uuidFilter = tempUUID
-	case "Gyro":
-		uuidFilter = gyroUUID
-	default:
-		// Unknown sensor type: no filter applied
-	}
-
 	// Start scanning and collect unique devices advertising the selected UUID
 	err := Adapter.Scan(func(a *bluetooth.Adapter, deviceFound bluetooth.ScanResult) {
 		// Stop scanning after a 5-second window
@@ -51,7 +37,7 @@ func ScanStart(sensorType string) error {
 		}
 
 		payload := deviceFound.AdvertisementPayload.Bytes()
-		if len(payload) >= 21 && bytes.Equal(payload[5:21], uuidFilter[:]) {
+		if len(payload) >= 21 && bytes.Equal(payload[5:21], SensorUUID[:]) {
 			addr := deviceFound.Address
 			if !uniqueAddress[addr] {
 				select {

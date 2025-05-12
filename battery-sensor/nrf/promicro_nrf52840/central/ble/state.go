@@ -1,15 +1,15 @@
 package ble
 
 import (
-	"tinygo.org/x/bluetooth"
+	"errors"
 	"sync"
+	"tinygo.org/x/bluetooth"
 )
 
 var(
 	Adapter 	= bluetooth.DefaultAdapter
 	conns		= make(map[bluetooth.Address]*GATTProfile)
 	mu = sync.Mutex{}
-
 	idUUID = 		bluetooth.NewUUID([16]byte{
 						0x00, 0x00, 0x2C, 0x05,
 						0x00, 0x00,
@@ -18,40 +18,9 @@ var(
 						0x00, 0x80,
 						0x5F, 0x9B, 0x34, 0xFB,
 					})
-	filterUUID= 	[16]byte{
-		0x00, 0x00, 0x2B, 0x18,
-		0x00, 0x00,
-		0x10, 0x00,
-		0x80, 0x00,
-		0x00, 0x80,
-		0x5F, 0x9B, 0x34, 0xFB,
-	}
-	voltageUUID	=	[16]byte{
-						0x00, 0x00, 0x2B, 0x18,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
-	tempUUID = 		[16]byte{
-						0x00, 0x00, 0x2A, 0x6E,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
-	gyroUUID =		[16]byte{
-						0x00, 0x00, 0x2F, 0x01,
-						0x00, 0x00,
-						0x10, 0x00,
-						0x80, 0x00,
-						0x00, 0x80,
-						0x5F, 0x9B, 0x34, 0xFB,
-					}
-
-	ScanStop =		false
+	SensorUUID [16]byte
+	GattReadSize int
+	I2CReplyLen int
 	BatteryArray = 	make(map[bluetooth.Address]BatteryMessage)
 	addrIDArray = 	make(map[bluetooth.Address]int8)
 )
@@ -59,7 +28,7 @@ var(
 type GATTProfile struct{
 	Device			bluetooth.Device
 	Active			bool
-	// ID				int8
+	// ID				int8 //flyttet til addrIDArray
 	Services		map[string]*ServiceClient
 }
 
@@ -72,6 +41,47 @@ type BatteryMessage struct{
 	New			int8	//Flag for if data has been updated since last read (0: old, 1: new)
 	ID			int8
 	Payload 	[]byte
+}
+
+func InitState(sensorType string) error{
+	switch sensorType {
+	case "Battery":
+		SensorUUID = [16]byte{
+			0x00, 0x00, 0x2B, 0x18,
+			0x00, 0x00,
+			0x10, 0x00,
+			0x80, 0x00,
+			0x00, 0x80,
+			0x5F, 0x9B, 0x34, 0xFB,
+		}
+		GattReadSize = 2
+		I2CReplyLen = 4
+	case "Temperature":
+		SensorUUID = [16]byte{
+			0x00, 0x00, 0x2A, 0x6E,
+			0x00, 0x00,
+			0x10, 0x00,
+			0x80, 0x00,
+			0x00, 0x80,
+			0x5F, 0x9B, 0x34, 0xFB,
+		}
+		GattReadSize = 2
+		I2CReplyLen = 4 //Ikke implemetert id i backend
+	case "Gyro":
+		SensorUUID = [16]byte{
+			0x00, 0x00, 0x2F, 0x01,
+			0x00, 0x00,
+			0x10, 0x00,
+			0x80, 0x00,
+			0x00, 0x80,
+			0x5F, 0x9B, 0x34, 0xFB,
+		}
+		GattReadSize = 18
+		I2CReplyLen = 20 //Ikke implemetert id i backend
+	default:
+		return errors.New("invalid sensor type")
+	}
+	return nil
 }
 
 // GetBatteryArray safely returns a copy of BatteryArray

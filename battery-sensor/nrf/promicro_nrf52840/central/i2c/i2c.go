@@ -97,24 +97,10 @@ func handleRequest() {
 		batteryData := ble.GetBatteryArray()
 		reply := make([]byte, 0, len(batteryData)*8)
 		for _, msg := range batteryData {
-			var entryLen int
-			var id int = 0
-			switch sensorType {
-			case "Gyro":
-				entryLen = 1 + len(msg.Payload)
-			case "Temperature":
-				entryLen = 1 + len(msg.Payload)
-			default:
-				entryLen = 1 + 1 + len(msg.Payload)
-				id = 1
-			}
-
-			entry := make([]byte, entryLen)
+			entry := make([]byte, ble.I2CReplyLen)
 			entry[0] = byte(msg.New)
-			if id == 1 {
-				entry[1] = byte(msg.ID)
-			}
-			copy(entry[1+id:], msg.Payload)
+			entry[1] = byte(msg.ID)
+			copy(entry[2:], msg.Payload)
 			reply = append(reply, entry...)
 		}
 
