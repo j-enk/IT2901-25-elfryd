@@ -1,3 +1,4 @@
+#if defined(CONFIG_USE_ADC)
 / {
     zephyr,user {
         io-channels = <&adc 0>;
@@ -20,6 +21,7 @@
         zephyr,resolution = <12>;
     };
 };
+#elif defined(CONFIG_USE_BME280)
 &i2c0 {
     bme280@76 {
         compatible = "bosch,bme280";
@@ -27,11 +29,13 @@
         status = "okay";
     };
 };
-&i2c1 {
-	mpu6050@68 {
-		compatible = "invensense,mpu6050";
-		reg = <0x68>;
-		status = "okay";
-		int-gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
-	};
+#elif defined(CONFIG_USE_MPU6050)
+&i2c0 {
+    mpu6050@68 {
+        compatible = "invensense,mpu6050";
+        reg = <0x68>;
+        status = "okay";
+        int-gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+    };
 };
+#endif

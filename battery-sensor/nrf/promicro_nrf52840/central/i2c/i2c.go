@@ -22,7 +22,7 @@ func InitI2C(sensorTypeMain string) error {
 	cfg := machine.I2CConfig{
 		Frequency: machine.KHz * 100,
 		SDA:       machine.SDA_PIN,
-		SCL:       machine.SCL_PIN,
+		SCL:       machine.SCL_PIN, 
 		Mode:      machine.I2CModeTarget,
 	}
 	sensorType = sensorTypeMain
