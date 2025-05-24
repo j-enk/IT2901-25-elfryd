@@ -13,7 +13,6 @@ func main() {
 	time.Sleep(3 * time.Second)
 	fmt.Printf("string: %s\n",sensorType)
 
-	//init
 	must("Init State", ble.InitState(sensorType))
 	must("Init BLE", ble.InitBLE())
 	must("Init I2C", i2c_target.InitI2C(sensorType))
