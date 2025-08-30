@@ -2,4 +2,25 @@ config BATTERY_ID
 	int "The id of the battery"
 	default 0
 
-source "Kconfig.zephyr"
+choice 
+	prompt "Sensor to use"
+
+config USE_ADC
+	bool "Use ADC for battery measurement"
+	default n
+	help
+	  Enable this option to use the ADC for measuring battery voltage.
+
+config USE_BME280
+    bool "Use BME280 Sensor"
+	default n
+    help
+      Select this to use the BME280 sensor.
+
+config USE_MPU6050
+    bool "Use MPU6050 Sensor"
+	default n
+    help
+      Select this to use the MPU6050 sensor.
+
+endchoice
